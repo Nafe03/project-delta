@@ -28,7 +28,7 @@ local osdate = os.date
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Roblox-Functions-Library/main/Library.lua"))()
 
 local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nafe03/project-delta/main/UILibrary.lua"))()
-local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Exunys-ESP/main/src/ESP.lua"))()
+local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nafe03/project-delta/main/Modules/Wall%20Hack.lua"))()
 local Aimbot = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nafe03/project-delta/main/Modules/Aimbot.lua"))()
 
 --// Variables
