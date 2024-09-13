@@ -1,58 +1,68 @@
--- ESP Script
+-- esp.lua (Place this on GitHub)
+
+local esp_settings = {
+    textsize = 8,
+    colour = {255, 255, 255}
+}
+
+local espObjects = {} -- Track created ESP objects
+
+local function createESP(player)
+    if not player.Character or not player.Character:FindFirstChild("Head") then return end
+
+    local gui = Instance.new("BillboardGui")
+    local esp = Instance.new("TextLabel", gui)
+
+    gui.Name = "CrackedESP"
+    gui.ResetOnSpawn = false
+    gui.AlwaysOnTop = true
+    gui.LightInfluence = 0
+    gui.Size = UDim2.new(1.75, 0, 1.75, 0)
+
+    esp.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    esp.Text = "{" .. player.Name .. "}"
+    esp.Size = UDim2.new(0.0001, 0.00001, 0.0001, 0.00001)
+    esp.BorderSizePixel = 0
+    esp.Font = Enum.Font.GothamSemibold
+    esp.TextSize = esp_settings.textsize
+    esp.TextColor3 = Color3.fromRGB(esp_settings.colour[1], esp_settings.colour[2], esp_settings.colour[3])
+
+    gui.Parent = player.Character.Head
+    espObjects[player.UserId] = gui
+end
+
+local function removeESP(player)
+    if espObjects[player.UserId] then
+        espObjects[player.UserId]:Destroy()
+        espObjects[player.UserId] = nil
+    end
+end
+
+local function updateESP()
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer then
+            if not player.Character.Head:FindFirstChild("CrackedESP") then
+                createESP(player)
+            end
+        end
+    end
+end
+
 local espEnabled = false
 
-local function createESPBox(player)
-    if player == game.Players.LocalPlayer then return end  -- Ignore local player
-
-    local highlight = Instance.new("BoxHandleAdornment")
-    highlight.Name = "ESPBox"
-    highlight.Size = player.Character and player.Character:WaitForChild("HumanoidRootPart").Size + Vector3.new(1, 2, 1)
-    highlight.Adornee = player.Character and player.Character:WaitForChild("HumanoidRootPart")
-    highlight.AlwaysOnTop = true
-    highlight.ZIndex = 5
-    highlight.Color3 = Color3.fromRGB(255, 0, 0) -- Red color for ESP
-    highlight.Transparency = 0.7
-    highlight.Parent = game.Workspace
-
-    -- Remove ESP when player leaves
-    player.CharacterRemoving:Connect(function()
-        if highlight then
-            highlight:Destroy()
-        end
-    end)
-end
-
-local function enableESP()
-    espEnabled = true
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Character then
-            createESPBox(player)
-        end
-    end
-
-    game.Players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function()
-            if espEnabled then
-                createESPBox(player)
-            end
-        end)
-    end)
-end
-
-local function disableESP()
-    espEnabled = false
-    for _, v in pairs(game.Workspace:GetChildren()) do
-        if v:IsA("BoxHandleAdornment") and v.Name == "ESPBox" then
-            v:Destroy()
-        end
-    end
-end
-
--- Toggle ESP with this function
-function toggleESP(state)
-    if state then
-        enableESP()
+local function toggleESP(state)
+    espEnabled = state
+    if espEnabled then
+        updateESP()
+        game:GetService("RunService").RenderStepped:Connect(updateESP)
     else
-        disableESP()
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            removeESP(player)
+        end
+        game:GetService("RunService").RenderStepped:Disconnect(updateESP)
     end
 end
+
+return {
+    toggleESP = toggleESP
+}
