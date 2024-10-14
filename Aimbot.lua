@@ -2,14 +2,13 @@ local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 _G.AimbotEnabled = false
-_G.TeamCheck = false -- If set to true, only lock aim on enemy team members.
-_G.AimPart = "Head" -- Default aim part
-_G.Sensitivity = 0.2 -- How quickly the aimbot locks onto the target
+_G.TeamCheck = false -- Only lock aim at enemy team members if true
+_G.AimPart = "Head" -- Default aim part to lock on
+_G.Sensitivity = 0.2 -- Sensitivity for the aimbot
 
 _G.CircleSides = 64 -- Number of sides for the FOV circle
 _G.CircleColor = Color3.fromRGB(255, 255, 255) -- Color of the FOV circle
@@ -33,20 +32,19 @@ local function GetClosestPlayer()
     local MaximumDistance = _G.CircleRadius
     local Target = nil
 
-    for _, v in next, Players:GetPlayers() do
-        if v.Name ~= LocalPlayer.Name then
-            if _G.TeamCheck and v.Team == LocalPlayer.Team then
-                continue
-            end
-
-            if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                local humanoid = v.Character:FindFirstChild("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    local ScreenPoint = Camera:WorldToScreenPoint(v.Character.HumanoidRootPart.Position)
-                    local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
-
-                    if VectorDistance < MaximumDistance then
-                        Target = v
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if not _G.TeamCheck or (player.Team ~= LocalPlayer.Team) then
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+                    local humanoid = player.Character.Humanoid
+                    if humanoid.Health > 0 then
+                        local ScreenPoint = Camera:WorldToScreenPoint(player.Character[_G.AimPart].Position)
+                        local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                        
+                        if VectorDistance < MaximumDistance then
+                            Target = player
+                            break -- Get the closest target and exit the loop
+                        end
                     end
                 end
             end
@@ -82,15 +80,13 @@ RunService.RenderStepped:Connect(function()
         local targetPlayer = GetClosestPlayer()
         if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild(_G.AimPart) then
             local targetPosition = targetPlayer.Character[_G.AimPart].Position
-            local mousePos = UserInputService:GetMouseLocation()
-
-            -- Calculate the direction from the mouse position to the target position
-            local direction = (targetPosition - Camera.CFrame.Position).Unit
-
-            -- Tween the mouse position towards the target
-            TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-                CFrame = CFrame.new(Camera.CFrame.Position, targetPosition)
-            }):Play()
+            local direction = (targetPosition - Camera.CFrame.Position).unit
+            
+            -- Move the mouse towards the target
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter -- Lock mouse to center for smoother aiming
+            local targetScreenPosition = Camera:WorldToScreenPoint(targetPosition)
+            local mouseX, mouseY = UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y
+            UserInputService.MouseDelta = Vector2.new(targetScreenPosition.X - mouseX, targetScreenPosition.Y - mouseY) * _G.Sensitivity
         end
     end
 end)
