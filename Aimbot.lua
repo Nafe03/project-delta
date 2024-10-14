@@ -80,13 +80,16 @@ RunService.RenderStepped:Connect(function()
         local targetPlayer = GetClosestPlayer()
         if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild(_G.AimPart) then
             local targetPosition = targetPlayer.Character[_G.AimPart].Position
-            local direction = (targetPosition - Camera.CFrame.Position).unit
+            local screenPosition = Camera:WorldToScreenPoint(targetPosition)
+            
+            -- Calculate the difference between the mouse position and the target position
+            local mousePosition = UserInputService:GetMouseLocation()
+            local targetScreenPosition = Vector2.new(screenPosition.X, screenPosition.Y)
+            local delta = targetScreenPosition - mousePosition
             
             -- Move the mouse towards the target
-            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter -- Lock mouse to center for smoother aiming
-            local targetScreenPosition = Camera:WorldToScreenPoint(targetPosition)
-            local mouseX, mouseY = UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y
-            UserInputService.MouseDelta = Vector2.new(targetScreenPosition.X - mouseX, targetScreenPosition.Y - mouseY) * _G.Sensitivity
+            local sensitivity = _G.Sensitivity
+            UserInputService.MouseDelta = Vector2.new(delta.X * sensitivity, delta.Y * sensitivity)
         end
     end
 end)
