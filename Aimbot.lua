@@ -10,7 +10,7 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false -- If set to true then the script would only lock your aim at enemy team members.
 _G.AimPart = "Head" -- Where the aimbot script would lock at. You can change to "HumanoidRootPart" or any other part.
 _G.Sensitivity = 0.1 -- How many seconds it takes for the aimbot script to officially lock onto the target's aimpart.
-_G.PredictionAmount = 0.165 -- Time to predict into the future based on target's velocity.
+_G.PredictionAmount = 0 -- Time to predict into the future based on target's velocity.
 
 _G.CircleSides = 64 -- How many sides the FOV circle would have.
 _G.CircleColor = Color3.fromRGB(255, 255, 255) -- (RGB) Color that the FOV circle would appear as.
