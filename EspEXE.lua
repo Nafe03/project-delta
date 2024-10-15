@@ -1,4 +1,7 @@
+-- ESP & Aimbot Code with UI Integration
+
 --// Written by depso
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
@@ -34,7 +37,7 @@ local function ApplyHighlight(Player)
     -- Parts
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
-    local Highlighter = Instance.new("Highlight", Character) -- Changed name to Highlighter
+    local Highlighter = Instance.new("Highlight", Character) -- Renamed to Highlighter for consistency
 
     local function UpdateFillColor()
         local DefaultColor = Color3.fromRGB(255, 48, 51)  -- Default color if no team color is found
