@@ -8,8 +8,9 @@ local Holding = false
 
 _G.AimbotEnabled = false
 _G.TeamCheck = false -- If set to true then the script would only lock your aim at enemy team members.
-_G.AimPart = nil -- Where the aimbot script would lock at.
-_G.Sensitivity = 0 -- How many seconds it takes for the aimbot script to officially lock onto the target's aimpart.
+_G.AimPart = "Head" -- Where the aimbot script would lock at. You can change to "HumanoidRootPart" or any other part.
+_G.Sensitivity = 0.1 -- How many seconds it takes for the aimbot script to officially lock onto the target's aimpart.
+_G.PredictionAmount = 0.165 -- Time to predict into the future based on target's velocity.
 
 _G.CircleSides = 64 -- How many sides the FOV circle would have.
 _G.CircleColor = Color3.fromRGB(255, 255, 255) -- (RGB) Color that the FOV circle would appear as.
@@ -25,7 +26,6 @@ FOVCircle.Radius = _G.CircleRadius
 FOVCircle.Filled = _G.CircleFilled
 FOVCircle.Color = _G.CircleColor
 FOVCircle.Visible = _G.CircleVisible
-FOVCircle.Radius = _G.CircleRadius
 FOVCircle.Transparency = _G.CircleTransparency
 FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
@@ -38,24 +38,9 @@ local function GetClosestPlayer()
 		if v.Name ~= LocalPlayer.Name then
 			if _G.TeamCheck == true then
 				if v.Team ~= LocalPlayer.Team then
-					if v.Character ~= nil then
-						if v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
-							if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 then
-								local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
-								local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
-								
-								if VectorDistance < MaximumDistance then
-									Target = v
-								end
-							end
-						end
-					end
-				end
-			else
-				if v.Character ~= nil then
-					if v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
-						if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 then
-							local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
+					if v.Character ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
+						if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health > 0 then
+							local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart").Position)
 							local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
 							
 							if VectorDistance < MaximumDistance then
@@ -64,11 +49,30 @@ local function GetClosestPlayer()
 						end
 					end
 				end
+			else
+				if v.Character ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
+					if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health > 0 then
+						local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart").Position)
+						local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+						
+						if VectorDistance < MaximumDistance then
+							Target = v
+						end
+					end
+				end
 			end
 		end
 	end
 
 	return Target
+end
+
+-- Prediction function to account for target's movement
+local function PredictTargetPosition(Target)
+    local HumanoidRootPart = Target.Character:FindFirstChild("HumanoidRootPart")
+    local Velocity = HumanoidRootPart.Velocity
+    local Prediction = HumanoidRootPart.Position + (Velocity * _G.PredictionAmount)
+    return Prediction
 end
 
 UserInputService.InputBegan:Connect(function(Input)
@@ -89,12 +93,17 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Filled = _G.CircleFilled
     FOVCircle.Color = _G.CircleColor
     FOVCircle.Visible = _G.CircleVisible
-    FOVCircle.Radius = _G.CircleRadius
     FOVCircle.Transparency = _G.CircleTransparency
     FOVCircle.NumSides = _G.CircleSides
     FOVCircle.Thickness = _G.CircleThickness
 
     if Holding == true and _G.AimbotEnabled == true then
-        TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = CFrame.new(Camera.CFrame.Position, GetClosestPlayer().Character[_G.AimPart].Position)}):Play()
+        local Target = GetClosestPlayer()
+        if Target then
+            local PredictedPosition = PredictTargetPosition(Target)
+            local AimPartPosition = Target.Character[_G.AimPart].Position
+            local FinalPosition = AimPartPosition + (PredictedPosition - Target.Character.HumanoidRootPart.Position)
+            TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)}):Play()
+        end
     end
 end)
