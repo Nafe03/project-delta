@@ -1,7 +1,10 @@
+-- Services
 local Players = game:GetService("Players")
 local DefaultColor = Color3.fromRGB(0, 0, 0)
+
+-- ESP Settings
 local HealthESPEnabled = false  -- Initially off
-local NameESPEnabled = false    -- Initially off
+local NameESPEnabled = false     -- Initially off
 
 -- Function to apply highlight to the player
 local function ApplyHighlight(Player)
@@ -86,3 +89,52 @@ for _, Player in next, Players:GetPlayers() do
     HighlightPlayer(Player)
 end
 Players.PlayerAdded:Connect(HighlightPlayer)
+
+-- Function to enable or disable ESP features
+local function setHealthESP(enabled)
+    HealthESPEnabled = enabled
+    for _, Player in next, Players:GetPlayers() do
+        if Player.Character then
+            local Humanoid = Player.Character:FindFirstChild("Humanoid")
+            if Humanoid then
+                -- Manually call to update health transparency
+                UpdateHealthTransparency(Player, Humanoid)
+            end
+        end
+    end
+end
+
+local function setNameESP(enabled)
+    NameESPEnabled = enabled
+    for _, Player in next, Players:GetPlayers() do
+        if Player.Character then
+            if enabled then
+                CreateNameESP(Player)  -- Create name ESP
+            else
+                -- Find and destroy existing BillboardGui
+                local BillboardGui = Player.Character:FindFirstChildOfClass("BillboardGui")
+                if BillboardGui then
+                    BillboardGui:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- Example: Toggle settings through your UI (link this to your actual UI script)
+-- This is a placeholder; you should replace it with your UI toggle events
+local function onHealthESPToggle(newState)
+    setHealthESP(newState)
+    print("Health ESP:", newState and "Enabled" or "Disabled")
+end
+
+local function onNameESPToggle(newState)
+    setNameESP(newState)
+    print("Name ESP:", newState and "Enabled" or "Disabled")
+end
+
+-- Example UI connection (you would connect these to your UI)
+-- onHealthESPToggle(true) -- Call this function when health ESP toggle is enabled
+-- onHealthESPToggle(false) -- Call this function when health ESP toggle is disabled
+-- onNameESPToggle(true) -- Call this function when name ESP toggle is enabled
+-- onNameESPToggle(false) -- Call this function when name ESP toggle is disabled
