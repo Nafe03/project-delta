@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
 local DefaultColor = Color3.fromRGB(0, 0, 0)
-local HealthESPEnabled = true  -- Toggle for Health ESP
-local NameESPEnabled = true    -- Toggle for Name ESP
+local HealthESPEnabled = false  -- Initially off
+local NameESPEnabled = false    -- Initially off
 
 -- Function to apply highlight to the player
 local function ApplyHighlight(Player)
