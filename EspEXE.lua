@@ -1,4 +1,3 @@
---// Written by depso
 local Players = game:GetService("Players")
 local DefaultColor = Color3.fromRGB(0, 0, 0)
 
@@ -8,16 +7,14 @@ local function ApplyHighlight(Player)
     --// Parts
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
-    local HightLighter = Instance.new("Highlight", Character)
+    local Highlighter = Instance.new("Highlight", Character)
 
     local function UpdateFillColor()
-        DefaultColor()
-        HightLighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
+        Highlighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
     end
 
     local function Disconnect()
-        HightLighter:Remove()
-        
+        Highlighter:Destroy()  -- Use Destroy instead of Remove
         for _, Connection in next, Connections do
             Connection:Disconnect()
         end
@@ -30,19 +27,22 @@ local function ApplyHighlight(Player)
             Disconnect()
         end
     end))
+
+    -- Update fill color initially
+    UpdateFillColor()
 end
 
-local function HightLightPlayer(Player)
+local function HighlightPlayer(Player)
     if Player.Character then
-        HightLightPlayer(Player)
+        ApplyHighlight(Player)  -- Fix the function call
     end
     Player.CharacterAdded:Connect(function()
-        HightLightPlayer(Player)
+        ApplyHighlight(Player)  -- Fix the function call
     end)
 end
 
 --// Apply highlights to players
 for _, Player in next, Players:GetPlayers() do
-    ApplyHighlight(Player)
+    HighlightPlayer(Player)  -- Fix the function call
 end
-Players.PlayerAdded:Connect(ApplyHighlight)
+Players.PlayerAdded:Connect(HighlightPlayer)
