@@ -13,7 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.TeamCheck = false -- If true, only lock onto enemy team members.
 _G.AimPart = "Head" -- Part to lock onto: "Head", "HumanoidRootPart", etc.
-_G.Sensitivity = 0.1 -- Tween duration for camera movement.
+_G.Sensitivity = 0 -- Tween duration for camera movement.
 _G.PredictionAmount = 0 -- Time to predict into the future based on target's velocity.
 
 _G.CircleSides = 64 -- Number of sides for the FOV circle.
