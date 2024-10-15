@@ -1,5 +1,6 @@
 --// Written by depso
 local Players = game:GetService("Players")
+local DefaultColor = Color3.fromRGB(0, 0, 0)
 
 local function ApplyHighlight(Player)
     local Connections = {}
@@ -10,7 +11,7 @@ local function ApplyHighlight(Player)
     local HightLighter = Instance.new("Highlight", Character)
 
     local function UpdateFillColor()
-        local DefaultColor = Color3.fromRGB(255, 48, 51)
+        DefaultColor()
         HightLighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
     end
 
