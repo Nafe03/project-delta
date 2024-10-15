@@ -2,7 +2,7 @@
 local Players = game:GetService("Players")
 
 -- ESP toggle variable
-local espEnabled = false  -- Set to true to enable ESP by default
+local espEnabled = true  -- Set to true to enable ESP by default
 
 local function ApplyHighlight(Player)
     local Connections = {}
