@@ -1,14 +1,11 @@
--- ESP & Aimbot Code with UI Integration
-
 --// Written by depso
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ESP toggle variable
 local espEnabled = true  -- Set to true to enable ESP by default
-local teamCheck = true   -- Set to true if you want team-based ESP filtering
+local teamCheck = false  -- Set to true if you want team-based ESP filtering
 
 -- Function to apply Name ESP
 local function ApplyNameESP(Player)
@@ -34,29 +31,29 @@ end
 local function ApplyHighlight(Player)
     local Connections = {}
 
-    -- Parts
+    --// Parts
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
-    local Highlighter = Instance.new("Highlight", Character) -- Renamed to Highlighter for consistency
+    local HightLighter = Instance.new("Highlight", Character)
 
     local function UpdateFillColor()
         local DefaultColor = Color3.fromRGB(255, 48, 51)  -- Default color if no team color is found
         if teamCheck then
             -- If team check is enabled, only highlight enemies (not on the same team)
             if Player.TeamColor ~= LocalPlayer.TeamColor then
-                Highlighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
+                HightLighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
             else
-                Highlighter.Enabled = false  -- Disable highlight for teammates if teamCheck is true
+                HightLighter.Enabled = false  -- Disable highlight for teammates if teamCheck is true
             end
         else
             -- No team check, apply the highlight regardless of team
-            Highlighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
+            HightLighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
         end
     end
 
     local function Disconnect()
         -- Clean up the highlight and connections
-        Highlighter:Destroy()
+        HightLighter:Destroy()
         for _, Connection in next, Connections do
             Connection:Disconnect()
         end
