@@ -8,7 +8,7 @@ local ESPSettings = {
     NameESPEnabled = true,
     BoxESPEnabled = false,
     DistanceESPEnabled = true,
-    HighlightColor = Color3.fromRGB(0, 0, 0)  -- Default green color for highlight
+    HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 }
 
 -- Function to create a new Highlight instance
@@ -72,8 +72,13 @@ end
 local function ApplyHighlight(Player)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
+    
+    -- Clear any existing highlights first
+    if Character:FindFirstChild("Highlight") then
+        Character:FindFirstChild("Highlight"):Destroy()
+    end
+    
     local highlight = createHighlight(Character, ESPSettings.HighlightColor)
-
     local updateDistanceAndHealthFunc
 
     -- Update fill color based on team color or the specified color
@@ -107,14 +112,7 @@ local function ApplyHighlight(Player)
 
     -- Connect events for dynamic updates
     Player:GetPropertyChangedSignal("TeamColor"):Connect(UpdateFillColor)
-    Humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if Humanoid.Health <= 0 then
-            highlight:Destroy()
-            if updateDistanceAndHealthFunc then updateDistanceAndHealthFunc() end
-        else
-            UpdateHealthTransparency()
-        end
-    end)
+    Humanoid:GetPropertyChangedSignal("Health"):Connect(UpdateHealthTransparency)
 
     -- Initial updates
     UpdateFillColor()
@@ -123,16 +121,19 @@ end
 
 -- Function to apply highlights when player spawns or joins
 local function HighlightPlayer(Player)
+    -- Reapply highlight when a player respawns
+    Player.CharacterAdded:Connect(function(character)
+        ApplyHighlight(Player)
+    end)
+
+    -- Apply highlight if player is already in the game
     if Player.Character then
         ApplyHighlight(Player)
     end
-    Player.CharacterAdded:Connect(function()
-        ApplyHighlight(Player)
-    end)
 end
 
 -- Apply highlights to all existing players and new ones
-for _, Player in next, Players:GetPlayers() do
+for _, Player in ipairs(Players:GetPlayers()) do
     HighlightPlayer(Player)
 end
 Players.PlayerAdded:Connect(HighlightPlayer)
@@ -140,7 +141,7 @@ Players.PlayerAdded:Connect(HighlightPlayer)
 -- Function to enable or disable ESP features
 local function setESPEnabled(setting, enabled)
     ESPSettings[setting] = enabled
-    for _, Player in next, Players:GetPlayers() do
+    for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
             if setting == "HealthESPEnabled" then
                 UpdateHealthTransparency(Player.Character:FindFirstChild("Humanoid"))
@@ -154,7 +155,7 @@ end
 -- Function to change the highlight color dynamically
 local function setHighlightColor(newColor)
     ESPSettings.HighlightColor = newColor
-    for _, Player in next, Players:GetPlayers() do
+    for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
             ApplyHighlight(Player)  -- Reapply the highlight with the new color
         end
