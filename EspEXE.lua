@@ -1,8 +1,7 @@
 -- Services
--- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local DefaultColor = Color3.fromRGB(0, 255, 0)  -- Green color for highlight
+local DefaultColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 
 -- ESP Settings
 local ESPSettings = {
@@ -13,9 +12,9 @@ local ESPSettings = {
 }
 
 -- Function to create a new Highlight instance
-local function createHighlight(character)
+local function createHighlight(character, color)
     local highlight = Instance.new("Highlight", character)
-    highlight.FillColor = DefaultColor  -- Set to green
+    highlight.FillColor = color or DefaultColor  -- Set to the specified color or default green
     highlight.FillTransparency = 0.5  -- Semi-transparent
     return highlight
 end
@@ -70,16 +69,16 @@ local function createDistanceAndHealthESP(character, playerName)
 end
 
 -- Function to apply highlights to the player
-local function ApplyHighlight(Player)
+local function ApplyHighlight(Player, color)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
-    local highlight = createHighlight(Character)
+    local highlight = createHighlight(Character, color)
 
     local updateDistanceAndHealthFunc
 
-    -- Update fill color based on team color
+    -- Update fill color based on team color or the specified color
     local function UpdateFillColor()
-        highlight.FillColor = (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
+        highlight.FillColor = color or (Player.TeamColor and Player.TeamColor.Color) or DefaultColor
     end
 
     -- Health ESP: Change highlight transparency based on health
@@ -123,20 +122,22 @@ local function ApplyHighlight(Player)
 end
 
 -- Function to apply highlights when player spawns or joins
-local function HighlightPlayer(Player)
+local function HighlightPlayer(Player, color)
     if Player.Character then
-        ApplyHighlight(Player)
+        ApplyHighlight(Player, color)
     end
     Player.CharacterAdded:Connect(function()
-        ApplyHighlight(Player)
+        ApplyHighlight(Player, color)
     end)
 end
 
 -- Apply highlights to all existing players and new ones
 for _, Player in next, Players:GetPlayers() do
-    HighlightPlayer(Player)
+    HighlightPlayer(Player, DefaultColor)  -- Use default color initially
 end
-Players.PlayerAdded:Connect(HighlightPlayer)
+Players.PlayerAdded:Connect(function(Player)
+    HighlightPlayer(Player, DefaultColor)
+end)
 
 -- Function to enable or disable ESP features
 local function setESPEnabled(setting, enabled)
@@ -149,6 +150,17 @@ local function setESPEnabled(setting, enabled)
                 -- Handle Distance ESP toggle here
             end
         end
+    end
+end
+
+-- Function to change highlight color for a specific player
+local function setHighlightColor(playerName, color)
+    local player = Players:FindFirstChild(playerName)
+    if player and player.Character then
+        ApplyHighlight(player, color)
+        print(playerName .. "'s highlight color has been updated!")
+    else
+        warn("Player not found or character is not available.")
     end
 end
 
@@ -172,6 +184,9 @@ local function onDistanceESPToggle(newState)
     setESPEnabled("DistanceESPEnabled", newState)
     print("Distance ESP:", newState and "Enabled" or "Disabled")
 end
+
+-- Example usage to change highlight color
+setHighlightColor("PlayerNameHere", Color3.fromRGB(255, 0, 0))  -- Changes the highlight to red for a specific player
 
 -- Example calls (you would connect these to your UI)
 -- onHealthESPToggle(true)
