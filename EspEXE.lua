@@ -1,7 +1,7 @@
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local DefaultColor = Color3.fromRGB(155, 100, 174)  -- White by default
+local DefaultColor = Color3.fromRGB(128, 187, 219)  -- White by default
 
 -- ESP Settings
 local ESPSettings = {
