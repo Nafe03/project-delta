@@ -1,7 +1,8 @@
 -- Services
+-- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local DefaultColor = Color3.fromRGB(128, 187, 219)  -- White by default
+local DefaultColor = Color3.fromRGB(0, 255, 0)  -- Green color for highlight
 
 -- ESP Settings
 local ESPSettings = {
@@ -14,7 +15,7 @@ local ESPSettings = {
 -- Function to create a new Highlight instance
 local function createHighlight(character)
     local highlight = Instance.new("Highlight", character)
-    highlight.FillColor = DefaultColor
+    highlight.FillColor = DefaultColor  -- Set to green
     highlight.FillTransparency = 0.5  -- Semi-transparent
     return highlight
 end
