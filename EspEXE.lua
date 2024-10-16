@@ -19,19 +19,6 @@ local function createHighlight(character)
     return highlight
 end
 
--- Function to create Box ESP with enhanced visuals
-local function createBoxESP(character)
-    local boxESP = Instance.new("BoxHandleAdornment")
-    boxESP.Size = character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4) -- Slightly larger
-    boxESP.Adornee = character
-    boxESP.Color3 = Color3.fromRGB(255, 0, 0) -- Bright red
-    boxESP.Transparency = 0.3  -- More transparent for a softer look
-    boxESP.ZIndex = 5
-    boxESP.AlwaysOnTop = true
-    boxESP.Parent = character
-    return boxESP
-end
-
 -- Function to create Distance and Health Bar ESP
 local function createDistanceAndHealthESP(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
@@ -87,7 +74,6 @@ local function ApplyHighlight(Player)
     local Humanoid = Character:WaitForChild("Humanoid")
     local highlight = createHighlight(Character)
 
-    local boxESP
     local updateDistanceAndHealthFunc
 
     -- Update fill color based on team color
@@ -104,20 +90,18 @@ local function ApplyHighlight(Player)
         end
     end
 
-    -- Create ESP elements
-    if ESPSettings.BoxESPEnabled then
-        boxESP = createBoxESP(Character)
-    end
-
     if ESPSettings.DistanceESPEnabled then
         updateDistanceAndHealthFunc = createDistanceAndHealthESP(Character, Player.Name)
         updateDistanceAndHealthFunc()  -- Initial update
-        local connection = RunService.RenderStepped:Connect(updateDistanceAndHealthFunc)
+        local connection = RunService.RenderStepped:Connect(function()
+            updateDistanceAndHealthFunc()
+            UpdateHealthTransparency()
+        end)
+
         -- Disconnect when player dies or character is removed
         Humanoid.Died:Connect(function()
             connection:Disconnect()
             highlight:Destroy()
-            if boxESP then boxESP:Destroy() end
         end)
     end
 
@@ -126,7 +110,6 @@ local function ApplyHighlight(Player)
     Humanoid:GetPropertyChangedSignal("Health"):Connect(function()
         if Humanoid.Health <= 0 then
             highlight:Destroy()
-            if boxESP then boxESP:Destroy() end
             if updateDistanceAndHealthFunc then updateDistanceAndHealthFunc() end
         else
             UpdateHealthTransparency()
@@ -161,13 +144,6 @@ local function setESPEnabled(setting, enabled)
         if Player.Character then
             if setting == "HealthESPEnabled" then
                 UpdateHealthTransparency(Player.Character:FindFirstChild("Humanoid"))
-            elseif setting == "BoxESPEnabled" then
-                if enabled then
-                    createBoxESP(Player.Character)
-                else
-                    local boxESP = Player.Character:FindFirstChildOfClass("BoxHandleAdornment")
-                    if boxESP then boxESP:Destroy() end
-                end
             elseif setting == "DistanceESPEnabled" then
                 -- Handle Distance ESP toggle here
             end
