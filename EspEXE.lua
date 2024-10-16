@@ -1,13 +1,13 @@
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local DefaultColor = Color3.fromRGB(0, 0, 0)
+local DefaultColor = Color3.fromRGB(255, 255, 255)  -- White by default
 
 -- ESP Settings
 local ESPSettings = {
     HealthESPEnabled = true,
     NameESPEnabled = true,
-    BoxESPEnabled = true,
+    BoxESPEnabled = false,
     DistanceESPEnabled = true,
 }
 
@@ -15,44 +15,70 @@ local ESPSettings = {
 local function createHighlight(character)
     local highlight = Instance.new("Highlight", character)
     highlight.FillColor = DefaultColor
-    highlight.FillTransparency = 0.5  -- Start semi-transparent
+    highlight.FillTransparency = 0.5  -- Semi-transparent
     return highlight
 end
 
--- Function to create Box ESP
+-- Function to create Box ESP with enhanced visuals
 local function createBoxESP(character)
     local boxESP = Instance.new("BoxHandleAdornment")
-    boxESP.Size = character:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2) -- Slightly larger
+    boxESP.Size = character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4) -- Slightly larger
     boxESP.Adornee = character
-    boxESP.Color3 = Color3.fromRGB(255, 0, 0)
-    boxESP.Transparency = 0.5
+    boxESP.Color3 = Color3.fromRGB(255, 0, 0) -- Bright red
+    boxESP.Transparency = 0.3  -- More transparent for a softer look
     boxESP.ZIndex = 5
     boxESP.AlwaysOnTop = true
     boxESP.Parent = character
     return boxESP
 end
 
--- Function to create Distance ESP
-local function createDistanceESP(character, playerName)
+-- Function to create Distance and Health Bar ESP
+local function createDistanceAndHealthESP(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
-    billboardGui.Size = UDim2.new(0, 100, 0, 50)
+    billboardGui.Size = UDim2.new(0, 150, 0, 100)
     billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+    billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)  -- Above the player's head
     billboardGui.AlwaysOnTop = true
 
-    local nameLabel = Instance.new("TextLabel", billboardGui)
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.TextScaled = true
+    -- Distance Label
+    local distanceLabel = Instance.new("TextLabel", billboardGui)
+    distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distanceLabel.TextScaled = true
+    distanceLabel.Font = Enum.Font.GothamBold
+    distanceLabel.TextStrokeTransparency = 0.5
+    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
-    -- Update distance label
-    local function updateDistance()
+    -- Health Bar Background
+    local healthBarBackground = Instance.new("Frame", billboardGui)
+    healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
+    healthBarBackground.Position = UDim2.new(0, 0, 0.35, 0)  -- Position above the arm
+    healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarBackground.BorderSizePixel = 0
+
+    -- Health Bar
+    local healthBar = Instance.new("Frame", healthBarBackground)
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.BorderSizePixel = 0
+
+    -- Update distance label and health bar
+    local function updateDistanceAndHealth()
         local playerDistance = (Players.LocalPlayer.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
-        nameLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
+        distanceLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
+
+        if ESPSettings.HealthESPEnabled then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                local healthFraction = humanoid.Health / humanoid.MaxHealth
+                healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
+                healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)  -- Color shifts from red to green
+            end
+        end
     end
 
-    return updateDistance
+    return updateDistanceAndHealth
 end
 
 -- Function to apply highlights to the player
@@ -62,7 +88,7 @@ local function ApplyHighlight(Player)
     local highlight = createHighlight(Character)
 
     local boxESP
-    local updateDistanceFunc
+    local updateDistanceAndHealthFunc
 
     -- Update fill color based on team color
     local function UpdateFillColor()
@@ -84,9 +110,9 @@ local function ApplyHighlight(Player)
     end
 
     if ESPSettings.DistanceESPEnabled then
-        updateDistanceFunc = createDistanceESP(Character, Player.Name)
-        updateDistanceFunc()  -- Initial update
-        local connection = RunService.RenderStepped:Connect(updateDistanceFunc)
+        updateDistanceAndHealthFunc = createDistanceAndHealthESP(Character, Player.Name)
+        updateDistanceAndHealthFunc()  -- Initial update
+        local connection = RunService.RenderStepped:Connect(updateDistanceAndHealthFunc)
         -- Disconnect when player dies or character is removed
         Humanoid.Died:Connect(function()
             connection:Disconnect()
@@ -100,7 +126,7 @@ local function ApplyHighlight(Player)
         if Humanoid.Health <= 0 then
             highlight:Destroy()
             if boxESP then boxESP:Destroy() end
-            if updateDistanceFunc then updateDistanceFunc() end
+            if updateDistanceAndHealthFunc then updateDistanceAndHealthFunc() end
         else
             UpdateHealthTransparency()
         end
