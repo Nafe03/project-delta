@@ -8,7 +8,7 @@ local ESPSettings = {
     NameESPEnabled = true,
     BoxESPEnabled = false,
     DistanceESPEnabled = true,
-    HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
+    HighlightColor = Color3.fromRGB(0, 0, 0)  -- Default green color for highlight
 }
 
 -- Function to create a new Highlight instance
