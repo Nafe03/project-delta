@@ -3,13 +3,13 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- ESP Settings
-local ESPSettings = {
-    HealthESPEnabled = true,
-    NameESPEnabled = true,
-    BoxESPEnabled = false,
-    DistanceESPEnabled = true,
-    HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
-}
+
+HealthESPEnabled = true
+NameESPEnabled = true
+BoxESPEnabled = false
+DistanceESPEnabled = true
+HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
+
 
 -- Function to create a new Highlight instance
 local function createHighlight(character, color)
