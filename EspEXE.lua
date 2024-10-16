@@ -195,4 +195,4 @@ setHighlightColor(Color3.fromRGB(255, 0, 0))  -- Changes the highlight to red
 -- onBoxESPToggle(true)
 -- onBoxESPToggle(false)
 -- onDistanceESPToggle(true)
--- onDistanceESPToggle(false)
+-- onDistanceESPToggle(false)123
