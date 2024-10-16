@@ -116,6 +116,7 @@ local function ApplyHighlight(Player)
         -- Disconnect when player dies or character is removed
         Humanoid.Died:Connect(function()
             connection:Disconnect()
+            highlight:Destroy()
             if boxESP then boxESP:Destroy() end
         end)
     end
