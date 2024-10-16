@@ -11,18 +11,20 @@ local Holding = false
 
 -- Global Settings
 _G.AimbotEnabled = false
-_G.TeamCheck = false -- If true, only lock onto enemy team members.
-_G.AimPart = "Head" -- Part to lock onto: "Head", "HumanoidRootPart", etc.
-_G.Sensitivity = 0 -- Tween duration for camera movement.
-_G.PredictionAmount = 0 -- Time to predict into the future based on target's velocity.
+_G.TeamCheck = false
+_G.AimPart = "Head"
+_G.Sensitivity = 0
+_G.PredictionAmount = 0
 
-_G.CircleSides = 64 -- Number of sides for the FOV circle.
-_G.CircleColor = Color3.fromRGB(255, 255, 255) -- FOV circle color.
-_G.CircleTransparency = 0.7 -- FOV circle transparency.
-_G.CircleRadius = 80 -- FOV circle radius.
-_G.CircleFilled = false -- Whether the FOV circle is filled.
-_G.CircleVisible = true -- Whether the FOV circle is visible.
-_G.CircleThickness = 0 -- FOV circle thickness.
+_G.CircleSides = 64
+_G.CircleColor = Color3.fromRGB(255, 255, 255)
+_G.CircleTransparency = 0.7
+_G.CircleRadius = 80
+_G.CircleFilled = false
+_G.CircleVisible = true
+_G.CircleThickness = 0
+
+_G.VisibleCheek = false -- Toggle for visual cue
 
 -- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -37,6 +39,7 @@ FOVCircle.Thickness = _G.CircleThickness
 
 -- Current Target Variable
 local CurrentTarget = nil
+local CurrentHighlight = nil
 
 -- Function to Get the Closest Player within FOV
 local function GetClosestPlayer()
@@ -48,7 +51,7 @@ local function GetClosestPlayer()
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             if _G.TeamCheck then
                 if player.Team == LocalPlayer.Team then
-                    continue -- Skip teammates if TeamCheck is enabled
+                    continue
                 end
             end
 
@@ -95,6 +98,12 @@ UserInputService.InputBegan:Connect(function(Input)
                     Text = "Locked onto " .. CurrentTarget.Name,
                     Duration = 2
                 })
+                -- Add a highlight to the current target if visible
+                if _G.VisibleCheek then
+                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                    CurrentHighlight.FillColor = Color3.new(1, 0, 0) -- Red color for highlight
+                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0) -- Yellow outline
+                end
             end
         end
     end
@@ -104,6 +113,11 @@ UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil -- Clear the target when holding ends
+        -- Remove highlight if it exists
+        if CurrentHighlight then
+            CurrentHighlight:Destroy()
+            CurrentHighlight = nil
+        end
     end
 end)
 
