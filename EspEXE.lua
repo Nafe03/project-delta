@@ -4,11 +4,11 @@ local RunService = game:GetService("RunService")
 
 -- ESP Settings
 
-HealthESPEnabled = true
-NameESPEnabled = true
-BoxESPEnabled = false
-DistanceESPEnabled = true
-HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
+_G.HealthESPEnabled = true
+_G.NameESPEnabled = true
+_G.BoxESPEnabled = false
+_G.DistanceESPEnabled = true
+_G.HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 
 
 -- Function to create a new Highlight instance
