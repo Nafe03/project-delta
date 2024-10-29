@@ -4,10 +4,10 @@ local RunService = game:GetService("RunService")
 
 -- ESP Settings
 local ESPSettings = {
-    HealthESPEnabled = true,
-    NameESPEnabled = true,
+    HealthESPEnabled = false,
+    NameESPEnabled = false,
     BoxESPEnabled = false,
-    DistanceESPEnabled = true,
+    DistanceESPEnabled = false,
     HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 }
 
@@ -15,7 +15,7 @@ local ESPSettings = {
 local function createHighlight(character, color)
     local highlight = Instance.new("Highlight", character)
     highlight.FillColor = color or ESPSettings.HighlightColor  -- Use the color from ESPSettings
-    highlight.FillTransparency = 0.5  -- Semi-transparent
+    highlight.FillTransparency = 0  -- Semi-transparent
     return highlight
 end
 
