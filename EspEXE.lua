@@ -5,9 +5,9 @@ local RunService = game:GetService("RunService")
 -- ESP Settings
 local ESPSettings = {
     HealthESPEnabled = false,
-    NameESPEnabled = false,
+    NameESPEnabled = true,
     BoxESPEnabled = false,
-    DistanceESPEnabled = false,
+    DistanceESPEnabled = true,
     HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 }
 
