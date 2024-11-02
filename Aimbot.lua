@@ -15,6 +15,7 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.Sensitivity = 0
 _G.PredictionAmount = 0
+_G.UseCircle = true
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -123,15 +124,19 @@ end)
 
 -- RenderStepped Loop for Aimbot and FOV Circle
 RunService.RenderStepped:Connect(function()
-    -- Update FOV Circle Properties
-    FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-    FOVCircle.Radius = _G.CircleRadius
-    FOVCircle.Filled = _G.CircleFilled
-    FOVCircle.Color = _G.CircleColor
-    FOVCircle.Visible = _G.CircleVisible
-    FOVCircle.Transparency = _G.CircleTransparency
-    FOVCircle.NumSides = _G.CircleSides
-    FOVCircle.Thickness = _G.CircleThickness
+    -- Update FOV Circle Properties if UseCircle is true
+    if _G.UseCircle then
+        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+        FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Filled = _G.CircleFilled
+        FOVCircle.Color = _G.CircleColor
+        FOVCircle.Visible = _G.CircleVisible
+        FOVCircle.Transparency = _G.CircleTransparency
+        FOVCircle.NumSides = _G.CircleSides
+        FOVCircle.Thickness = _G.CircleThickness
+    else
+        FOVCircle.Visible = false
+    end
 
     -- Aimbot Logic
     if Holding and _G.AimbotEnabled and CurrentTarget then
@@ -161,5 +166,7 @@ end)
 
 -- Optional: Update FOV Circle on Screen Resize
 RunService.RenderStepped:Connect(function()
-    FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+    if _G.UseCircle then
+        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+    end
 end)
