@@ -13,7 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
-_G.Sensitivity = 0
+_G.Sensitivity = 1 -- Default sensitivity
 _G.PredictionAmount = 0
 
 _G.CircleSides = 64
@@ -146,9 +146,12 @@ RunService.RenderStepped:Connect(function()
                 -- Final Position Calculation
                 local FinalPosition = PredictedPosition
 
+                -- Sensitivity Adjustment (invert _G.Sensitivity so that higher values move faster)
+                local tweenDuration = math.max(0.01, 1 / math.max(0.01, _G.Sensitivity))
+
                 -- Tween Camera to Aim at Final Position
                 local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
-                local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                local tween = TweenService:Create(Camera, TweenInfo.new(tweenDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
                 tween:Play()
             else
                 CurrentTarget = nil -- Clear target if humanoid is dead
