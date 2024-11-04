@@ -13,7 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
-_G.Sensitivity = nil  -- Tweening speed for smoother aiming
+_G.Sensitivity = false  -- Tweening speed for smoother aiming
 _G.PredictionAmount = 0.05  -- Small value for predictive aiming
 _G.UseCircle = true
 
