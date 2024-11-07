@@ -83,16 +83,9 @@ local function PredictTargetPosition(Target)
     if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local Prediction = AimPart.Position + (Velocity * _G.PredictionAmount)
+    local ping = LocalPlayer:GetNetworkPing() -- Get current ping in seconds
+    local Prediction = AimPart.Position + (Velocity * ping)
     return Prediction
-end
-
--- Function to Update Prediction Amount Based on Ping
-local function UpdatePredictionAmount()
-    if _G.AutoPredict then
-        local ping = LocalPlayer:GetNetworkPing() -- Get current ping
-        _G.PredictionAmount = ping * 0.001 -- Adjust prediction amount based on ping (you can adjust the multiplier for fine-tuning)
-    end
 end
 
 -- Input Handlers
@@ -179,6 +172,3 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
     end
 end)
-
--- Update Prediction Amount Based on Ping
-RunService.RenderStepped:Connect(UpdatePredictionAmount)
