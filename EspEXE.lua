@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 _G.HealthESPEnabled = false
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
-_G.DistanceESPEnabled = false
+_G.DistanceESPEnabled = true
 _G.HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
 
 -- Function to create a new Highlight instance
@@ -60,6 +60,8 @@ local function createDistanceAndHealthESP(character, playerName)
                 healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
                 healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)  -- Color shifts from red to green
             end
+        else
+            healthBar.Size = UDim2.new(0, 0, 0, 0)  -- Hide the health bar if disabled
         end
     end
 
@@ -141,11 +143,7 @@ local function setESPEnabled(setting, enabled)
     _G[setting] = enabled
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
-            if setting == "HealthESPEnabled" then
-                UpdateHealthTransparency(Player.Character:FindFirstChild("Humanoid"))
-            elseif setting == "DistanceESPEnabled" then
-                -- Handle Distance ESP toggle here
-            end
+            ApplyHighlight(Player)
         end
     end
 end
@@ -190,7 +188,4 @@ setHighlightColor(Color3.fromRGB(255, 0, 0))  -- Changes the highlight to red
 -- onHealthESPToggle(false)
 -- onNameESPToggle(true)
 -- onNameESPToggle(false)
--- onBoxESPToggle(true)
--- onBoxESPToggle(false)
--- onDistanceESPToggle(true)
--- onDistanceESPToggle(false)
+-- onBoxESPToggle
