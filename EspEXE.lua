@@ -8,23 +8,24 @@ local ESPSettings = {
     NameESPEnabled = true,
     BoxESPEnabled = false,
     DistanceESPEnabled = true,
-    HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
+    HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default highlight color
 }
 
--- Function to create a new Highlight instance
-local function createHighlight(character, color)
-    local highlight = Instance.new("Highlight", character)
-    highlight.FillColor = color or ESPSettings.HighlightColor  -- Use the color from ESPSettings
-    highlight.FillTransparency = 0  -- Semi-transparent
+-- Function to create a highlight for a character
+local function createHighlight(character)
+    local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
+    highlight.Parent = character
+    highlight.FillColor = ESPSettings.HighlightColor
+    highlight.FillTransparency = 0
     return highlight
 end
 
--- Function to create Distance and Health Bar ESP
-local function createDistanceAndHealthESP(character, playerName)
+-- Function to create Distance and Health ESP
+local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
     billboardGui.Size = UDim2.new(0, 150, 0, 100)
-    billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)  -- Above the player's head
+    billboardGui.Adornee = character:FindFirstChild("Head")
+    billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
     billboardGui.AlwaysOnTop = true
 
     -- Distance Label
@@ -37,21 +38,20 @@ local function createDistanceAndHealthESP(character, playerName)
     distanceLabel.TextStrokeTransparency = 0.5
     distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
-    -- Health Bar Background
+    -- Health Bar
     local healthBarBackground = Instance.new("Frame", billboardGui)
     healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 0.35, 0)  -- Position above the arm
+    healthBarBackground.Position = UDim2.new(0, 0, 0.35, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
 
-    -- Health Bar
     local healthBar = Instance.new("Frame", healthBarBackground)
     healthBar.Size = UDim2.new(1, 0, 1, 0)
     healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     healthBar.BorderSizePixel = 0
 
-    -- Update distance label and health bar
-    local function updateDistanceAndHealth()
+    -- Function to update ESP components
+    local function updateESP()
         local playerDistance = (Players.LocalPlayer.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
         distanceLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
 
@@ -60,139 +60,89 @@ local function createDistanceAndHealthESP(character, playerName)
             if humanoid then
                 local healthFraction = humanoid.Health / humanoid.MaxHealth
                 healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
-                healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)  -- Color shifts from red to green
+                healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
             end
         end
     end
-
-    return updateDistanceAndHealth
+    return updateESP
 end
 
--- Function to apply highlights to the player
-local function ApplyHighlight(Player)
-    local Character = Player.Character or Player.CharacterAdded:Wait()
-    local Humanoid = Character:WaitForChild("Humanoid")
-    
-    -- Clear any existing highlights first
-    if Character:FindFirstChild("Highlight") then
-        Character:FindFirstChild("Highlight"):Destroy()
-    end
-    
-    local highlight = createHighlight(Character, ESPSettings.HighlightColor)
-    local updateDistanceAndHealthFunc
+-- Function to apply ESP highlights and UI to a player
+local function applyESP(Player)
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
 
-    -- Update fill color based on team color or the specified color
-    local function UpdateFillColor()
-        highlight.FillColor = ESPSettings.HighlightColor or (Player.TeamColor and Player.TeamColor.Color)
-    end
+    -- Setup or update highlight
+    local highlight = createHighlight(character)
+    local updateESPFunc = createESPUI(character, Player.Name)
 
-    -- Health ESP: Change highlight transparency based on health
-    local function UpdateHealthTransparency()
-        if ESPSettings.HealthESPEnabled and Humanoid.Health > 0 then
-            highlight.FillTransparency = 1 - (Humanoid.Health / Humanoid.MaxHealth)
+    -- Update highlight color and transparency dynamically
+    local function updateHighlightProperties()
+        highlight.FillColor = ESPSettings.HighlightColor
+        if ESPSettings.HealthESPEnabled and humanoid.Health > 0 then
+            highlight.FillTransparency = 1 - (humanoid.Health / humanoid.MaxHealth)
         else
             highlight.FillTransparency = 1
         end
     end
 
-    if ESPSettings.DistanceESPEnabled then
-        updateDistanceAndHealthFunc = createDistanceAndHealthESP(Character, Player.Name)
-        updateDistanceAndHealthFunc()  -- Initial update
-        local connection = RunService.RenderStepped:Connect(function()
-            updateDistanceAndHealthFunc()
-            UpdateHealthTransparency()
-        end)
-
-        -- Disconnect when player dies or character is removed
-        Humanoid.Died:Connect(function()
-            connection:Disconnect()
-            highlight:Destroy()
-        end)
-    end
-
-    -- Connect events for dynamic updates
-    Player:GetPropertyChangedSignal("TeamColor"):Connect(UpdateFillColor)
-    Humanoid:GetPropertyChangedSignal("Health"):Connect(UpdateHealthTransparency)
-
-    -- Initial updates
-    UpdateFillColor()
-    UpdateHealthTransparency()
-end
-
--- Function to apply highlights when player spawns or joins
-local function HighlightPlayer(Player)
-    -- Reapply highlight when a player respawns
-    Player.CharacterAdded:Connect(function(character)
-        ApplyHighlight(Player)
+    -- Initial update and connection to update every frame
+    updateESPFunc()
+    updateHighlightProperties()
+    local connection = RunService.RenderStepped:Connect(function()
+        updateESPFunc()
+        updateHighlightProperties()
     end)
 
-    -- Apply highlight if player is already in the game
-    if Player.Character then
-        ApplyHighlight(Player)
-    end
-end
+    -- Disconnect connections when character dies
+    humanoid.Died:Connect(function()
+        connection:Disconnect()
+        highlight:Destroy()
+    end)
 
--- Apply highlights to all existing players and new ones
-for _, Player in ipairs(Players:GetPlayers()) do
-    HighlightPlayer(Player)
+    -- Update highlight color if player's team changes
+    Player:GetPropertyChangedSignal("TeamColor"):Connect(function()
+        highlight.FillColor = Player.TeamColor.Color or ESPSettings.HighlightColor
+    end)
 end
-Players.PlayerAdded:Connect(HighlightPlayer)
 
 -- Function to enable or disable ESP features
-local function setESPEnabled(setting, enabled)
-    ESPSettings[setting] = enabled
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player.Character then
-            if setting == "HealthESPEnabled" then
-                UpdateHealthTransparency(Player.Character:FindFirstChild("Humanoid"))
-            elseif setting == "DistanceESPEnabled" then
-                -- Handle Distance ESP toggle here
-            end
+local function toggleESPFeature(setting, state)
+    ESPSettings[setting] = state
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            applyESP(player)
         end
     end
 end
 
--- Function to change the highlight color dynamically
-local function setHighlightColor(newColor)
+-- Function to dynamically change highlight color
+local function updateHighlightColor(newColor)
     ESPSettings.HighlightColor = newColor
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player.Character then
-            ApplyHighlight(Player)  -- Reapply the highlight with the new color
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            applyESP(player)  -- Reapply highlight with new color
         end
     end
-    print("Highlight color has been updated!")
+    print("Highlight color updated to:", newColor)
 end
 
--- Example UI connection (you would connect these to your UI)
-local function onHealthESPToggle(newState)
-    setESPEnabled("HealthESPEnabled", newState)
-    print("Health ESP:", newState and "Enabled" or "Disabled")
+-- Apply ESP for players in-game and new players joining
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        applyESP(player)
+    end)
+    if player.Character then
+        applyESP(player)
+    end
+end)
+
+-- Initialize ESP for all existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    applyESP(player)
 end
 
-local function onNameESPToggle(newState)
-    setESPEnabled("NameESPEnabled", newState)
-    print("Name ESP:", newState and "Enabled" or "Disabled")
-end
-
-local function onBoxESPToggle(newState)
-    setESPEnabled("BoxESPEnabled", newState)
-    print("Box ESP:", newState and "Enabled" or "Disabled")
-end
-
-local function onDistanceESPToggle(newState)
-    setESPEnabled("DistanceESPEnabled", newState)
-    print("Distance ESP:", newState and "Enabled" or "Disabled")
-end
-
--- Example usage to change highlight color
-setHighlightColor(Color3.fromRGB(255, 0, 0))  -- Changes the highlight to red
-
--- Example calls (you would connect these to your UI)
--- onHealthESPToggle(true)
--- onHealthESPToggle(false)
--- onNameESPToggle(true)
--- onNameESPToggle(false)
--- onBoxESPToggle(true)
--- onBoxESPToggle(false)
--- onDistanceESPToggle(true)
--- onDistanceESPToggle(false)123
+-- Example usage of toggling ESP features (connect these to UI buttons)
+toggleESPFeature("HealthESPEnabled", true)
+toggleESPFeature("DistanceESPEnabled", true)
+updateHighlightColor(Color3.fromRGB(255, 0, 0)) -- Change highlight to red
