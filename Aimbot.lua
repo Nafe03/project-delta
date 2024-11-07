@@ -16,6 +16,7 @@ _G.AimPart = "Head"
 _G.Sensitivity = 0
 _G.PredictionAmount = 0
 _G.UseCircle = true
+_G.AutoPredict = true -- Enable automatic prediction based on ping
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -84,6 +85,14 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local Prediction = AimPart.Position + (Velocity * _G.PredictionAmount)
     return Prediction
+end
+
+-- Function to Update Prediction Amount Based on Ping
+local function UpdatePredictionAmount()
+    if _G.AutoPredict then
+        local ping = LocalPlayer:GetNetworkPing() -- Get current ping
+        _G.PredictionAmount = ping * 0.001 -- Adjust prediction amount based on ping (you can adjust the multiplier for fine-tuning)
+    end
 end
 
 -- Input Handlers
@@ -170,3 +179,6 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
     end
 end)
+
+-- Update Prediction Amount Based on Ping
+RunService.RenderStepped:Connect(UpdatePredictionAmount)
