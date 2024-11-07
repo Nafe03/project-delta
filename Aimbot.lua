@@ -13,7 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
-_G.Sensitivity = 0
+_G.Sensitivity = 0.1
 _G.PredictionAmount = 0
 _G.UseCircle = true
 _G.AutoPredict = true -- Enable automatic prediction based on ping
@@ -52,10 +52,8 @@ local function GetClosestPlayer()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if _G.TeamCheck then
-                if player.Team == LocalPlayer.Team then
-                    continue
-                end
+            if _G.TeamCheck and player.Team == LocalPlayer.Team then
+                continue
             end
 
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -81,7 +79,7 @@ end
 -- Prediction Function to Account for Target's Movement
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+    if not AimPart then return nil end
 
     local Velocity = AimPart.Velocity
     local ping = LocalPlayer:GetNetworkPing() / 1000 -- Get current ping in seconds
