@@ -3,18 +3,16 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- ESP Settings
-
-_G.HealthESPEnabled = false,
-_G.NameESPEnabled = true,
-_G.BoxESPEnabled = false,
-_G.DistanceESPEnabled = true,
+_G.HealthESPEnabled = false
+_G.NameESPEnabled = true
+_G.BoxESPEnabled = false
+_G.DistanceESPEnabled = true
 _G.HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default green color for highlight
-
 
 -- Function to create a new Highlight instance
 local function createHighlight(character, color)
     local highlight = Instance.new("Highlight", character)
-    highlight.FillColor = color or ESPSettings.HighlightColor  -- Use the color from ESPSettings
+    highlight.FillColor = color or _G.HighlightColor  -- Use the color from _G
     highlight.FillTransparency = 0  -- Semi-transparent
     return highlight
 end
@@ -55,7 +53,7 @@ local function createDistanceAndHealthESP(character, playerName)
         local playerDistance = (Players.LocalPlayer.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
         distanceLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
 
-        if ESPSettings.HealthESPEnabled then
+        if _G.HealthESPEnabled then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid then
                 local healthFraction = humanoid.Health / humanoid.MaxHealth
@@ -78,24 +76,24 @@ local function ApplyHighlight(Player)
         Character:FindFirstChild("Highlight"):Destroy()
     end
     
-    local highlight = createHighlight(Character, ESPSettings.HighlightColor)
+    local highlight = createHighlight(Character, _G.HighlightColor)
     local updateDistanceAndHealthFunc
 
     -- Update fill color based on team color or the specified color
     local function UpdateFillColor()
-        highlight.FillColor = ESPSettings.HighlightColor or (Player.TeamColor and Player.TeamColor.Color)
+        highlight.FillColor = _G.HighlightColor or (Player.TeamColor and Player.TeamColor.Color)
     end
 
     -- Health ESP: Change highlight transparency based on health
     local function UpdateHealthTransparency()
-        if ESPSettings.HealthESPEnabled and Humanoid.Health > 0 then
+        if _G.HealthESPEnabled and Humanoid.Health > 0 then
             highlight.FillTransparency = 1 - (Humanoid.Health / Humanoid.MaxHealth)
         else
             highlight.FillTransparency = 1
         end
     end
 
-    if ESPSettings.DistanceESPEnabled then
+    if _G.DistanceESPEnabled then
         updateDistanceAndHealthFunc = createDistanceAndHealthESP(Character, Player.Name)
         updateDistanceAndHealthFunc()  -- Initial update
         local connection = RunService.RenderStepped:Connect(function()
@@ -140,7 +138,7 @@ Players.PlayerAdded:Connect(HighlightPlayer)
 
 -- Function to enable or disable ESP features
 local function setESPEnabled(setting, enabled)
-    ESPSettings[setting] = enabled
+    _G[setting] = enabled
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
             if setting == "HealthESPEnabled" then
@@ -154,7 +152,7 @@ end
 
 -- Function to change the highlight color dynamically
 local function setHighlightColor(newColor)
-    ESPSettings.HighlightColor = newColor
+    _G.HighlightColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
             ApplyHighlight(Player)  -- Reapply the highlight with the new color
@@ -195,4 +193,4 @@ setHighlightColor(Color3.fromRGB(255, 0, 0))  -- Changes the highlight to red
 -- onBoxESPToggle(true)
 -- onBoxESPToggle(false)
 -- onDistanceESPToggle(true)
--- onDistanceESPToggle(false)123
+-- onDistanceESPToggle(false)
