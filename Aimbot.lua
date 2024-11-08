@@ -15,9 +15,9 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"           -- Part to aim at when target is grounded
 _G.AirAimPart = "Torso"        -- Part to aim at when target is in the air
-_G.Sensitivity = 0.1
-_G.PredictionAmount = 0.15
-_G.AirPredictionAmount = 0.2   -- Separate prediction for air movement
+_G.Sensitivity = 0
+_G.PredictionAmount = 0
+_G.AirPredictionAmount = 0   -- Separate prediction for air movement
 _G.UseCircle = true
 _G.WallCheck = true
 
