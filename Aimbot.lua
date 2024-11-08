@@ -13,16 +13,16 @@ local Holding = false
 -- Global Settings
 _G.AimbotEnabled = true
 _G.TeamCheck = false
-_G.AimPart = "Head"           -- Primary aim part for grounded targets
-_G.AirAimPart = "Torso"        -- Aim part for airborne targets
-_G.Sensitivity = 0           -- Aim smoothing, lower is more smooth
-_G.PredictionAmount = 0      -- Base prediction amount for horizontal movements
-_G.AirPredictionAmount = 0  -- Prediction for air movement
-_G.BulletDropCompensation = 0  -- Bullet drop offset based on distance
+_G.AimPart = "Head"           -- Part to aim at when target is grounded
+_G.AirAimPart = "LowerTorso"        -- Part to aim at when target is in the air
+_G.Sensitivity = 0          -- Aim smoothing
+_G.PredictionAmount = 0     -- Basic horizontal prediction
+_G.AirPredictionAmount = 0   -- Separate prediction for air movement
+_G.BulletDropCompensation = 0  -- Adjusts aim for bullet drop
 _G.DistanceAdjustment = true   -- Adjust prediction based on distance
 _G.UseCircle = true
 _G.WallCheck = true
-_G.ResolverEnabled = true      -- Toggle resolver for handling anti-aim techniques
+_G.ResolverEnabled = true      -- Activate resolver for improved accuracy
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -34,12 +34,7 @@ _G.CircleThickness = 1
 
 _G.VisibleCheek = true
 
--- Enhanced Resolver Configurations
-local PositionHistory = {}      -- Stores recent positions for jitter detection
-local LastPredictedPosition = nil
-local LastAimPartPosition = Vector3.zero
-
--- Function to Draw FOV Circle
+-- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -49,6 +44,10 @@ FOVCircle.Visible = _G.CircleVisible
 FOVCircle.Transparency = _G.CircleTransparency
 FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
+
+-- Current Target Variables
+local CurrentTarget = nil
+local CurrentHighlight = nil
 
 -- Function to check if the target is visible (Wall Check)
 local function IsTargetVisible(targetPart)
@@ -101,7 +100,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Advanced Resolver Function to handle Anti-Aim
+-- Advanced Resolver Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -116,48 +115,28 @@ local function PredictTargetPosition(Target)
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
-    -- Distance Adjustment
-    if _G.DistanceAdjustment then
-        local distanceFactor = (Camera.CFrame.Position - AimPart.Position).Magnitude * 0.01
-        predictedPosition = predictedPosition + (horizontalVelocity * distanceFactor)
-    end
-
     return predictedPosition
 end
 
 local function ResolveTargetPosition(Target)
-    -- Determine whether to use ground or air aim part based on target state
+    -- Determine whether to use ground aim part or air aim part based on target’s state
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    -- Add position to history for jitter analysis
-    table.insert(PositionHistory, AimPart.Position)
-    if #PositionHistory > 5 then table.remove(PositionHistory, 1) end
-
-    -- Jitter Detection
-    local jitterOffset = Vector3.zero
-    if #PositionHistory >= 2 then
-        for i = 1, #PositionHistory - 1 do
-            jitterOffset = jitterOffset + (PositionHistory[i] - PositionHistory[i + 1])
-        end
-        jitterOffset = jitterOffset / #PositionHistory
-    end
-
-    -- Predict Position using basic and jitter-based adjustments
+    -- Get initial predicted position
     local PredictedPosition = PredictTargetPosition(Target)
-    local correctedPosition = PredictedPosition + jitterOffset * 0.5
 
     -- Bullet Drop Compensation
-    local Distance = (Camera.CFrame.Position - correctedPosition).Magnitude
-    if _G.BulletDropCompensation > 0 then
-        correctedPosition = correctedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
+    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
+    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Offset and return the resolved position
+    -- Additional Correction Offset for improved precision
     local CorrectionOffset = Vector3.new(0, 0.5, 0)
-    local ResolvedPosition = correctedPosition + CorrectionOffset
+    local ResolvedPosition = PredictedPosition + CorrectionOffset
     return ResolvedPosition
 end
 
