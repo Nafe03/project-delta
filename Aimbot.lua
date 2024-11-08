@@ -11,24 +11,25 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = false
+_G.AimbotEnabled = true
 _G.TeamCheck = false
-_G.AimPart = "Head"
-_G.Sensitivity = 0
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0 -- Separate prediction for air movement
-_G.UseCircle = false
-_G.WallCheck = false
+_G.AimPart = "Head"           -- Part to aim at when target is grounded
+_G.AirAimPart = "Torso"        -- Part to aim at when target is in the air
+_G.Sensitivity = 0.1
+_G.PredictionAmount = 0.15
+_G.AirPredictionAmount = 0.2   -- Separate prediction for air movement
+_G.UseCircle = true
+_G.WallCheck = true
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleTransparency = 0.7
 _G.CircleRadius = 120
 _G.CircleFilled = false
-_G.CircleVisible = false
+_G.CircleVisible = true
 _G.CircleThickness = 1
 
-_G.VisibleCheek = false
+_G.VisibleCheek = true
 
 -- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -117,6 +118,13 @@ end
 
 -- Resolver Function to Correct the Predicted Position
 local function ResolveTargetPosition(Target)
+    -- Determine whether to use ground aim part or air aim part based on target’s state
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    
+    local AimPart = Target.Character:FindFirstChild(aimPartName)
+    if not AimPart then return end
+
     local PredictedPosition = PredictTargetPosition(Target)
     local CorrectionOffset = Vector3.new(0, 0.5, 0) -- Adjust this value as needed
     local ResolvedPosition = PredictedPosition + CorrectionOffset
@@ -173,12 +181,16 @@ RunService.RenderStepped:Connect(function()
 
     if Holding and _G.AimbotEnabled and CurrentTarget then
         local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild(_G.AimPart) then
+        if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
+                -- Resolve Target Position
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+
+                -- Final Position Calculation
                 local FinalPosition = ResolvedPosition
 
+                -- Tween Camera to Aim at Final Position
                 local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
                 local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
                 tween:Play()
