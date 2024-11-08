@@ -11,23 +11,24 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = true -- Enable or disable the aimbot
-_G.TeamCheck = false -- Toggle team check to avoid aiming at teammates
-_G.AimPart = "Head" -- Part to aim at (e.g., Head, HumanoidRootPart)
-_G.Sensitivity = 0 -- Smooth aiming sensitivity (lower is slower)
-_G.PredictionAmount = 0.15 -- Adjust prediction for moving targets
-_G.UseCircle = true -- Toggle FOV circle visibility
-_G.WallCheck = true -- Toggle wall check
+_G.AimbotEnabled = false
+_G.TeamCheck = false
+_G.AimPart = "Head"
+_G.Sensitivity = 0
+_G.PredictionAmount = 0
+_G.AirPredictionAmount = 0 -- Separate prediction for air movement
+_G.UseCircle = false
+_G.WallCheck = false
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleTransparency = 0.7
 _G.CircleRadius = 120
 _G.CircleFilled = false
-_G.CircleVisible = true
+_G.CircleVisible = false
 _G.CircleThickness = 1
 
-_G.VisibleCheek = true -- Toggle for visual cue on the locked target
+_G.VisibleCheek = false
 
 -- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -96,14 +97,22 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Prediction Function to Account for Target's Movement
+-- Prediction Function to Account for Sideways and Air Movement
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local Prediction = AimPart.Position + (Velocity * _G.PredictionAmount)
-    return Prediction
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
+    local predictedPosition = AimPart.Position + horizontalVelocity
+
+    -- Apply air prediction if the target is in the air
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
+    end
+
+    return predictedPosition
 end
 
 -- Resolver Function to Correct the Predicted Position
