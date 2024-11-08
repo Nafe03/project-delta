@@ -13,16 +13,16 @@ local Holding = false
 -- Global Settings
 _G.AimbotEnabled = true
 _G.TeamCheck = false
-_G.AimPart = "Head"           -- Part to aim at when target is grounded
-_G.AirAimPart = "LowerTorso"        -- Part to aim at when target is in the air
-_G.Sensitivity = 0          -- Aim smoothing
-_G.PredictionAmount = 0     -- Basic horizontal prediction
-_G.AirPredictionAmount = 0   -- Separate prediction for air movement
-_G.BulletDropCompensation = 0  -- Adjusts aim for bullet drop
-_G.DistanceAdjustment = true   -- Adjust prediction based on distance
+_G.AimPart = "Head"
+_G.AirAimPart = "LowerTorso"
+_G.Sensitivity = 0       -- Smoothness level
+_G.PredictionAmount = 0    -- Horizontal prediction amount
+_G.AirPredictionAmount = 0 -- Prediction for airborne targets
+_G.BulletDropCompensation = 0.005
+_G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.ResolverEnabled = true      -- Activate resolver for improved accuracy
+_G.ResolverEnabled = true
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -33,8 +33,10 @@ _G.CircleVisible = true
 _G.CircleThickness = 1
 
 _G.VisibleCheek = true
+_G.TargetLockKey = Enum.KeyCode.E -- Key to lock on target
+_G.ToggleAimbotKey = Enum.KeyCode.Q -- Key to toggle aimbot
 
--- Drawing FOV Circle
+-- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -55,7 +57,6 @@ local function IsTargetVisible(targetPart)
         local origin = Camera.CFrame.Position
         local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
         local raycastParams = RaycastParams.new()
-        
         raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
@@ -119,28 +120,22 @@ local function PredictTargetPosition(Target)
 end
 
 local function ResolveTargetPosition(Target)
-    -- Determine whether to use ground aim part or air aim part based on target’s state
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    -- Get initial predicted position
     local PredictedPosition = PredictTargetPosition(Target)
-
-    -- Bullet Drop Compensation
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Additional Correction Offset for improved precision
     local CorrectionOffset = Vector3.new(0, 0.5, 0)
     local ResolvedPosition = PredictedPosition + CorrectionOffset
     return ResolvedPosition
 end
 
--- Input Handlers
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -159,6 +154,13 @@ UserInputService.InputBegan:Connect(function(Input)
                 end
             end
         end
+    elseif Input.KeyCode == _G.ToggleAimbotKey then
+        _G.AimbotEnabled = not _G.AimbotEnabled
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Aimbot",
+            Text = "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"),
+            Duration = 2
+        })
     end
 end)
 
@@ -173,17 +175,9 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- RenderStepped Loop for Aimbot and FOV Circle
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius
-        FOVCircle.Filled = _G.CircleFilled
-        FOVCircle.Color = _G.CircleColor
-        FOVCircle.Visible = _G.CircleVisible
-        FOVCircle.Transparency = _G.CircleTransparency
-        FOVCircle.NumSides = _G.CircleSides
-        FOVCircle.Thickness = _G.CircleThickness
     else
         FOVCircle.Visible = false
     end
