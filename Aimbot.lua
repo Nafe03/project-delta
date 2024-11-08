@@ -15,11 +15,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"           -- Part to aim at when target is grounded
 _G.AirAimPart = "Torso"        -- Part to aim at when target is in the air
-_G.Sensitivity = 0
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0   -- Separate prediction for air movement
+_G.Sensitivity = 0.15          -- Aim smoothing
+_G.PredictionAmount = 0.15     -- Basic horizontal prediction
+_G.AirPredictionAmount = 0.1   -- Separate prediction for air movement
+_G.BulletDropCompensation = 0.05  -- Adjusts aim for bullet drop
+_G.DistanceAdjustment = true   -- Adjust prediction based on distance
 _G.UseCircle = true
 _G.WallCheck = true
+_G.ResolverEnabled = true      -- Activate resolver for improved accuracy
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -58,7 +61,6 @@ local function IsTargetVisible(targetPart)
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
         
-        -- If there is a hit and it’s not the target, there is an obstruction
         if raycastResult and raycastResult.Instance ~= targetPart then
             return false
         end
@@ -98,7 +100,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Prediction Function to Account for Sideways and Air Movement
+-- Advanced Resolver Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -116,17 +118,24 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Resolver Function to Correct the Predicted Position
 local function ResolveTargetPosition(Target)
     -- Determine whether to use ground aim part or air aim part based on target’s state
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
+    -- Get initial predicted position
     local PredictedPosition = PredictTargetPosition(Target)
-    local CorrectionOffset = Vector3.new(0, 0.5, 0) -- Adjust this value as needed
+
+    -- Bullet Drop Compensation
+    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
+    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
+    end
+
+    -- Additional Correction Offset for improved precision
+    local CorrectionOffset = Vector3.new(0, 0.5, 0)
     local ResolvedPosition = PredictedPosition + CorrectionOffset
     return ResolvedPosition
 end
@@ -184,13 +193,8 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                -- Resolve Target Position
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-
-                -- Final Position Calculation
                 local FinalPosition = ResolvedPosition
-
-                -- Tween Camera to Aim at Final Position
                 local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
                 local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
                 tween:Play()
@@ -200,12 +204,5 @@ RunService.RenderStepped:Connect(function()
         else
             CurrentTarget = nil
         end
-    end
-end)
-
--- Optional: Update FOV Circle on Screen Resize
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
     end
 end)
