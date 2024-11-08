@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 -- Local Player
 local LocalPlayer = Players.LocalPlayer
@@ -26,6 +27,7 @@ _G.CircleVisible = true
 _G.CircleThickness = 0
 
 _G.VisibleCheek = false -- Toggle for visual cue
+_G.WallCheck = true -- Toggle for wall check
 
 -- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -42,18 +44,34 @@ FOVCircle.Thickness = _G.CircleThickness
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
--- Function to Get the Closest Player within FOV
-local function GetClosestPlayer()
-    local MaximumDistance = _G.CircleRadius
+-- Function to check if the target is visible (Wall Check)
+local function IsTargetVisible(targetPart)
+    if _G.WallCheck then
+        local origin = Camera.CFrame.Position
+        local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+        local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
+        
+        -- If there is a hit and it’s not the target, there is an obstruction
+        if raycastResult and raycastResult.Instance ~= targetPart then
+            return false
+        end
+    end
+    return true
+end
+
+-- Function to Get the Closest Player to the Mouse Cursor
+local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = MaximumDistance
+    local ShortestDistance = _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if _G.TeamCheck then
-                if player.Team == LocalPlayer.Team then
-                    continue
-                end
+            if _G.TeamCheck and player.Team == LocalPlayer.Team then
+                continue
             end
 
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -64,7 +82,8 @@ local function GetClosestPlayer()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    if vectorDistance < ShortestDistance then
+                    -- Wall Check: Only consider target if visible (not behind walls)
+                    if vectorDistance < ShortestDistance and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
                     end
@@ -88,8 +107,6 @@ end
 
 -- Resolver Function to Correct the Predicted Position
 local function ResolveTargetPosition(Target)
-    -- Implement a simple correction logic here
-    -- For instance, adding a small offset to the predicted position
     local PredictedPosition = PredictTargetPosition(Target)
     local CorrectionOffset = Vector3.new(0, 0.5, 0) -- Adjust this value as needed
     local ResolvedPosition = PredictedPosition + CorrectionOffset
@@ -101,19 +118,17 @@ UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
         if _G.AimbotEnabled then
-            CurrentTarget = GetClosestPlayer()
+            CurrentTarget = GetClosestPlayerToMouse()
             if CurrentTarget then
-                -- Notify about the target locked
                 game:GetService("StarterGui"):SetCore("SendNotification", {
                     Title = "Aimbot",
                     Text = "Locked onto " .. CurrentTarget.Name,
                     Duration = 2
                 })
-                -- Add a highlight to the current target if visible
                 if _G.VisibleCheek then
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
-                    CurrentHighlight.FillColor = Color3.new(1, 0, 0) -- Red color for highlight
-                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0) -- Yellow outline
+                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
                 end
             end
         end
@@ -123,8 +138,7 @@ end)
 UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
-        CurrentTarget = nil -- Clear the target when holding ends
-        -- Remove highlight if it exists
+        CurrentTarget = nil
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
@@ -134,7 +148,6 @@ end)
 
 -- RenderStepped Loop for Aimbot and FOV Circle
 RunService.RenderStepped:Connect(function()
-    -- Update FOV Circle Properties if UseCircle is true
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
@@ -154,22 +167,17 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild(_G.AimPart) then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                -- Resolve Target Position
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                local AimPart = character[_G.AimPart]
-
-                -- Final Position Calculation
                 local FinalPosition = ResolvedPosition
 
-                -- Tween Camera to Aim at Final Position
                 local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
                 local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
                 tween:Play()
             else
-                CurrentTarget = nil -- Clear target if humanoid is dead
+                CurrentTarget = nil
             end
         else
-            CurrentTarget = nil -- Clear target if parts are missing
+            CurrentTarget = nil
         end
     end
 end)
