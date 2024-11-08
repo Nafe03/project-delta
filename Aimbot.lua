@@ -50,6 +50,8 @@ local function IsTargetVisible(targetPart)
         local origin = Camera.CFrame.Position
         local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
         local raycastParams = RaycastParams.new()
+
+        -- Exclude local player's character parts in the raycast filter
         raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
