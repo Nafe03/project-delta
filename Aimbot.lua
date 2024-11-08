@@ -11,23 +11,23 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = false
-_G.TeamCheck = false
-_G.AimPart = "Head"
-_G.Sensitivity = 0
-_G.PredictionAmount = 0
-_G.UseCircle = true
+_G.AimbotEnabled = true -- Enable or disable the aimbot
+_G.TeamCheck = false -- Toggle team check to avoid aiming at teammates
+_G.AimPart = "Head" -- Part to aim at (e.g., Head, HumanoidRootPart)
+_G.Sensitivity = 0 -- Smooth aiming sensitivity (lower is slower)
+_G.PredictionAmount = 0.15 -- Adjust prediction for moving targets
+_G.UseCircle = true -- Toggle FOV circle visibility
+_G.WallCheck = true -- Toggle wall check
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleTransparency = 0.7
-_G.CircleRadius = 80
+_G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
-_G.CircleThickness = 0
+_G.CircleThickness = 1
 
-_G.VisibleCheek = false -- Toggle for visual cue
-_G.WallCheck = true -- Toggle for wall check
+_G.VisibleCheek = true -- Toggle for visual cue on the locked target
 
 -- Drawing FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -40,7 +40,7 @@ FOVCircle.Transparency = _G.CircleTransparency
 FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
 
--- Current Target Variable
+-- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
@@ -50,8 +50,7 @@ local function IsTargetVisible(targetPart)
         local origin = Camera.CFrame.Position
         local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
         local raycastParams = RaycastParams.new()
-
-        -- Exclude local player's character parts and any descendants
+        
         raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
@@ -163,7 +162,6 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 
-    -- Aimbot Logic
     if Holding and _G.AimbotEnabled and CurrentTarget then
         local character = CurrentTarget.Character
         if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild(_G.AimPart) then
