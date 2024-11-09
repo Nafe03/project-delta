@@ -15,10 +15,10 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0.2         -- Smoothness level
-_G.PredictionAmount = 0.1    -- Horizontal prediction amount
-_G.AirPredictionAmount = 0.15 -- Prediction for airborne targets
-_G.BulletDropCompensation = 0.005
+_G.Sensitivity = 0
+_G.PredictionAmount = 0
+_G.AirPredictionAmount = 0
+_G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
@@ -33,8 +33,8 @@ _G.CircleVisible = true
 _G.CircleThickness = 1
 
 _G.VisibleCheek = true
-_G.TargetLockKey = Enum.KeyCode.E -- Key to lock on target
-_G.ToggleAimbotKey = Enum.KeyCode.Q -- Key to toggle aimbot
+_G.TargetLockKey = Enum.KeyCode.E
+_G.ToggleAimbotKey = Enum.KeyCode.Q
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -101,17 +101,24 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Advanced Resolver Function
+-- Advanced Resolver Function with Speed-based Prediction Adjustment
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
-    local predictedPosition = AimPart.Position + horizontalVelocity
+
+    -- Check target's speed and adjust prediction multiplier if necessary
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    local speedMultiplier = 1
+    if humanoid and humanoid.MoveDirection.Magnitude > 20 then
+        speedMultiplier = 1.4  -- Increase prediction by 40% for fast-moving targets
+    end
+
+    local predictedPosition = AimPart.Position + horizontalVelocity * speedMultiplier
 
     -- Apply air prediction if the target is in the air
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
