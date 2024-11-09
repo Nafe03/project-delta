@@ -15,9 +15,9 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0
+_G.Sensitivity = 0       -- Smoothness level
+_G.PredictionAmount = 0    -- Horizontal prediction amount
+_G.AirPredictionAmount = 0 -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
@@ -33,8 +33,8 @@ _G.CircleVisible = true
 _G.CircleThickness = 1
 
 _G.VisibleCheek = true
-_G.TargetLockKey = Enum.KeyCode.E
-_G.ToggleAimbotKey = Enum.KeyCode.Q
+_G.TargetLockKey = Enum.KeyCode.E -- Key to lock on target
+_G.ToggleAimbotKey = Enum.KeyCode.Q -- Key to toggle aimbot
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -101,30 +101,33 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Advanced Resolver Function with Speed-based Prediction Adjustment
+-- Advanced Resolver Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
-    local Velocity = AimPart.Velocity
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
-
-    -- Check target's speed and adjust prediction multiplier if necessary
     local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local speedMultiplier = 1
-    if humanoid and humanoid.MoveDirection.Magnitude > 20 then
-        speedMultiplier = 0.5  -- Increase prediction by 40% for fast-moving targets
+    if not humanoid then return AimPart.Position end
+
+    -- Determine the base prediction amount
+    local predictionMultiplier = _G.PredictionAmount
+    if humanoid.WalkSpeed > 20 then
+        predictionMultiplier = predictionMultiplier * 0.5
     end
 
-    local predictedPosition = AimPart.Position + horizontalVelocity * speedMultiplier
+    -- Calculate the predicted horizontal position
+    local Velocity = AimPart.Velocity
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
+    local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Apply air prediction if the target is in the air
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+    if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
+
 
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
