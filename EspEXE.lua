@@ -57,11 +57,11 @@ end
 
 -- Box ESP Function
 local function createBoxESP(player)
-    local Box = Drawing.new("Quad")
-    Box.Visible = false
-    Box.Color = Color3.fromRGB(255, 255, 255)
-    Box.Thickness = 1
-    Box.Transparency = 1
+    local box = Drawing.new("Quad")
+    box.Visible = false
+    box.Color = Color3.fromRGB(255, 255, 255)
+    box.Thickness = 1
+    box.Transparency = 1
 
     local function updateBox()
         if player.Character and player.Character.PrimaryPart and player.Character:FindFirstChildOfClass("Humanoid") then
@@ -86,23 +86,34 @@ local function createBoxESP(player)
                         if p.Y > bottom.Y then bottom = p end
                     end
 
-                    Box.PointA = Vector2.new(right.X, top.Y)
-                    Box.PointB = Vector2.new(left.X, top.Y)
-                    Box.PointC = Vector2.new(left.X, bottom.Y)
-                    Box.PointD = Vector2.new(right.X, bottom.Y)
-                    Box.Visible = true
+                    box.PointA = Vector2.new(right.X, top.Y)
+                    box.PointB = Vector2.new(left.X, top.Y)
+                    box.PointC = Vector2.new(left.X, bottom.Y)
+                    box.PointD = Vector2.new(right.X, bottom.Y)
+                    box.Visible = true
                 else
-                    Box.Visible = false
+                    box.Visible = false
                 end
             else
-                Box.Visible = false
+                box.Visible = false
             end
         else
-            Box.Visible = false
+            box.Visible = false
         end
     end
 
-    RunService.RenderStepped:Connect(updateBox)
+    local conn
+    conn = RunService.RenderStepped:Connect(updateBox)
+
+    -- Cleanup function to disconnect the event when the player leaves
+    player.AncestryChanged:Connect(function()
+        if not player:IsDescendantOf(Players) then
+            box:Remove()
+            if conn then
+                conn:Disconnect()
+            end
+        end
+    end)
 end
 
 -- Function to update ESP elements for a player
