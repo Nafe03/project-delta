@@ -23,7 +23,7 @@ _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
 _G.ResolverEnabled = true
-_G.PredictionMultiplier = 0.5
+_G.PredictionMultiplier = 0
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
