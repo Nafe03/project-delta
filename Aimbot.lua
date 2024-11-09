@@ -23,6 +23,7 @@ _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
 _G.ResolverEnabled = true
+_G.PredictionMultiplier = 0.5
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -112,7 +113,7 @@ local function PredictTargetPosition(Target)
     -- Determine the base prediction amount
     local predictionMultiplier = _G.PredictionAmount
     if humanoid.WalkSpeed > 20 then
-        predictionMultiplier = predictionMultiplier * 0.5
+        predictionMultiplier = predictionMultiplier * _G.PredictionMultiplier
     end
 
     -- Calculate the predicted horizontal position
@@ -127,6 +128,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 
 local function ResolveTargetPosition(Target)
