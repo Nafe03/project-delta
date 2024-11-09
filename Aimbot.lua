@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local StarterGui = game:GetService("StarterGui")
 
 -- Local Player
 local LocalPlayer = Players.LocalPlayer
@@ -15,15 +16,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level
-_G.PredictionAmount = 0    -- Horizontal prediction amount
-_G.AirPredictionAmount = 0 -- Prediction for airborne targets
-_G.BulletDropCompensation = 0
+_G.Sensitivity = 0.1            -- Smoothness level (lower = faster)
+_G.PredictionAmount = 0.2       -- Prediction for moving targets
+_G.AirPredictionAmount = 0.3    -- Prediction for airborne targets
+_G.BulletDropCompensation = 0.005
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.ResolverEnabled = true
-_G.PredictionMultiplier = 0
+_G.PredictionMultiplier = 1.5   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -33,9 +33,9 @@ _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
 
-_G.VisibleCheek = true
-_G.TargetLockKey = Enum.KeyCode.E -- Key to lock on target
-_G.ToggleAimbotKey = Enum.KeyCode.Q -- Key to toggle aimbot
+_G.VisibleHighlight = true
+_G.TargetLockKey = Enum.KeyCode.E
+_G.ToggleAimbotKey = Enum.KeyCode.Q
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -51,6 +51,15 @@ FOVCircle.Thickness = _G.CircleThickness
 -- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
+
+-- Function to send notifications
+local function Notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
 
 -- Function to check if the target is visible (Wall Check)
 local function IsTargetVisible(targetPart)
@@ -70,7 +79,7 @@ local function IsTargetVisible(targetPart)
     return true
 end
 
--- Function to Get the Closest Player to the Mouse Cursor
+-- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
     local ShortestDistance = _G.CircleRadius
@@ -89,7 +98,6 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Wall Check: Only consider target if visible (not behind walls)
                     if vectorDistance < ShortestDistance and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -102,7 +110,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Advanced Resolver Function
+-- Advanced Prediction Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -110,26 +118,21 @@ local function PredictTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if not humanoid then return AimPart.Position end
 
-    -- Determine the base prediction amount
     local predictionMultiplier = _G.PredictionAmount
     if humanoid.WalkSpeed > 20 then
         predictionMultiplier = predictionMultiplier * _G.PredictionMultiplier
     end
 
-    -- Calculate the predicted horizontal position
     local Velocity = AimPart.Velocity
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
-    -- Apply air prediction if the target is in the air
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
-
-
 
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
@@ -143,8 +146,7 @@ local function ResolveTargetPosition(Target)
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    local CorrectionOffset = Vector3.new(0, 0.5, 0)
-    local ResolvedPosition = PredictedPosition + CorrectionOffset
+    local ResolvedPosition = PredictedPosition
     return ResolvedPosition
 end
 
@@ -154,12 +156,8 @@ UserInputService.InputBegan:Connect(function(Input)
         if _G.AimbotEnabled then
             CurrentTarget = GetClosestPlayerToMouse()
             if CurrentTarget then
-                game:GetService("StarterGui"):SetCore("SendNotification", {
-                    Title = "Aimbot",
-                    Text = "Locked onto " .. CurrentTarget.Name,
-                    Duration = 2
-                })
-                if _G.VisibleCheek then
+                Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
+                if _G.VisibleHighlight then
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                     CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
@@ -168,11 +166,7 @@ UserInputService.InputBegan:Connect(function(Input)
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
         _G.AimbotEnabled = not _G.AimbotEnabled
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Aimbot",
-            Text = "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"),
-            Duration = 2
-        })
+        Notify("Aimbot", "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"))
     end
 end)
 
@@ -200,10 +194,11 @@ RunService.RenderStepped:Connect(function()
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                local FinalPosition = ResolvedPosition
-                local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
-                local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                tween:Play()
+                if ResolvedPosition then
+                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
+                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                    tween:Play()
+                end
             else
                 CurrentTarget = nil
             end
