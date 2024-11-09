@@ -106,18 +106,28 @@ local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if not humanoid then return AimPart.Position end
+
+    -- Determine the base prediction amount
+    local predictionMultiplier = _G.PredictionAmount
+    if humanoid.WalkSpeed > 20 then
+        predictionMultiplier = predictionMultiplier * 0.5
+    end
+
+    -- Calculate the predicted horizontal position
     local Velocity = AimPart.Velocity
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Apply air prediction if the target is in the air
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+    if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
+
 
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
