@@ -18,12 +18,11 @@ _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level
 _G.PredictionAmount = 0    -- Horizontal prediction amount
 _G.AirPredictionAmount = 0 -- Prediction for airborne targets
-_G.BulletDropCompensation = 0
+_G.BulletDropCompensation = 0.005
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
 _G.ResolverEnabled = true
-_G.SpeedThreshold = 24    -- Speed threshold to ignore target
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -103,18 +102,36 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Advanced Resolver Function with Speed Check
+local function PredictTargetPosition(Target)
+    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
+    if not AimPart then return AimPart.Position end
+
+    local Velocity = AimPart.Velocity
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    local predictionMultiplier = _G.PredictionAmount
+
+    -- Check if the target's walk speed is greater than 20
+    if humanoid and humanoid.WalkSpeed > 20 then
+        predictionMultiplier = predictionMultiplier * 0.4
+    end
+
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
+    local predictedPosition = AimPart.Position + horizontalVelocity
+
+    -- Apply air prediction if the target is in the air
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
+    end
+
+    return predictedPosition
+end
+
+
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
-
-    -- Check if the player's WalkSpeed is greater than SpeedThreshold
-    local currentSpeed = humanoid.WalkSpeed
-    if currentSpeed > _G.SpeedThreshold then
-        -- Apply 0^3 multiplier by simply returning nil, effectively stopping aimbot on this target
-        return nil
-    end
 
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
@@ -125,24 +142,6 @@ local function ResolveTargetPosition(Target)
     local CorrectionOffset = Vector3.new(0, 0.5, 0)
     local ResolvedPosition = PredictedPosition + CorrectionOffset
     return ResolvedPosition
-end
-
--- Advanced Resolver Prediction Function
-local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return AimPart.Position end
-
-    local Velocity = AimPart.Velocity
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
-    local predictedPosition = AimPart.Position + horizontalVelocity
-
-    -- Apply air prediction if the target is in the air
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
-    end
-
-    return predictedPosition
 end
 
 UserInputService.InputBegan:Connect(function(Input)
@@ -197,13 +196,10 @@ RunService.RenderStepped:Connect(function()
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then -- Only aim if position is valid
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                else
-                    CurrentTarget = nil
-                end
+                local FinalPosition = ResolvedPosition
+                local newCFrame = CFrame.new(Camera.CFrame.Position, FinalPosition)
+                local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                tween:Play()
             else
                 CurrentTarget = nil
             end
