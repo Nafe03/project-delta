@@ -113,7 +113,7 @@ local function PredictTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local speedMultiplier = 1
     if humanoid and humanoid.MoveDirection.Magnitude > 20 then
-        speedMultiplier = 1.4  -- Increase prediction by 40% for fast-moving targets
+        speedMultiplier = 0.5  -- Increase prediction by 40% for fast-moving targets
     end
 
     local predictedPosition = AimPart.Position + horizontalVelocity * speedMultiplier
