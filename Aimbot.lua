@@ -157,8 +157,8 @@ local function PredictTargetPosition(Target)
     local targetSpeed = Velocity.Magnitude
 
     -- Increment _G.PredictionAmount based on target's movement speed
-    if targetSpeed > 0 then
-        _G.PredictionAmount = _G.PredictionAmount + 0.01
+    if targetSpeed > 20 then
+        _G.PredictionAmount = _G.PredictionAmount + 0.001
     end
 
     -- Apply prediction with the adjusted PredictionAmount
