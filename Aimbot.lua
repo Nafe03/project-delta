@@ -82,7 +82,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius
+    local ShortestDistance = _G.CircleRadius  -- Circle radius acts as max distance
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -98,7 +98,8 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    if vectorDistance < ShortestDistance and IsTargetVisible(part) then
+                    -- Only consider players within the circle radius and closest to the mouse
+                    if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
                     end
