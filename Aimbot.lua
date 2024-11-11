@@ -23,7 +23,7 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
+_G.PredictionMultiplier = 0.4   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -140,17 +140,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Advanced Prediction Function
--- Advanced Prediction Function
--- Enhanced Prediction for Anti-lock Resolver
--- Prediction Function
--- Prediction Function
--- Prediction Function
--- Track the last speed threshold crossed
--- Track the last speed threshold crossed
--- Track the last speed threshold crossed
-local lastSpeedThreshold = 30
-
+-- Prediction Function with Multiplier for Fast Targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -161,20 +151,9 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
-    -- Define a very small base increment and even smaller scaling factor
-    local baseIncrement = 0.000001  -- Much smaller base increment
-    local speedFactor = (targetSpeed - lastSpeedThreshold) * 0.000001  -- Smaller scaling factor
-
-    -- Increment _G.PredictionAmount slightly based on speed crossing a new threshold
-    if targetSpeed > lastSpeedThreshold then
-        _G.PredictionAmount = _G.PredictionAmount + baseIncrement + speedFactor
-        lastSpeedThreshold = math.floor(targetSpeed)  -- Update threshold to current speed level
-    elseif targetSpeed < lastSpeedThreshold then
-        lastSpeedThreshold = math.floor(targetSpeed)  -- Reset threshold if target slows down
-    end
-
-    -- Apply prediction with the adjusted PredictionAmount
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
+    -- Adjust prediction based on target speed
+    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Vertical prediction if target is airborne
@@ -185,7 +164,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Improved ResolveTargetPosition function with anti-lock resistance
+-- Improved ResolveTargetPosition function with bullet drop and prediction adjustments
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -200,14 +179,7 @@ local function ResolveTargetPosition(Target)
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Final resolved position, including adjustments for evasive movement patterns
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1
-    )
-
-    return ResolvedPosition
+    return PredictedPosition
 end
 
 UserInputService.InputBegan:Connect(function(Input)
