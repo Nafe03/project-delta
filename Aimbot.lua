@@ -153,7 +153,7 @@ local function PredictTargetPosition(Target)
 
     -- Adjust prediction based on target speed
     local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
+    local horizontalVelocity = Vector3.new(Velocity.X, 0.1, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Vertical prediction if target is airborne
