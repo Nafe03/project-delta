@@ -23,7 +23,7 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 2.1   -- Multiplier for prediction on fast targets
+_G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
