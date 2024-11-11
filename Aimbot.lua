@@ -37,7 +37,7 @@ _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
 _G.ToggleAimbotKey = Enum.KeyCode.Q
 
--- FOV Circle Setup
+-- FOV Circle Setup (initial setup)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -82,7 +82,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Circle radius acts as max distance
+    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -98,7 +98,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Only consider players within the circle radius and closest to the mouse
+                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -110,6 +110,35 @@ local function GetClosestPlayerToMouse()
 
     return Target
 end
+
+-- Adjust FOV circle on RenderStepped to follow mouse and update radius
+RunService.RenderStepped:Connect(function()
+    if _G.UseCircle then
+        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
+    else
+        FOVCircle.Visible = false
+    end
+
+    if Holding and _G.AimbotEnabled and CurrentTarget then
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+                if ResolvedPosition then
+                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
+                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                    tween:Play()
+                end
+            else
+                CurrentTarget = nil
+            end
+        else
+            CurrentTarget = nil
+        end
+    end
+end)
 
 -- Advanced Prediction Function
 -- Advanced Prediction Function
