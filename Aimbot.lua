@@ -161,8 +161,8 @@ local function PredictTargetPosition(Target)
     local targetSpeed = Velocity.Magnitude
 
     -- Define a small base increment that scales up slightly with speed
-    local baseIncrement = 0.0005  -- Small base increment
-    local speedFactor = (targetSpeed - lastSpeedThreshold) * 0.0001  -- Scaling factor for additional prediction
+    local baseIncrement = 0.000005  -- Small base increment
+    local speedFactor = (targetSpeed - lastSpeedThreshold) * 0.000001  -- Scaling factor for additional prediction
 
     -- Increase _G.PredictionAmount slightly based on speed crossing a new threshold
     if targetSpeed > lastSpeedThreshold then
