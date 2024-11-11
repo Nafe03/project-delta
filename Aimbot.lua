@@ -17,13 +17,13 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Base Prediction Amount
+_G.PredictionAmount = 0       -- Prediction for moving targets
 _G.AirPredictionAmount = 0    -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 0   -- Prediction multiplier for high-speed targets
+_G.PredictionMultiplier = 0.4   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -140,7 +140,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Enhanced Prediction for High-Speed Targets
+-- Prediction Function with Multiplier for Fast Targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -151,16 +151,12 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
-    -- Dynamic Prediction Adjustment based on Target Speed
-    local predictionFactor = _G.PredictionAmount
-    if targetSpeed > 20 then
-        predictionFactor = _G.PredictionAmount * (1 + _G.PredictionMultiplier)
-    end
-
+    -- Adjust prediction based on target speed
+    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
-    -- Vertical prediction for airborne targets
+    -- Vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
@@ -168,7 +164,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Improved ResolveTargetPosition function
+-- Improved ResolveTargetPosition function with bullet drop and prediction adjustments
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -213,6 +209,33 @@ UserInputService.InputEnded:Connect(function(Input)
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if _G.UseCircle then
+        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+    else
+        FOVCircle.Visible = false
+    end
+
+    if Holding and _G.AimbotEnabled and CurrentTarget then
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+                if ResolvedPosition then
+                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
+                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                    tween:Play()
+                end
+            else
+                CurrentTarget = nil
+            end
+        else
+            CurrentTarget = nil
         end
     end
 end)
