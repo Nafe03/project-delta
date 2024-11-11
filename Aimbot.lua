@@ -23,7 +23,6 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 0.4   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -111,36 +110,20 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Adjust FOV circle on RenderStepped to follow mouse and update radius
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
-    else
-        FOVCircle.Visible = false
-    end
+-- Prediction Adjustment Function based on Target Speed and Estimated Latency
+local function CalculatePredictionMultiplier(target)
+    local AimPart = target.Character:FindFirstChild(_G.AimPart)
+    if not AimPart then return 0 end
 
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
-            CurrentTarget = nil
-        end
-    end
-end)
+    local Velocity = AimPart.Velocity.Magnitude
+    local estimatedLatency = 0.05  -- Approximated latency in seconds; adjust based on average ping
 
--- Prediction Function with Multiplier for Fast Targets
+    -- Calculate prediction multiplier based on target speed and latency
+    local predictionMultiplier = Velocity * estimatedLatency
+    return predictionMultiplier
+end
+
+-- Prediction Function with Dynamic Multiplier for Fast Targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -149,11 +132,10 @@ local function PredictTargetPosition(Target)
     if not humanoid then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local targetSpeed = Velocity.Magnitude
+    local dynamicPrediction = CalculatePredictionMultiplier(Target)
 
-    -- Adjust prediction based on target speed
-    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
+    -- Adjust horizontal and vertical predictions based on target speed and latency
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * dynamicPrediction
     local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Vertical prediction if target is airborne
@@ -164,7 +146,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Improved ResolveTargetPosition function with bullet drop and prediction adjustments
+-- ResolveTargetPosition with bullet drop and prediction adjustments
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -182,6 +164,7 @@ local function ResolveTargetPosition(Target)
     return PredictedPosition
 end
 
+-- Update and Track Target Lock Status
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -213,6 +196,7 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
+-- Update Aim Smoothness and Accuracy
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
