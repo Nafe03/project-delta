@@ -147,6 +147,7 @@ end)
 -- Prediction Function
 -- Prediction Function
 -- Track the last speed threshold crossed
+-- Track the last speed threshold crossed
 local lastSpeedThreshold = 20
 
 local function PredictTargetPosition(Target)
@@ -159,12 +160,16 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
-    -- Increment _G.PredictionAmount when the target speed crosses a new integer threshold
+    -- Define a small base increment that scales up slightly with speed
+    local baseIncrement = 0.0005  -- Small base increment
+    local speedFactor = (targetSpeed - lastSpeedThreshold) * 0.0001  -- Scaling factor for additional prediction
+
+    -- Increase _G.PredictionAmount slightly based on speed crossing a new threshold
     if targetSpeed > lastSpeedThreshold then
-        _G.PredictionAmount = _G.PredictionAmount + 0.001
-        lastSpeedThreshold = math.floor(targetSpeed)  -- Update the last threshold to the current speed level
+        _G.PredictionAmount = _G.PredictionAmount + baseIncrement + speedFactor
+        lastSpeedThreshold = math.floor(targetSpeed)  -- Update threshold to current speed level
     elseif targetSpeed < lastSpeedThreshold then
-        lastSpeedThreshold = math.floor(targetSpeed)  -- Reset the threshold if target slows down
+        lastSpeedThreshold = math.floor(targetSpeed)  -- Reset threshold if target slows down
     end
 
     -- Apply prediction with the adjusted PredictionAmount
@@ -178,9 +183,6 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
-
-
-
 
 -- Improved ResolveTargetPosition function with anti-lock resistance
 local function ResolveTargetPosition(Target)
