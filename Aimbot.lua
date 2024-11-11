@@ -149,7 +149,7 @@ end)
 -- Track the last speed threshold crossed
 -- Track the last speed threshold crossed
 -- Track the last speed threshold crossed
-local lastSpeedThreshold = 20
+local lastSpeedThreshold = 40
 
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
@@ -162,7 +162,7 @@ local function PredictTargetPosition(Target)
     local targetSpeed = Velocity.Magnitude
 
     -- Define a very small base increment and even smaller scaling factor
-    local baseIncrement = 0.0001  -- Much smaller base increment
+    local baseIncrement = 0.000001  -- Much smaller base increment
     local speedFactor = (targetSpeed - lastSpeedThreshold) * 0.00001  -- Smaller scaling factor
 
     -- Increment _G.PredictionAmount slightly based on speed crossing a new threshold
