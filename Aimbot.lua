@@ -144,6 +144,7 @@ end)
 -- Advanced Prediction Function
 -- Enhanced Prediction for Anti-lock Resolver
 -- Prediction Function
+-- Prediction Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -152,19 +153,17 @@ local function PredictTargetPosition(Target)
     if not humanoid then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local targetSpeed = Velocity.Magnitude  -- Calculate the magnitude of the target's velocity
+    local targetSpeed = Velocity.Magnitude
     local predictionMultiplier = _G.PredictionAmount
 
-    -- Adjust prediction multiplier based on target's speed
+    -- Adjust prediction multiplier dynamically based on target speed and slider value
     if targetSpeed > 0 then
         predictionMultiplier = predictionMultiplier + (targetSpeed / 20) * _G.PredictionMultiplier
     end
 
-    -- Horizontal prediction for moving targets
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
-    -- Vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
