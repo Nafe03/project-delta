@@ -111,6 +111,7 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Advanced Prediction Function
+-- Advanced Prediction Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -118,21 +119,27 @@ local function PredictTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if not humanoid then return AimPart.Position end
 
+    -- Adjust the prediction multiplier based on the target's actual speed
+    local targetSpeed = humanoid.WalkSpeed
     local predictionMultiplier = _G.PredictionAmount
-    if humanoid.WalkSpeed > 20 then
-        predictionMultiplier = predictionMultiplier * _G.PredictionMultiplier
+
+    -- Increase prediction multiplier proportionally for higher speeds
+    if targetSpeed > 20 then
+        predictionMultiplier = predictionMultiplier * (1 + (targetSpeed - 20) / 10) * _G.PredictionMultiplier
     end
 
     local Velocity = AimPart.Velocity
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
+    -- Check if target is airborne to apply vertical prediction
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
+
 
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
