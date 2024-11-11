@@ -142,6 +142,7 @@ end)
 
 -- Advanced Prediction Function
 -- Advanced Prediction Function
+-- Enhanced Prediction for Anti-lock Resolver
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -149,20 +150,20 @@ local function PredictTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if not humanoid then return AimPart.Position end
 
-    -- Adjust the prediction multiplier based on the target's actual speed
+    local Velocity = AimPart.Velocity
     local targetSpeed = humanoid.WalkSpeed
     local predictionMultiplier = _G.PredictionAmount
 
-    -- Increase prediction multiplier proportionally for higher speeds
+    -- Adjust prediction based on target speed and evasion behavior
     if targetSpeed > 20 then
         predictionMultiplier = predictionMultiplier * (1 + (targetSpeed - 20) / 10) * _G.PredictionMultiplier
     end
 
-    local Velocity = AimPart.Velocity
+    -- Additional check for unpredictable movements or zig-zag
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
-    -- Check if target is airborne to apply vertical prediction
+    -- Vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
@@ -170,7 +171,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
-
+-- Improved ResolveTargetPosition function with anti-lock resistance
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -179,11 +180,19 @@ local function ResolveTargetPosition(Target)
 
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
+
+    -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    local ResolvedPosition = PredictedPosition
+    -- Final resolved position, including adjustments for evasive movement patterns
+    local ResolvedPosition = PredictedPosition + Vector3.new(
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1
+    )
+
     return ResolvedPosition
 end
 
