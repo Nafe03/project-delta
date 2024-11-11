@@ -16,14 +16,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0.05       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 1       -- Base Prediction Amount
-_G.AirPredictionAmount = 1.2    -- Prediction for airborne targets
-_G.BulletDropCompensation = 0.05
+_G.Sensitivity = 0       -- Smoothness level (lower = faster)
+_G.PredictionAmount = 0       -- Base Prediction Amount
+_G.AirPredictionAmount = 0    -- Prediction for airborne targets
+_G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 0.4   -- Prediction multiplier for high-speed targets
+_G.PredictionMultiplier = 0   -- Prediction multiplier for high-speed targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
