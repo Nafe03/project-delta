@@ -189,9 +189,11 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
+-- Update FOV circle on RenderStepped to follow mouse and adjust radius
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+        FOVCircle.Radius = _G.CircleRadius  -- Ensure the radius can be changed dynamically
     else
         FOVCircle.Visible = false
     end
