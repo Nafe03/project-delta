@@ -107,6 +107,17 @@ local function createESPUI(character, playerName)
             healthBar.Size = UDim2.new(0, 0, 0, 0)
             healthLabel.Visible = false
         end
+
+        if _G.NameESPEnabled then
+            local NameESPEnabled = humanoid.Name
+            nameLabel.Size = UDim2.new(healthFraction, 0, 1, 0)
+            nameLabel.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+            nameLabel.Text = string.format("HP: %d/%d", humanoid.Name)
+            nameLabel.Visible = true
+        else
+            nameLabel.Size = UDim2.new(0, 0, 0, 0)
+            nameLabel.Visible = false
+        end
     end
 
     return updateESP
