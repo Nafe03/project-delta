@@ -18,7 +18,7 @@ _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level (lower = faster)
 _G.PredictionAmount = 0       -- Prediction for moving targets
-_G.AirPredictionAmount = 0    -- Prediction for airborne targets
+_G.AirPredictionAmount = 2    -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
