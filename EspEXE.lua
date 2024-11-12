@@ -16,6 +16,7 @@ _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
+_G.HealthShowTextEnabled = false
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
@@ -74,7 +75,7 @@ local function createESPUI(character, playerName)
     healthLabel.Font = Enum.Font.Arcade
     healthLabel.TextStrokeTransparency = 0.5
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    healthLabel.Visible = _G.HealthESPEnabled
+    healthLabel.Visible = _G.HealthShowTextEnabled
 
     -- Health Bar Background
     local healthBarBackground = Instance.new("Frame", billboardGui)
