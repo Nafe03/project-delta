@@ -452,7 +452,7 @@ local tooltip = {} do
                 menu.ClipsDescendants = true 
                 menu.Name = '#menu'
                 menu.Position = UDim2.fromOffset(-1, 17)
-                menu.Size = UDim2.new(1, 2, 1, -16)
+                menu.Size = UDim2.new(3, 5, 3, -32)
                 menu.Visible = true
                 menu.ZIndex = 3801
                  
