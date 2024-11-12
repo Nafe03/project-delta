@@ -331,7 +331,7 @@ local tooltip = {} do
         main.BorderColor3 = theme.Inset2
         main.BorderMode = 'Inset'
         main.Name = '#main'
-        main.Size = UDim2.fromOffset(140, 60)
+        main.Size = UDim2.fromOffset(140, 100)
         main.Visible = false
         main.ZIndex = 3800
         
