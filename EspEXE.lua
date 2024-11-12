@@ -18,6 +18,7 @@ _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
+_G.HealthTextColor = color3.fromRGB(255, 255, 255)
 
 -- Function to create ESP Highlight
 local function createHighlight(character)
@@ -68,7 +69,7 @@ local function createESPUI(character, playerName)
     healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
     healthLabel.Position = UDim2.new(0, 0, 0, 0)
     healthLabel.BackgroundTransparency = 1
-    healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    healthLabel.TextColor3 = _G.HealthTextColor
     healthLabel.TextScaled = true
     healthLabel.Font = Enum.Font.Arcade
     healthLabel.TextStrokeTransparency = 0.5
@@ -229,6 +230,15 @@ local function setBoxColor(newColor)
         end
     end
 end
+
+local function setHealthTextColor(newColor)
+    _G.HealthTextColor = newColor
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Character then
+            applyESP(Player)
+        end
+    end
+end
 -- Example UI toggle functions
 local function onHealthESPToggle(newState)
     toggleESPFeature("HealthESPEnabled", newState)
@@ -253,3 +263,4 @@ end
 -- Change color example
 setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Set highlight to red
 setBoxColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
