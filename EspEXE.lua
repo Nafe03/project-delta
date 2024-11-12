@@ -16,6 +16,7 @@ _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
+_G.BoxColor = Color3.fromRGB(0, 255, 0)
 
 -- Function to create ESP Highlight
 local function createHighlight(character)
@@ -98,7 +99,7 @@ end
 local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
-    Box.Color = Color3.fromRGB(255, 255, 255)
+    Box.Color = _G.BoxColor
     Box.Thickness = 1
     Box.Transparency = 1
 
