@@ -131,11 +131,6 @@ local function updateESP(player)
 
         if _G.HealthESPEnabled then
             local healthFraction = humanoid.Health / humanoid.MaxHealth
-            if healthFraction > 50 then
-                _G.HighlightColor = Color3.fromRGB(255, 255, 255)
-            else
-                _G.HighlightColor = Color3.fromRGB(0, 255, 0)
-            highlight.FillTransparency = 1 - healthFraction
         else
             highlight.FillTransparency = 1
         end
