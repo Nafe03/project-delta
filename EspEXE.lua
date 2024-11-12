@@ -203,29 +203,6 @@ local function createSkeletonESP(player)
     updateSkeleton()
 end
 
-local function applyESP(Player)
-    local Character = Player.Character or Player.CharacterAdded:Wait()
-    local Humanoid = Character:WaitForChild("Humanoid")
-
-    local highlight = createHighlight(Character)
-    local updateESPFunc = createESPUI(Character, Player.Name)
-
-    -- Set up highlight and update functions
-    local function updateHighlight()
-        highlight.FillColor = _G.HighlightColor
-        highlight.Enabled = _G.HealthESPEnabled or _G.DistanceESPEnabled or _G.BoxESPEnabled
-    end
-
-    updateESPFunc()
-    updateHighlight()
-    DrawESPBox(Player)
-
-    RunService.RenderStepped:Connect(function()
-        updateESPFunc()
-        updateHighlight()
-    end)
-end
-
 -- Initialize ESP for each player
 local function initializeESP(player)
     player.CharacterAdded:Connect(function()
@@ -237,6 +214,17 @@ local function initializeESP(player)
     end)
 end
 
+-- Apply ESP for an individual player
+local function applyESP(player)
+    if player.Character then
+        createBoxESP(player)
+        createHealthBarESP(player)
+        createDistanceESP(player)
+        createNameESP(player)
+        createSkeletonESP(player)
+    end
+end
+
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
         initializeESP(player)
@@ -244,37 +232,32 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(initializeESP)
 
+-- Toggle ESP feature
 local function toggleESPFeature(feature, state)
     _G[feature] = state
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player.Character then
-            applyESP(Player)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            applyESP(player)
         end
     end
 end
 
--- Change highlight color
-local function setHighlightColor(newColor)
-    _G.HighlightColor = newColor
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player.Character then
-            applyESP(Player)
-        end
-    end
-end
-
+-- Toggle for Health ESP
 local function onHealthESPToggle(newState)
     toggleESPFeature("HealthESPEnabled", newState)
 end
 
+-- Toggle for Name ESP
 local function onNameESPToggle(newState)
     toggleESPFeature("NameESPEnabled", newState)
 end
 
+-- Toggle for Box ESP
 local function onBoxESPToggle(newState)
     toggleESPFeature("BoxESPEnabled", newState)
 end
 
+-- Toggle for Distance ESP
 local function onDistanceESPToggle(newState)
     toggleESPFeature("DistanceESPEnabled", newState)
 end
