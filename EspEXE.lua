@@ -104,6 +104,12 @@ local function createESPUI(character, playerName)
             local healthFraction = humanoid.Health / humanoid.MaxHealth
             healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
             healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+        else
+            healthLabel.Visible = false
+            healthBarBackground.Visible = false
+        end
+        if _G.HealthShowText then
+            local healthFraction1 = humanoid.Health / humanoid.MaxHealth
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
             healthLabel.Visible = true
             healthBarBackground.Visible = true
@@ -111,7 +117,6 @@ local function createESPUI(character, playerName)
         else
             healthLabel.Visible = false
             healthBarBackground.Visible = false
-        end
 
         if _G.NameESPEnabled then
             nameLabel.Visible = true
