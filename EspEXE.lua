@@ -35,13 +35,13 @@ local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
     billboardGui.Size = UDim2.new(0, 100, 0, 100)
     billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 3, 0) -- Adjusted for consistent size
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
     billboardGui.AlwaysOnTop = true
 
     -- Name Label
     local nameLabel = Instance.new("TextLabel", billboardGui)
     nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    nameLabel.Position = UDim2.new(0, 0, -1, 0) -- Positioned above the player
+    nameLabel.Position = UDim2.new(0, 0, -1, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.TextScaled = true
@@ -54,7 +54,7 @@ local function createESPUI(character, playerName)
     -- Distance Label
     local distanceLabel = Instance.new("TextLabel", billboardGui)
     distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    distanceLabel.Position = UDim2.new(0, 0, 1.3, 0) -- Positioned below the player
+    distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
     distanceLabel.BackgroundTransparency = 1
     distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     distanceLabel.TextScaled = true
@@ -66,7 +66,7 @@ local function createESPUI(character, playerName)
     -- Health Label
     local healthLabel = Instance.new("TextLabel", billboardGui)
     healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    healthLabel.Position = UDim2.new(0, 0, 0, 0) -- Positioned below the name
+    healthLabel.Position = UDim2.new(0, 0, 0, 0)
     healthLabel.BackgroundTransparency = 1
     healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
     healthLabel.TextScaled = true
@@ -78,7 +78,7 @@ local function createESPUI(character, playerName)
     -- Health Bar Background
     local healthBarBackground = Instance.new("Frame", billboardGui)
     healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0) -- Positioned below the health label
+    healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
 
@@ -218,7 +218,6 @@ local function setBoxColor(newColor)
         end
     end
 end
-
 -- Example UI toggle functions
 local function onHealthESPToggle(newState)
     toggleESPFeature("HealthESPEnabled", newState)
