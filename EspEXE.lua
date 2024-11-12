@@ -129,9 +129,9 @@ local function updateESP(player)
         nameLabel.Text = _G.NameESPEnabled and player.Name or ""
         distanceLabel.Text = _G.DistanceESPEnabled and string.format("%.1f studs", playerDistance) or ""
 
-        if _G.HealthESPEnabled then
-            local healthFraction = humanoid.Health / humanoid.MaxHealth
-        highlight.FillTransparency = 1 - (humanoid.Health / humanoid.MaxHealth)
+        local function UpdateHealthTransparency()
+        if _G.HealthESPEnabled and Humanoid.Health > 0 then
+            highlight.FillTransparency = 1 - (Humanoid.Health / Humanoid.MaxHealth)
         else
             highlight.FillTransparency = 1
         end
