@@ -15,6 +15,7 @@ _G.HealthESPEnabled = false
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
+_G.HighlightEnabled = false
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 
@@ -116,7 +117,7 @@ local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
     Box.Color = _G.BoxColor
-    Box.Thickness = 30
+    Box.Thickness = 1
     Box.Transparency = 1
 
     local function UpdateBox()
@@ -154,22 +155,21 @@ local function applyESP(Player)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
 
-    local highlight = createHighlight(Character)
-    local updateESPFunc = createESPUI(Character, Player.Name)
-
-    -- Set up highlight and update functions
-    local function updateHighlight()
+    if _G.HighlightEnabled then
+        local highlight = createHighlight(Character)
         highlight.FillColor = _G.HighlightColor
-        highlight.Enabled = _G.HealthESPEnabled or _G.DistanceESPEnabled or _G.BoxESPEnabled
     end
 
+    local updateESPFunc = createESPUI(Character, Player.Name)
+
     updateESPFunc()
-    updateHighlight()
     DrawESPBox(Player)
 
     RunService.RenderStepped:Connect(function()
         updateESPFunc()
-        updateHighlight()
+        if _G.HighlightEnabled then
+            highlight.Enabled = true
+        end
     end)
 end
 
@@ -236,6 +236,10 @@ local function onDistanceESPToggle(newState)
     toggleESPFeature("DistanceESPEnabled", newState)
 end
 
+local function onHighlightToggle(newState)
+    toggleESPFeature("HighlightEnabled", newState)
+end
+
 -- Change color example
-setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Set highlight to red
-setBoxColor(Color3.fromRGB(0, 255, 0)) -- Set box color to green
+setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Set highlight to red
+setBoxColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
