@@ -16,9 +16,9 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0.1 -- Smoothness level (lower = faster)
-_G.PredictionAmount = 1 -- Prediction for moving targets
-_G.AirPredictionAmount = 1 -- Prediction for airborne targets
+_G.Sensitivity = 0 -- Smoothness level (lower = faster)
+_G.PredictionAmount = 0 -- Prediction for moving targets
+_G.AirPredictionAmount = 0 -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
@@ -72,7 +72,9 @@ local function IsTargetVisible(targetPart)
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
         
-        return not raycastResult or raycastResult.Instance == targetPart
+        if raycastResult and raycastResult.Instance ~= targetPart then
+            return false
+        end
     end
     return true
 end
@@ -80,7 +82,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius
+    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -96,6 +98,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
+                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -111,7 +114,7 @@ end
 -- Prediction Function
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return nil end
+    if not AimPart then return AimPart.Position end
 
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if not humanoid then return AimPart.Position end
@@ -119,10 +122,12 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
+    -- Adjust prediction based on target speed
     local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
+    -- Vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
@@ -130,16 +135,18 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Resolve Target Position function with bullet drop
+-- Function to resolve target position with optional resolver and bullet drop compensation
 local function ResolveTargetPosition(Target)
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    -- Choose aim part based on resolver setting and humanoid state
+    local aimPartName = (_G.Resolver and Target.Character:FindFirstChild("Humanoid") and Target.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
+    -- Predict target position regardless of resolver
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
+    -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
@@ -151,6 +158,7 @@ end
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
     else
         FOVCircle.Visible = false
     end
