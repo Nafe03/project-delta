@@ -116,7 +116,7 @@ local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
     Box.Color = _G.BoxColor
-    Box.Thickness = 3
+    Box.Thickness = 30
     Box.Transparency = 1
 
     local function UpdateBox()
