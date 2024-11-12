@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = true
+_G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
@@ -20,9 +20,9 @@ _G.Sensitivity = 0       -- Smoothness level (lower = faster)
 _G.PredictionAmount = 0       -- Horizontal prediction for moving targets
 _G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
 _G.BulletDropCompensation = 0
-_G.DistanceAdjustment = true
+_G.DistanceAdjustment = false
 _G.UseCircle = true
-_G.WallCheck = true
+_G.WallCheck = false
 _G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
