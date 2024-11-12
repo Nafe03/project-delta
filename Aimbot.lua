@@ -16,14 +16,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0 -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0 -- Prediction for moving targets
-_G.AirPredictionAmount = 0 -- Prediction for airborne targets
-_G.BulletDropCompensation = 0
+_G.Sensitivity = 0.5  -- Adjusted for smoother camera movement
+_G.PredictionAmount = 0.5
+_G.AirPredictionAmount = 0.5
+_G.BulletDropCompensation = 0.1
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 2.1 -- Multiplier for prediction on fast targets
+_G.PredictionMultiplier = 2.1
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -37,7 +37,7 @@ _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
 _G.ToggleAimbotKey = Enum.KeyCode.Q
 
--- FOV Circle Setup (initial setup)
+-- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -82,7 +82,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
+    local ShortestDistance = _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -122,16 +122,19 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
+    -- Adjust prediction based on target speed and prediction settings
     local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
+    -- Handle vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
+
 -- ResolveTargetPosition function with bullet drop
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
