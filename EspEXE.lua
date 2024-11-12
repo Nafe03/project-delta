@@ -31,12 +31,13 @@ local function createBoxESP(player)
     Box.Color = _G.Colors.Box
     Box.Thickness = 2
     Box.Transparency = 1
+    Box.ZIndex = 1
 
+    -- Update Box ESP position and visibility
     local function updateBox()
         RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
                 local character = player.Character
-                local head = character:FindFirstChild("Head")
                 local pos, onScreen = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
                 if onScreen then
                     local size = Vector3.new(2, 3, 0)
@@ -67,7 +68,9 @@ local function createHealthBarESP(player)
     local HealthBar = Drawing.new("Line")
     HealthBar.Visible = false
     HealthBar.Thickness = 2
+    HealthBar.ZIndex = 2
 
+    -- Update Health Bar ESP
     local function updateHealthBar()
         RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
@@ -104,7 +107,9 @@ local function createDistanceESP(player)
     DistanceLabel.Color = _G.Colors.Distance
     DistanceLabel.Center = true
     DistanceLabel.Outline = true
+    DistanceLabel.ZIndex = 3
 
+    -- Update Distance ESP
     local function updateDistance()
         RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
@@ -134,7 +139,9 @@ local function createNameESP(player)
     NameLabel.Color = _G.Colors.Name
     NameLabel.Center = true
     NameLabel.Outline = true
+    NameLabel.ZIndex = 4
 
+    -- Update Name ESP
     local function updateName()
         RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
@@ -163,9 +170,11 @@ local function createSkeletonESP(player)
         line.Visible = false
         line.Color = _G.Colors.Skeleton
         line.Thickness = 2
+        line.ZIndex = 5
         Skeleton[partName] = line
     end
 
+    -- Update Skeleton ESP
     local function updateSkeleton()
         RunService.RenderStepped:Connect(function()
             if player.Character and player.Character:FindFirstChild("Head") then
@@ -219,4 +228,27 @@ for _, player in ipairs(Players:GetPlayers()) do
         initializeESP(player)
     end
 end
+
 Players.PlayerAdded:Connect(initializeESP)
+
+-- Function to handle toggling
+local function toggleESPFeature(settingName, newState)
+    _G[settingName] = newState
+    updateAllESP()
+end
+
+-- Helper to update all ESP features
+local function updateAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            -- Re-initialize the ESP features for the player
+            player.CharacterAdded:Connect(function()
+                createBoxESP(player)
+                createHealthBarESP(player)
+                createDistanceESP(player)
+                createNameESP(player)
+                createSkeletonESP(player)
+            end)
+        end
+    end
+end
