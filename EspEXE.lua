@@ -70,7 +70,7 @@ local function createESPUI(character, playerName)
     healthLabel.BackgroundTransparency = 1
     healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
     healthLabel.TextScaled = true
-    healthLabel.Font = Enum.Font.GothamBold
+    healthLabel.Font = Enum.Font.Arcade
     healthLabel.TextStrokeTransparency = 0.5
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     healthLabel.Visible = _G.HealthESPEnabled
