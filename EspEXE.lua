@@ -212,43 +212,32 @@ local function createSkeletonESP(player)
     updateSkeleton()
 end
 
--- Initialize ESP for each player
-local function initializeESP(player)
-    player.CharacterAdded:Connect(function()
-        createBoxESP(player)
-        createHealthBarESP(player)
-        createDistanceESP(player)
-        createNameESP(player)
-        createSkeletonESP(player)
-    end)
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        initializeESP(player)
-    end
-end
-
-Players.PlayerAdded:Connect(initializeESP)
-
--- Function to handle toggling
-local function toggleESPFeature(settingName, newState)
-    _G[settingName] = newState
-    updateAllESP()
-end
-
--- Helper to update all ESP features
+-- Helper to update all ESP features when toggled
 local function updateAllESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            -- Re-initialize the ESP features for the player
-            player.CharacterAdded:Connect(function()
+            -- Re-initialize ESP features for each player
+            if _G.BoxESPEnabled then
                 createBoxESP(player)
+            end
+            if _G.HealthESPEnabled then
                 createHealthBarESP(player)
+            end
+            if _G.DistanceESPEnabled then
                 createDistanceESP(player)
+            end
+            if _G.NameESPEnabled then
                 createNameESP(player)
+            end
+            if _G.SkeletonESPEnabled then
                 createSkeletonESP(player)
-            end)
+            end
         end
     end
+end
+
+-- Call update immediately when a toggle is changed
+local function toggleESPFeature(settingName, newState, displayName)
+    _G[settingName] = newState
+    updateAllESP()  -- Update ESP immediately
 end
