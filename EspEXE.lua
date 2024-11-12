@@ -112,7 +112,7 @@ local function createESPUI(character, playerName)
         if _G.HealthTextEnabled then
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
             healthLabel.Visible = true
-            healthLabel.TextColor3 = _G.HealthTextColor
+            healthLabel.TextColor3 = _G.HealthTextColor -- Updated each frame to reflect changes
         else
             healthLabel.Visible = false
         end
@@ -184,7 +184,6 @@ local function applyESP(Player)
     end)
 end
 
-
 -- Function to initialize ESP for all players
 local function initializeESP(Player)
     Player.CharacterAdded:Connect(function()
@@ -231,12 +230,13 @@ local function setBoxColor(newColor)
     end
 end
 
--- Set health text color
+-- Set health text color and update active ESPs
 local function setHealthTextColor(newColor)
     _G.HealthTextColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
-            applyESP(Player)
+            local updateESPFunc = createESPUI(Player.Character, Player.Name)
+            updateESPFunc() -- Update existing ESP with the new color
         end
     end
 end
