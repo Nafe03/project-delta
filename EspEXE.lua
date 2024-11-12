@@ -264,4 +264,4 @@ end
 -- Change color example
 setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Set highlight to red
 setBoxColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
-setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
+setHealthTextColor(TextColor3.fromRGB(255, 255, 255)) -- Set box color to green
