@@ -166,25 +166,27 @@ local function PredictTargetPosition(Target)
 end
 
 local function ResolveTargetPosition(Target)
-    if not _G.Resolver then
-        -- If Resolver is off, aim directly at the current position without prediction
-        local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-        return AimPart and AimPart.Position
+    -- Determine which aim part to use based on resolver setting and humanoid state
+    local aimPartName
+    if _G.Resolver then
+        local humanoid = Target.Character:FindFirstChild("Humanoid")
+        aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    else
+        aimPartName = _G.AimPart  -- Default aim part when resolver is off
     end
-
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
-
+    
+    -- Always apply prediction regardless of resolver
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-
+    
     -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
-
+    
     return PredictedPosition
 end
 
