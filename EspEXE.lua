@@ -4,11 +4,11 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 -- Local Player Info
 local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-local Mouse = Player:GetMouse()
 
 -- ESP Settings
 _G.HealthESPEnabled = false
@@ -23,6 +23,8 @@ local function createHighlight(character)
     highlight.Parent = character
     highlight.FillColor = _G.HighlightColor
     highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+    highlight.OutlineTransparency = 0
     return highlight
 end
 
