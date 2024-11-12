@@ -22,9 +22,9 @@ _G.AirPredictionAmount = 0    -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
-_G.WallCheck = true
+_G.WallCheck = false
 _G.PredictionMultiplier = 0.4  -- Multiplier for prediction on fast targets
-_G.Resolver = true  -- Toggle Resolver ON/OFF
+_G.Resolver = false  -- Toggle Resolver ON/OFF
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
