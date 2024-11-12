@@ -81,7 +81,6 @@ local function createESPUI(character, playerName)
     healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
-    healthBarBackground.Visible = false
 
     -- Health Bar
     local healthBar = Instance.new("Frame", healthBarBackground)
