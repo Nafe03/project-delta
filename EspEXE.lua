@@ -239,6 +239,7 @@ local function setHealthTextColor(newColor)
         end
     end
 end
+
 -- Example UI toggle functions
 local function onHealthESPToggle(newState)
     toggleESPFeature("HealthESPEnabled", newState)
@@ -263,4 +264,4 @@ end
 -- Change color example
 setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Set highlight to red
 setBoxColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
-setHealthText(Color3.fromRGB(255, 255, 255)) -- Set box color to green
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
