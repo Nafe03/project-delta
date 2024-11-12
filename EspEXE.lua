@@ -16,7 +16,7 @@ _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
-_G.HealthShowTextEnabled = false
+_G.HealthTextEnabled = false -- Separate toggle for health text
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
@@ -70,12 +70,12 @@ local function createESPUI(character, playerName)
     healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
     healthLabel.Position = UDim2.new(0, 0, 0, 0)
     healthLabel.BackgroundTransparency = 1
-    healthLabel.TextColor3 = _G.HealthTextColor -- Initial color
+    healthLabel.TextColor3 = _G.HealthTextColor
     healthLabel.TextScaled = true
     healthLabel.Font = Enum.Font.Arcade
     healthLabel.TextStrokeTransparency = 0.5
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    healthLabel.Visible = _G.HealthShowTextEnabled
+    healthLabel.Visible = _G.HealthTextEnabled
 
     -- Health Bar Background
     local healthBarBackground = Instance.new("Frame", billboardGui)
@@ -83,7 +83,7 @@ local function createESPUI(character, playerName)
     healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
-    healthBarBackground.Visible = _G.HealthESPEnabled -- Set visibility based on _G.HealthESPEnabled
+    healthBarBackground.Visible = _G.HealthESPEnabled
 
     -- Health Bar
     local healthBar = Instance.new("Frame", healthBarBackground)
@@ -104,25 +104,19 @@ local function createESPUI(character, playerName)
             local healthFraction = humanoid.Health / humanoid.MaxHealth
             healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
             healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+            healthBarBackground.Visible = true
         else
-            healthLabel.Visible = false
             healthBarBackground.Visible = false
         end
-        if _G.HealthShowText then
-            local healthFraction1 = humanoid.Health / humanoid.MaxHealth
+
+        if _G.HealthTextEnabled then
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
             healthLabel.Visible = true
-            healthBarBackground.Visible = true
-            healthLabel.TextColor3 = _G.HealthTextColor -- Dynamic update for health label color
         else
             healthLabel.Visible = false
-            healthBarBackground.Visible = false
-
-        if _G.NameESPEnabled then
-            nameLabel.Visible = true
-        else
-            nameLabel.Visible = false
         end
+
+        nameLabel.Visible = _G.NameESPEnabled
     end
 
     return updateESP
@@ -188,6 +182,7 @@ local function applyESP(Player)
         end
     end)
 end
+
 
 -- Function to initialize ESP for all players
 local function initializeESP(Player)
