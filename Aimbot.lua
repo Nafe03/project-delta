@@ -153,7 +153,7 @@ local function PredictTargetPosition(Target)
     local targetSpeed = Velocity.Magnitude
 
     -- Adjust prediction based on target speed
-    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier
+    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
@@ -165,31 +165,24 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
+-- Function to resolve target position with optional resolver and bullet drop compensation
 local function ResolveTargetPosition(Target)
-    -- Determine which aim part to use based on resolver setting and humanoid state
-    local aimPartName
-    if _G.Resolver then
-        local humanoid = Target.Character:FindFirstChild("Humanoid")
-        aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    else
-        aimPartName = _G.AimPart  -- Default aim part when resolver is off
-    end
-    
+    -- Choose aim part based on resolver setting and humanoid state
+    local aimPartName = (_G.Resolver and Target.Character:FindFirstChild("Humanoid") and Target.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
-    
-    -- Always apply prediction regardless of resolver
+
+    -- Predict target position regardless of resolver
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-    
+
     -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
-    
+
     return PredictedPosition
 end
-
 
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -218,33 +211,6 @@ UserInputService.InputEnded:Connect(function(Input)
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
-        end
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-    else
-        FOVCircle.Visible = false
-    end
-
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
-            CurrentTarget = nil
         end
     end
 end)
