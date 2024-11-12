@@ -15,16 +15,14 @@ local Holding = false
 _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
-_G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Prediction for moving targets
-_G.AirPredictionAmount = 0    -- Prediction for airborne targets
+_G.Sensitivity = 0            -- Smoothness level (lower = faster)
+_G.PredictionAmount = 0.2      -- Prediction for moving targets
+_G.AirPredictionAmount = 0.3   -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = false
 _G.PredictionMultiplier = 0.4   -- Multiplier for prediction on fast targets
-_G.Resolver = false
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -38,7 +36,7 @@ _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
 _G.ToggleAimbotKey = Enum.KeyCode.Q
 
--- FOV Circle Setup (initial setup)
+-- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -72,10 +70,7 @@ local function IsTargetVisible(targetPart)
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
-        
-        if raycastResult and raycastResult.Instance ~= targetPart then
-            return false
-        end
+        return raycastResult and raycastResult.Instance == targetPart
     end
     return true
 end
@@ -83,7 +78,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
+    local ShortestDistance = _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -99,7 +94,6 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -112,11 +106,33 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Adjust FOV circle on RenderStepped to follow mouse and update radius
+-- Function to predict target position for aimbot
+local function PredictTargetPosition(Target)
+    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
+    if not AimPart then return nil end
+
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if not humanoid then return AimPart.Position end
+
+    local Velocity = AimPart.Velocity
+    local targetSpeed = Velocity.Magnitude
+
+    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
+    local predictedPosition = AimPart.Position + horizontalVelocity
+
+    if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
+    end
+
+    return predictedPosition
+end
+
+-- Adjust FOV circle position
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
+        FOVCircle.Radius = _G.CircleRadius
     else
         FOVCircle.Visible = false
     end
@@ -126,7 +142,7 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+                local ResolvedPosition = PredictTargetPosition(CurrentTarget)
                 if ResolvedPosition then
                     local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
                     local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
@@ -141,31 +157,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Prediction Function with Multiplier for Fast Targets
-local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return AimPart.Position end
-
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if not humanoid then return AimPart.Position end
-
-    local Velocity = AimPart.Velocity
-    local targetSpeed = Velocity.Magnitude
-
-    -- Adjust prediction based on target speed
-    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
-    local predictedPosition = AimPart.Position + horizontalVelocity
-
-    -- Vertical prediction if target is airborne
-    if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
-    end
-
-    return predictedPosition
-end
-
-
+-- Input Handling
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -193,33 +185,6 @@ UserInputService.InputEnded:Connect(function(Input)
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
-        end
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-    else
-        FOVCircle.Visible = false
-    end
-
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
-            CurrentTarget = nil
         end
     end
 end)
