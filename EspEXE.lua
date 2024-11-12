@@ -1,4 +1,4 @@
--- Made by Blissful#4992
+-- ESP Script by Blissful#4992
 
 -- Services
 local Players = game:GetService("Players")
@@ -20,18 +20,7 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
--- Function to create ESP Highlight
-local function createHighlight(character)
-    local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
-    highlight.Parent = character
-    highlight.FillColor = _G.HighlightColor
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-    highlight.OutlineTransparency = 0
-    return highlight
-end
-
--- Function to create Distance, Name, and Health Bar ESP UI
+-- Function to create ESP UI elements for a character
 local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
     billboardGui.Size = UDim2.new(0, 100, 0, 100)
@@ -71,7 +60,7 @@ local function createESPUI(character, playerName)
     healthLabel.BackgroundTransparency = 1
     healthLabel.TextColor3 = _G.HealthTextColor
     healthLabel.TextScaled = true
-    healthLabel.Font = Enum.Font.Arcade
+    healthLabel.Font = Enum.Font.GothamBold
     healthLabel.TextStrokeTransparency = 0.5
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     healthLabel.Visible = _G.HealthESPEnabled
@@ -98,6 +87,8 @@ local function createESPUI(character, playerName)
         distanceLabel.Visible = _G.DistanceESPEnabled
         distanceLabel.Text = string.format("%.1f studs", playerDistance)
 
+        -- Update health bar and health label color
+        healthLabel.TextColor3 = _G.HealthTextColor
         if _G.HealthESPEnabled then
             local healthFraction = humanoid.Health / humanoid.MaxHealth
             healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
@@ -108,84 +99,24 @@ local function createESPUI(character, playerName)
             healthBar.Size = UDim2.new(0, 0, 0, 0)
             healthLabel.Visible = false
         end
-
-        if _G.NameESPEnabled then
-            local NameESPEnabled = humanoid.Name
-            nameLabel.Size = UDim2.new(healthFraction, 0, 1, 0)
-            nameLabel.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-            nameLabel.Text = string.format("HP: %d/%d", humanoid.Name)
-            nameLabel.Visible = true
-        else
-            nameLabel.Size = UDim2.new(0, 0, 0, 0)
-            nameLabel.Visible = false
-        end
     end
 
     return updateESP
 end
 
--- Function to Draw 2D Box ESP around a player
-local function DrawESPBox(player)
-    local Box = Drawing.new("Quad")
-    Box.Visible = false
-    Box.Color = _G.BoxColor
-    Box.Thickness = 1
-    Box.Transparency = 1
-
-    local function UpdateBox()
-        RunService.RenderStepped:Connect(function()
-            if player.Character and player.Character.PrimaryPart then
-                local character = player.Character
-                local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
-                if vis then
-                    -- Calculate box corners
-                    local TopLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
-                    local TopRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
-                    local BottomLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
-                    local BottomRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, -3, 0)).Position)
-
-                    Box.PointA = Vector2.new(TopRight.X, TopRight.Y)
-                    Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
-                    Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
-                    Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
-                    Box.Visible = _G.BoxESPEnabled
-                    Box.Color = _G.BoxColor -- Update box color dynamically
-                else
-                    Box.Visible = false
-                end
-            else
-                Box.Visible = false
-            end
-        end)
-    end
-
-    UpdateBox()
-end
-
--- Apply ESP to each player
+-- Apply ESP to a specific player
 local function applyESP(Player)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
-
-    if _G.HighlightEnabled then
-        local highlight = createHighlight(Character)
-        highlight.FillColor = _G.HighlightColor
-    end
-
     local updateESPFunc = createESPUI(Character, Player.Name)
 
     updateESPFunc()
-    DrawESPBox(Player)
-
     RunService.RenderStepped:Connect(function()
         updateESPFunc()
-        if _G.HighlightEnabled then
-            highlight.Enabled = true
-        end
     end)
 end
 
--- Function to initialize ESP for all players
+-- Initialize ESP for all players
 local function initializeESP(Player)
     Player.CharacterAdded:Connect(function()
         applyESP(Player)
@@ -211,7 +142,7 @@ local function toggleESPFeature(feature, state)
     end
 end
 
--- Change highlight color
+-- Set highlight color
 local function setHighlightColor(newColor)
     _G.HighlightColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
@@ -221,7 +152,7 @@ local function setHighlightColor(newColor)
     end
 end
 
--- Change box color
+-- Set box color
 local function setBoxColor(newColor)
     _G.BoxColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
@@ -231,6 +162,7 @@ local function setBoxColor(newColor)
     end
 end
 
+-- Set health text color
 local function setHealthTextColor(newColor)
     _G.HealthTextColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
@@ -261,7 +193,7 @@ local function onHighlightToggle(newState)
     toggleESPFeature("HighlightEnabled", newState)
 end
 
--- Change color example
-setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Set highlight to red
-setBoxColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
-setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Set box color to green
+-- Example color change usage
+setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
+setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text color to white
