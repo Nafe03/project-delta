@@ -34,34 +34,50 @@ local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
     billboardGui.Size = UDim2.new(0, 150, 0, 100)
     billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0) -- Adjusted for consistent size
     billboardGui.AlwaysOnTop = true
+
+    -- Name Label
+    local nameLabel = Instance.new("TextLabel", billboardGui)
+    nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    nameLabel.Position = UDim2.new(0, 0, -0.6, 0) -- Positioned above the player
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextStrokeTransparency = 0.5
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.Text = playerName
+    nameLabel.Visible = _G.NameESPEnabled
 
     -- Distance Label
     local distanceLabel = Instance.new("TextLabel", billboardGui)
     distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    distanceLabel.Position = UDim2.new(0, 0, 1.3, 0) -- Positioned below the player
     distanceLabel.BackgroundTransparency = 1
     distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     distanceLabel.TextScaled = true
     distanceLabel.Font = Enum.Font.GothamBold
     distanceLabel.TextStrokeTransparency = 0.5
     distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    distanceLabel.Visible = _G.DistanceESPEnabled
 
     -- Health Label
     local healthLabel = Instance.new("TextLabel", billboardGui)
     healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    healthLabel.Position = UDim2.new(0, 0, 0.3, 0)
+    healthLabel.Position = UDim2.new(0, 0, 0.3, 0) -- Positioned below the name
     healthLabel.BackgroundTransparency = 1
     healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
     healthLabel.TextScaled = true
     healthLabel.Font = Enum.Font.GothamBold
     healthLabel.TextStrokeTransparency = 0.5
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    healthLabel.Visible = _G.HealthESPEnabled
 
     -- Health Bar Background
     local healthBarBackground = Instance.new("Frame", billboardGui)
     healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 0.6, 0)
+    healthBarBackground.Position = UDim2.new(0, 0, 0.6, 0) -- Positioned below the health label
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
 
@@ -78,7 +94,7 @@ local function createESPUI(character, playerName)
 
         local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
         distanceLabel.Visible = _G.DistanceESPEnabled
-        distanceLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
+        distanceLabel.Text = string.format("%.1f studs", playerDistance)
 
         if _G.HealthESPEnabled then
             local healthFraction = humanoid.Health / humanoid.MaxHealth
@@ -99,7 +115,7 @@ end
 local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
-    Box.Color = _G.BoxColor
+    Box.Color = Color3.fromRGB(255, 255, 255)
     Box.Thickness = 1
     Box.Transparency = 1
 
