@@ -166,16 +166,17 @@ local function PredictTargetPosition(Target)
 end
 
 local function ResolveTargetPosition(Target)
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = _G.AimPart -- Default aim part to use
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-        aimPartName = _G.AirAimPart -- If the target is airborne, use the air aim part
+    if not _G.Resolver then
+        -- If Resolver is off, aim directly at the current position without prediction
+        local AimPart = Target.Character:FindFirstChild(_G.AimPart)
+        return AimPart and AimPart.Position
     end
 
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    -- Always use prediction for the target's position, even if the resolver is off
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
@@ -186,7 +187,6 @@ local function ResolveTargetPosition(Target)
 
     return PredictedPosition
 end
-
 
 
 UserInputService.InputBegan:Connect(function(Input)
