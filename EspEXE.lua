@@ -82,6 +82,7 @@ local function createESPUI(character, playerName)
     healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
+    healthBarBackground.Visible = _G.HealthESPEnabled -- Set visibility based on _G.HealthESPEnabled
 
     -- Health Bar
     local healthBar = Instance.new("Frame", healthBarBackground)
@@ -104,10 +105,11 @@ local function createESPUI(character, playerName)
             healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
             healthLabel.Visible = true
+            healthBarBackground.Visible = true
             healthLabel.TextColor3 = _G.HealthTextColor -- Dynamic update for health label color
         else
-            healthBar.Size = UDim2.new(0, 0, 0, 0)
             healthLabel.Visible = false
+            healthBarBackground.Visible = false
         end
 
         if _G.NameESPEnabled then
