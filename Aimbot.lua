@@ -17,8 +17,8 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Prediction for moving targets
-_G.AirPredictionAmount = 2    -- Prediction for airborne targets
+_G.PredictionAmount = 1       -- Horizontal prediction for moving targets
+_G.AirPredictionAmount = 2    -- Vertical prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
@@ -111,46 +111,22 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Adjust FOV circle on RenderStepped to follow mouse and update radius
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
-    else
-        FOVCircle.Visible = false
-    end
-
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
-            CurrentTarget = nil
-        end
-    end
-end)
-
--- Predict Target Position
+-- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position + Velocity * _G.PredictionAmount
+    local predictedPosition = AimPart.Position
+
+    -- Horizontal prediction only when on the ground
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
+    end
 
     -- Vertical prediction if target is airborne
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
