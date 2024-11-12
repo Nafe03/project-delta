@@ -131,6 +131,7 @@ local function updateESP(player)
 
         if _G.HealthESPEnabled then
             local healthFraction = humanoid.Health / humanoid.MaxHealth
+        highlight.FillTransparency = 1 - (humanoid.Health / humanoid.MaxHealth)
         else
             highlight.FillTransparency = 1
         end
