@@ -16,14 +16,15 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level (lower = faster)
+_G.Sensitivity = 0        -- Smoothness level (lower = faster)
 _G.PredictionAmount = 0       -- Prediction for moving targets
 _G.AirPredictionAmount = 0    -- Prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 0.4   -- Multiplier for prediction on fast targets
+_G.PredictionMultiplier = 0.4  -- Multiplier for prediction on fast targets
+_G.Resolver = true  -- Toggle Resolver ON/OFF
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -111,35 +112,6 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Adjust FOV circle on RenderStepped to follow mouse and update radius
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
-    else
-        FOVCircle.Visible = false
-    end
-
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
-            CurrentTarget = nil
-        end
-    end
-end)
-
 -- Prediction Function with Multiplier for Fast Targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
@@ -164,8 +136,14 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Improved ResolveTargetPosition function with bullet drop and prediction adjustments
+-- Improved ResolveTargetPosition function with Resolver ON/OFF toggle
 local function ResolveTargetPosition(Target)
+    if not _G.Resolver then
+        -- If Resolver is off, aim directly at the current position without prediction
+        local AimPart = Target.Character:FindFirstChild(_G.AimPart)
+        return AimPart and AimPart.Position
+    end
+
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
