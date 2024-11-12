@@ -1,19 +1,27 @@
+-- Made by Blissful#4992
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
--- ESP Settings stored in _G for global access
+-- Local Player Info
+local Player = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = Player:GetMouse()
+
+-- ESP Settings
 _G.HealthESPEnabled = false
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
-_G.HighlightColor = Color3.fromRGB(0, 255, 0)  -- Default highlight color
+_G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 
--- Function to create a new Highlight instance
-local function createHighlight(character, color)
+-- Function to create ESP Highlight
+local function createHighlight(character)
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
     highlight.Parent = character
-    highlight.FillColor = color or _G.HighlightColor
+    highlight.FillColor = _G.HighlightColor
     highlight.FillTransparency = 0.5
     return highlight
 end
@@ -29,7 +37,6 @@ local function createESPUI(character, playerName)
     -- Distance Label
     local distanceLabel = Instance.new("TextLabel", billboardGui)
     distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    distanceLabel.Position = UDim2.new(0, 0, 0, 0)
     distanceLabel.BackgroundTransparency = 1
     distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     distanceLabel.TextScaled = true
@@ -65,8 +72,8 @@ local function createESPUI(character, playerName)
     local function updateESP()
         local humanoid = character:FindFirstChild("Humanoid")
         if not humanoid then return end
-        
-        local playerDistance = (Players.LocalPlayer.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
+
+        local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
         distanceLabel.Visible = _G.DistanceESPEnabled
         distanceLabel.Text = string.format("%s - %.1f studs", playerName, playerDistance)
 
@@ -85,46 +92,68 @@ local function createESPUI(character, playerName)
     return updateESP
 end
 
--- Function to apply ESP to a player
+-- Function to Draw 2D Box ESP around a player
+local function DrawESPBox(player)
+    local Box = Drawing.new("Quad")
+    Box.Visible = false
+    Box.Color = Color3.fromRGB(255, 255, 255)
+    Box.Thickness = 1
+    Box.Transparency = 1
+
+    local function UpdateBox()
+        RunService.RenderStepped:Connect(function()
+            if player.Character and player.Character.PrimaryPart then
+                local character = player.Character
+                local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
+                if vis then
+                    -- Calculate box corners
+                    local TopLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
+                    local TopRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
+                    local BottomLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
+                    local BottomRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, -3, 0)).Position)
+
+                    Box.PointA = Vector2.new(TopRight.X, TopRight.Y)
+                    Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
+                    Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
+                    Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
+                    Box.Visible = _G.BoxESPEnabled
+                else
+                    Box.Visible = false
+                end
+            else
+                Box.Visible = false
+            end
+        end)
+    end
+
+    UpdateBox()
+end
+
+-- Apply ESP to each player
 local function applyESP(Player)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:WaitForChild("Humanoid")
 
-    -- Setup highlight
-    local highlight = createHighlight(Character, _G.HighlightColor)
+    local highlight = createHighlight(Character)
     local updateESPFunc = createESPUI(Character, Player.Name)
 
-    -- Update functions for highlight
+    -- Set up highlight and update functions
     local function updateHighlight()
         highlight.FillColor = _G.HighlightColor
-        highlight.Enabled = _G.HealthESPEnabled or _G.DistanceESPEnabled or _G.NameESPEnabled
-        if _G.HealthESPEnabled and Humanoid.Health > 0 then
-            highlight.FillTransparency = 1 - (Humanoid.Health / Humanoid.MaxHealth)
-        else
-            highlight.FillTransparency = 1
-        end
+        highlight.Enabled = _G.HealthESPEnabled or _G.DistanceESPEnabled or _G.BoxESPEnabled
     end
 
-    -- Initial and dynamic updates for ESP and highlight
     updateESPFunc()
     updateHighlight()
-    local connection = RunService.RenderStepped:Connect(function()
+    DrawESPBox(Player)
+
+    RunService.RenderStepped:Connect(function()
         updateESPFunc()
         updateHighlight()
     end)
-
-    -- Disconnect when player dies
-    Humanoid.Died:Connect(function()
-        connection:Disconnect()
-        highlight:Destroy()
-    end)
-
-    -- Update on team or health change
-    Player:GetPropertyChangedSignal("TeamColor"):Connect(updateHighlight)
-    Humanoid:GetPropertyChangedSignal("Health"):Connect(updateHighlight)
 end
 
--- Apply ESP to all players in-game and future players
+-- Function to initialize ESP for all players
 local function initializeESP(Player)
     Player.CharacterAdded:Connect(function()
         applyESP(Player)
@@ -134,13 +163,13 @@ local function initializeESP(Player)
     end
 end
 
--- Set up ESP for all current players and connect PlayerAdded event
+-- Apply ESP to all players in-game and new ones joining
 for _, Player in ipairs(Players:GetPlayers()) do
     initializeESP(Player)
 end
 Players.PlayerAdded:Connect(initializeESP)
 
--- Function to enable or disable ESP features dynamically
+-- Toggle ESP features dynamically
 local function toggleESPFeature(feature, state)
     _G[feature] = state
     for _, Player in ipairs(Players:GetPlayers()) do
@@ -150,7 +179,7 @@ local function toggleESPFeature(feature, state)
     end
 end
 
--- Function to change the highlight color dynamically
+-- Change highlight color
 local function setHighlightColor(newColor)
     _G.HighlightColor = newColor
     for _, Player in ipairs(Players:GetPlayers()) do
@@ -160,7 +189,7 @@ local function setHighlightColor(newColor)
     end
 end
 
--- Example UI connections for toggling features
+-- Example UI toggle functions
 local function onHealthESPToggle(newState)
     toggleESPFeature("HealthESPEnabled", newState)
 end
@@ -177,5 +206,5 @@ local function onDistanceESPToggle(newState)
     toggleESPFeature("DistanceESPEnabled", newState)
 end
 
--- Example usage for changing highlight color
-setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Change highlight to red
+-- Change color example
+setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Set highlight to red
