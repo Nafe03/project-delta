@@ -16,14 +16,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0.5  -- Adjusted for smoother camera movement
-_G.PredictionAmount = 0.5
-_G.AirPredictionAmount = 0.5
-_G.BulletDropCompensation = 0.1
+_G.Sensitivity = 0.1 -- Smoothness level (lower = faster)
+_G.PredictionAmount = 1 -- Prediction for moving targets
+_G.AirPredictionAmount = 1 -- Prediction for airborne targets
+_G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true
-_G.PredictionMultiplier = 2.1
+_G.PredictionMultiplier = 2.1 -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -37,7 +37,7 @@ _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
 _G.ToggleAimbotKey = Enum.KeyCode.Q
 
--- FOV Circle Setup
+-- FOV Circle Setup (initial setup)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -72,9 +72,7 @@ local function IsTargetVisible(targetPart)
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
         
-        if raycastResult and raycastResult.Instance ~= targetPart then
-            return false
-        end
+        return not raycastResult or raycastResult.Instance == targetPart
     end
     return true
 end
@@ -98,7 +96,6 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -122,12 +119,10 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local targetSpeed = Velocity.Magnitude
 
-    -- Adjust prediction based on target speed and prediction settings
     local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
     local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     local predictedPosition = AimPart.Position + horizontalVelocity
 
-    -- Handle vertical prediction if target is airborne
     if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
@@ -135,7 +130,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- ResolveTargetPosition function with bullet drop
+-- Resolve Target Position function with bullet drop
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -145,7 +140,6 @@ local function ResolveTargetPosition(Target)
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
@@ -157,7 +151,6 @@ end
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Update FOV circle size based on current radius value
     else
         FOVCircle.Visible = false
     end
