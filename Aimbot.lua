@@ -120,11 +120,16 @@ local function PredictTargetPosition(Target)
     if not humanoid then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
-    local targetSpeed = Velocity.Magnitude
+    local targetSpeed = humanoid.WalkSpeed
+    local predictionMultiplier = _G.PredictionAmount
 
-    -- Adjust prediction based on target speed
-    local predictionFactor = targetSpeed > 20 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
-    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
+    -- Adjust prediction based on target speed and evasion behavior
+    if targetSpeed > 20 then
+        predictionMultiplier = predictionMultiplier * (1 + (targetSpeed - 20) / 10) * _G.PredictionMultiplier
+    end
+
+    -- Additional check for unpredictable movements or zig-zag
+    local horizontalVelocity = Vector3.new(Velocity.X, 0, Velocity.Z) * predictionMultiplier
     local predictedPosition = AimPart.Position + horizontalVelocity
 
     -- Vertical prediction if target is airborne
@@ -135,14 +140,13 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Function to resolve target position with optional resolver and bullet drop compensation
+-- ResolveTargetPosition function with bullet drop
 local function ResolveTargetPosition(Target)
-    -- Choose aim part based on resolver setting and humanoid state
-    local aimPartName = (_G.Resolver and Target.Character:FindFirstChild("Humanoid") and Target.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    -- Predict target position regardless of resolver
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
