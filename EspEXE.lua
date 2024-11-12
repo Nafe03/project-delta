@@ -1,4 +1,4 @@
--- Optimized Ultimate ESP Script
+-- Made by Blissful#4992, Optimized Ultimate ESP Script
 
 -- Services
 local Players = game:GetService("Players")
@@ -24,28 +24,19 @@ _G.Colors = {
     Skeleton = Color3.fromRGB(255, 0, 0)
 }
 
--- Cache for ESP elements to allow cleanup
-local ESPObjects = {}
+-- Function to create 2D Box ESP
+local function createBoxESP(player)
+    local Box = Drawing.new("Quad")
+    Box.Visible = false
+    Box.Color = _G.Colors.Box
+    Box.Thickness = 2
+    Box.Transparency = 1
 
--- Helper function to create ESP elements
-local function createESP(player)
-    -- Ensure ESP elements are only created if toggled on
-    local espElements = {}
-
-    -- Function to create Box ESP
-    local function createBox()
-        local Box = Drawing.new("Quad")
-        Box.Visible = false
-        Box.Color = _G.Colors.Box
-        Box.Thickness = 2
-        Box.Transparency = 1
-        Box.ZIndex = 1
-        espElements.Box = Box
-
-        -- Update Box ESP position and visibility
-        local function updateBox()
+    local function updateBox()
+        RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
                 local character = player.Character
+                local head = character:FindFirstChild("Head")
                 local pos, onScreen = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
                 if onScreen then
                     local size = Vector3.new(2, 3, 0)
@@ -65,22 +56,20 @@ local function createESP(player)
             else
                 Box.Visible = false
             end
-        end
-
-        -- Update the Box continuously
-        RunService.RenderStepped:Connect(updateBox)
+        end)
     end
 
-    -- Function to create Health ESP
-    local function createHealthBar()
-        local HealthBar = Drawing.new("Line")
-        HealthBar.Visible = false
-        HealthBar.Thickness = 2
-        HealthBar.ZIndex = 2
-        espElements.Health = HealthBar
+    updateBox()
+end
 
-        -- Update Health ESP
-        local function updateHealthBar()
+-- Function to create Health Bar ESP
+local function createHealthBarESP(player)
+    local HealthBar = Drawing.new("Line")
+    HealthBar.Visible = false
+    HealthBar.Thickness = 2
+
+    local function updateHealthBar()
+        RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
                 local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
                 local head = player.Character:FindFirstChild("Head")
@@ -101,25 +90,23 @@ local function createESP(player)
             else
                 HealthBar.Visible = false
             end
-        end
-
-        -- Update the Health continuously
-        RunService.RenderStepped:Connect(updateHealthBar)
+        end)
     end
 
-    -- Function to create Distance ESP
-    local function createDistance()
-        local DistanceLabel = Drawing.new("Text")
-        DistanceLabel.Visible = false
-        DistanceLabel.Size = 20
-        DistanceLabel.Color = _G.Colors.Distance
-        DistanceLabel.Center = true
-        DistanceLabel.Outline = true
-        DistanceLabel.ZIndex = 3
-        espElements.Distance = DistanceLabel
+    updateHealthBar()
+end
 
-        -- Update Distance ESP
-        local function updateDistance()
+-- Function to create Distance ESP
+local function createDistanceESP(player)
+    local DistanceLabel = Drawing.new("Text")
+    DistanceLabel.Visible = false
+    DistanceLabel.Size = 20
+    DistanceLabel.Color = _G.Colors.Distance
+    DistanceLabel.Center = true
+    DistanceLabel.Outline = true
+
+    local function updateDistance()
+        RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
                 local playerDistance = (LocalPlayer.Character.PrimaryPart.Position - player.Character.PrimaryPart.Position).Magnitude
                 local pos, onScreen = Camera:WorldToViewportPoint(player.Character.PrimaryPart.Position)
@@ -133,25 +120,23 @@ local function createESP(player)
             else
                 DistanceLabel.Visible = false
             end
-        end
-
-        -- Update the Distance continuously
-        RunService.RenderStepped:Connect(updateDistance)
+        end)
     end
 
-    -- Function to create Name ESP
-    local function createName()
-        local NameLabel = Drawing.new("Text")
-        NameLabel.Visible = false
-        NameLabel.Size = 20
-        NameLabel.Color = _G.Colors.Name
-        NameLabel.Center = true
-        NameLabel.Outline = true
-        NameLabel.ZIndex = 4
-        espElements.Name = NameLabel
+    updateDistance()
+end
 
-        -- Update Name ESP
-        local function updateName()
+-- Function to create Name ESP
+local function createNameESP(player)
+    local NameLabel = Drawing.new("Text")
+    NameLabel.Visible = false
+    NameLabel.Size = 20
+    NameLabel.Color = _G.Colors.Name
+    NameLabel.Center = true
+    NameLabel.Outline = true
+
+    local function updateName()
+        RunService.RenderStepped:Connect(function()
             if player.Character and player.Character.PrimaryPart then
                 local pos, onScreen = Camera:WorldToViewportPoint(player.Character.PrimaryPart.Position)
                 if onScreen then
@@ -164,26 +149,25 @@ local function createESP(player)
             else
                 NameLabel.Visible = false
             end
-        end
-
-        -- Update the Name continuously
-        RunService.RenderStepped:Connect(updateName)
+        end)
     end
 
-    -- Function to create Skeleton ESP
-    local function createSkeleton()
-        local Skeleton = {}
-        for _, partName in ipairs({"Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "Torso"}) do
-            local line = Drawing.new("Line")
-            line.Visible = false
-            line.Color = _G.Colors.Skeleton
-            line.Thickness = 2
-            line.ZIndex = 5
-            Skeleton[partName] = line
-        end
+    updateName()
+end
 
-        -- Update Skeleton ESP
-        local function updateSkeleton()
+-- Function to create Skeleton ESP
+local function createSkeletonESP(player)
+    local Skeleton = {}
+    for _, partName in ipairs({"Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "Torso"}) do
+        local line = Drawing.new("Line")
+        line.Visible = false
+        line.Color = _G.Colors.Skeleton
+        line.Thickness = 2
+        Skeleton[partName] = line
+    end
+
+    local function updateSkeleton()
+        RunService.RenderStepped:Connect(function()
             if player.Character and player.Character:FindFirstChild("Head") then
                 local parts = player.Character
                 local headPos = Camera:WorldToViewportPoint(parts.Head.Position)
@@ -213,65 +197,26 @@ local function createESP(player)
                     line.Visible = false
                 end
             end
-        end
-
-        -- Update the Skeleton continuously
-        RunService.RenderStepped:Connect(updateSkeleton)
+        end)
     end
 
-    -- Create necessary ESP elements
-    if _G.BoxESPEnabled then createBox() end
-    if _G.HealthESPEnabled then createHealthBar() end
-    if _G.DistanceESPEnabled then createDistance() end
-    if _G.NameESPEnabled then createName() end
-    if _G.SkeletonESPEnabled then createSkeleton() end
-
-    -- Store the ESP elements in a table
-    ESPObjects[player.UserId] = espElements
+    updateSkeleton()
 end
 
--- Function to clean up ESP elements
-local function cleanUpESP(player)
-    if ESPObjects[player.UserId] then
-        for _, element in pairs(ESPObjects[player.UserId]) do
-            element.Visible = false
-            element:Remove()  -- Remove the drawing object to prevent memory leaks
-        end
-        ESPObjects[player.UserId] = nil
-    end
+-- Initialize ESP for each player
+local function initializeESP(player)
+    player.CharacterAdded:Connect(function()
+        createBoxESP(player)
+        createHealthBarESP(player)
+        createDistanceESP(player)
+        createNameESP(player)
+        createSkeletonESP(player)
+    end)
 end
 
--- Initialize ESP for existing players
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
-        createESP(player)
+        initializeESP(player)
     end
 end
-
--- Monitor when players join or leave
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        createESP(player)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    if player ~= LocalPlayer then
-        cleanUpESP(player)
-    end
-end)
-
--- Toggle ESP when settings are updated
-local function toggleESPFeature(settingName, newState)
-    _G[settingName] = newState
-    -- Update the ESP of all players when toggled
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if newState then
-                createESP(player)
-            else
-                cleanUpESP(player)
-            end
-        end
-    end
-end
+Players.PlayerAdded:Connect(initializeESP)
