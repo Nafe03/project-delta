@@ -18,7 +18,7 @@ _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
-_G.HealthTextColor = Color3.fromRGB(255, 255, 255)
+_G.HealthTextColor = TextColor3.fromRGB(255, 255, 255)
 
 -- Function to create ESP Highlight
 local function createHighlight(character)
