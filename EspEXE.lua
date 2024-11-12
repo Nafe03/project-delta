@@ -112,6 +112,7 @@ local function createESPUI(character, playerName)
         if _G.HealthTextEnabled then
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
             healthLabel.Visible = true
+            healthLabel.TextColor3 = _G.HealthTextColor
         else
             healthLabel.Visible = false
         end
