@@ -112,7 +112,6 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Predict Target Position with separate horizontal and vertical prediction
--- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -144,6 +143,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 
 -- Resolve Target Position with bullet drop compensation and random offset
