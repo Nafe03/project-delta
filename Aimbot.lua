@@ -109,7 +109,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with advanced prediction for fast targets
+-- Predict Target Position with optional prediction for fast targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -117,22 +117,22 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
 
-    -- Horizontal prediction for ground targets
+    -- Horizontal prediction for ground targets if PredictionAmount is set
     local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+    if _G.PredictionAmount > 0 and humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
         local predictionFactor = Velocity.Magnitude > 10 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
         predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     end
 
-    -- Vertical prediction if target is airborne
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
+    -- Vertical prediction if target is airborne and AirPredictionAmount is set
+    if _G.AirPredictionAmount > 0 and humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
 
--- Resolve Target Position with bullet drop compensation and random offset
+-- Resolve Target Position with optional bullet drop compensation
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -142,19 +142,13 @@ local function ResolveTargetPosition(Target)
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    -- Adjust for bullet drop if enabled
+    -- Adjust for bullet drop if BulletDropCompensation is set
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Final resolved position with minor random offset
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1
-    )
-
-    return ResolvedPosition
+    -- Final resolved position without offset if PredictionAmount and BulletDropCompensation are both zero
+    return PredictedPosition
 end
 
 UserInputService.InputBegan:Connect(function(Input)
