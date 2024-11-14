@@ -23,7 +23,7 @@ _G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = true -- Check if target is behind walls
 _G.PredictionMultiplier = 1.5 -- Multiplier for enhanced accuracy on fast targets
-_G.FastTargetSpeedThreshold = 50  -- Speed threshold to identify macros or rapid movements
+_G.FastTargetSpeedThreshold = 30  -- Speed threshold to identify macros or rapid movements
 _G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
 
 
