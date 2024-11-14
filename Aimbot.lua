@@ -121,30 +121,18 @@ local function PredictTargetPosition(Target)
 
     -- Horizontal prediction only when on the ground
     local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        local walkSpeed = humanoid.WalkSpeed
-        local predictionAmount = _G.PredictionAmount
-
-        -- Increase prediction for fast-moving targets
-        if walkSpeed > 30 then
-            predictionAmount = predictionAmount * _G.PredictionMultiplier
-        end
-
-        -- Apply horizontal prediction for ground targets
-        if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-            predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * predictionAmount
-        end
-
-        -- Vertical prediction if target is airborne
-        if humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping then
-            predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
-        end
+    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
     end
+
+    -- Vertical prediction if target is airborne
+    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
+    end
+
 
     return predictedPosition
 end
-
-
 
 -- Resolve Target Position with bullet drop compensation and random offset
 local function ResolveTargetPosition(Target)
