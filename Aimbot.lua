@@ -127,7 +127,7 @@ local function PredictTargetPosition(Target)
         local predictionAmount = _G.PredictionAmount
 
         -- Increase prediction for fast-moving targets
-        if walkSpeed > 30 then
+        if walkSpeed > 25 then
             predictionAmount = predictionAmount * _G.PredictionMultiplier
         end
 
