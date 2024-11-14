@@ -112,27 +112,17 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Predict Target Position with separate horizontal and vertical prediction
--- Enhanced Prediction System with Auto-Prediction
-
--- Function to calculate dynamic prediction amount based on target velocity
-local function CalculateAutoPrediction(Velocity)
-    -- Increase prediction amount based on the speed of the target
-    local predictionFactor = Velocity.Magnitude * _G.PredictionMultiplier
-    return Vector3.new(Velocity.X * predictionFactor, 0, Velocity.Z * predictionFactor)
-end
-
--- Predict Target Position with auto-prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
 
-    -- Horizontal prediction for grounded targets
+    -- Horizontal prediction only when on the ground
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-        predictedPosition = predictedPosition + CalculateAutoPrediction(Velocity)
+        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
     end
 
     -- Vertical prediction if target is airborne
@@ -143,7 +133,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Resolve Target Position with improved bullet drop compensation and auto-adjusted prediction
+-- Resolve Target Position with bullet drop compensation and random offset
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -158,7 +148,7 @@ local function ResolveTargetPosition(Target)
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Final resolved position with small random offset to mimic natural movement
+    -- Final resolved position, including adjustments for evasive movement patterns
     local ResolvedPosition = PredictedPosition + Vector3.new(
         math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
         math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
@@ -168,7 +158,38 @@ local function ResolveTargetPosition(Target)
     return ResolvedPosition
 end
 
--- Adjusted RenderStepped logic for dynamic aim assistance
+UserInputService.InputBegan:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+        Holding = true
+        if _G.AimbotEnabled then
+            CurrentTarget = GetClosestPlayerToMouse()
+            if CurrentTarget then
+                Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
+                if _G.VisibleHighlight then
+                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                end
+            end
+        end
+    elseif Input.KeyCode == _G.ToggleAimbotKey then
+        _G.AimbotEnabled = not _G.AimbotEnabled
+        Notify("Aimbot", "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"))
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+        Holding = false
+        CurrentTarget = nil
+        if CurrentHighlight then
+            CurrentHighlight:Destroy()
+            CurrentHighlight = nil
+        end
+    end
+end)
+
+-- Update FOV circle on RenderStepped to follow mouse and adjust radius
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
@@ -185,8 +206,7 @@ RunService.RenderStepped:Connect(function()
                 local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
                 if ResolvedPosition then
                     local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tweenDuration = math.clamp(Distance * 0.001, 0.05, 0.3) -- Dynamic tween based on distance
-                    local tween = TweenService:Create(Camera, TweenInfo.new(tweenDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
                     tween:Play()
                 end
             else
