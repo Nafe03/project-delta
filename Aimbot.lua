@@ -16,16 +16,16 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.PredictionAmount = 0 -- Horizontal prediction factor
-_G.AirPredictionAmount = 0 -- Vertical prediction factor for air targets
+_G.Sensitivity = 0       -- Smoothness level (lower = faster)
+_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
+_G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
 _G.BulletDropCompensation = 0
-_G.DistanceAdjustment = true
+_G.DistanceAdjustment = false
 _G.UseCircle = true
-_G.WallCheck = true -- Check if target is behind walls
-_G.PredictionMultiplier = 1.5 -- Multiplier for enhanced accuracy on fast targets
-_G.FastTargetSpeedThreshold = 30  -- Speed threshold to identify macros or rapid movements
+_G.WallCheck = false
+_G.PredictionMultiplier = 1.5 -- Multiplier for prediction on fast targets
+_G.FastTargetSpeedThreshold = 50  -- Speed threshold to identify macros or rapid movements
 _G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
-
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -84,7 +84,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius
+    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -100,6 +100,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
+                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -112,7 +113,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with optional prediction for fast targets
+-- Predict Target Position with improved horizontal and vertical prediction for fast targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
@@ -170,6 +171,7 @@ local function ResolveTargetPosition(Target)
     return ResolvedPosition
 end
 
+-- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -205,7 +207,7 @@ end)
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Radius = _G.CircleRadius  -- Ensure the radius can be changed dynamically
     else
         FOVCircle.Visible = false
     end
@@ -215,17 +217,13 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
+                local aimPosition = ResolveTargetPosition(CurrentTarget)
+                if aimPosition then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
             end
-        else
-            CurrentTarget = nil
         end
     end
 end)
