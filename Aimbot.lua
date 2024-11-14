@@ -16,14 +16,14 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
-_G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
-_G.BulletDropCompensation = 0
-_G.DistanceAdjustment = false
+_G.Sensitivity = 0.1 -- Lower is faster
+_G.PredictionAmount = 0.1 -- Horizontal prediction factor
+_G.AirPredictionAmount = 0.2 -- Vertical prediction factor for air targets
+_G.BulletDropCompensation = 0.05
+_G.DistanceAdjustment = true
 _G.UseCircle = true
-_G.WallCheck = false
-_G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
+_G.WallCheck = true -- Check if target is behind walls
+_G.PredictionMultiplier = 1.5 -- Multiplier for enhanced accuracy on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -82,7 +82,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
+    local ShortestDistance = _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -98,7 +98,6 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -111,7 +110,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with separate horizontal and vertical prediction
+-- Predict Target Position with advanced prediction for fast targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -119,10 +118,11 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
 
-    -- Horizontal prediction only when on the ground
+    -- Horizontal prediction for ground targets
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
+        local predictionFactor = Velocity.Magnitude > 10 and _G.PredictionAmount * _G.PredictionMultiplier or _G.PredictionAmount
+        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * predictionFactor
     end
 
     -- Vertical prediction if target is airborne
@@ -148,7 +148,7 @@ local function ResolveTargetPosition(Target)
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Final resolved position, including adjustments for evasive movement patterns
+    -- Final resolved position with minor random offset
     local ResolvedPosition = PredictedPosition + Vector3.new(
         math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
         math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
@@ -193,7 +193,7 @@ end)
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Ensure the radius can be changed dynamically
+        FOVCircle.Radius = _G.CircleRadius
     else
         FOVCircle.Visible = false
     end
