@@ -16,7 +16,6 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0 -- Lower is faster
 _G.PredictionAmount = 0 -- Horizontal prediction factor
 _G.AirPredictionAmount = 0 -- Vertical prediction factor for air targets
 _G.BulletDropCompensation = 0
