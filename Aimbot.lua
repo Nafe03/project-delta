@@ -23,9 +23,7 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = true
 _G.WallCheck = false
-_G.PredictionMultiplier = 1.5 -- Multiplier for prediction on fast targets
-_G.FastTargetSpeedThreshold = 50  -- Speed threshold to identify macros or rapid movements
-_G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
+_G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -113,34 +111,29 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with improved horizontal and vertical prediction for fast targets
+-- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+    if not AimPart then return AimPart.Position end
 
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
-    local speed = Velocity.Magnitude
 
-    -- Check if target is moving faster than the threshold
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
-
-    -- Horizontal prediction for grounded targets
+    -- Horizontal prediction only when on the ground
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount * predictionFactor
+        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount
     end
 
-    -- Vertical prediction for airborne targets
+    -- Vertical prediction if target is airborne
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
 end
 
--- Resolve Target Position with dynamic adjustments for fast targets
+-- Resolve Target Position with bullet drop compensation and random offset
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -150,28 +143,21 @@ local function ResolveTargetPosition(Target)
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    -- Bullet drop compensation if enabled
+    -- Adjust for bullet drop if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Adjust sensitivity based on target speed for smoother targeting
-    local dynamicSensitivity = _G.Sensitivity
-    if _G.DynamicSensitivity then
-        local speed = AimPart.Velocity.Magnitude
-        dynamicSensitivity = dynamicSensitivity * (speed / _G.FastTargetSpeedThreshold)
-    end
-
+    -- Final resolved position, including adjustments for evasive movement patterns
     local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
+        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1
     )
 
     return ResolvedPosition
 end
 
--- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -217,13 +203,17 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                local aimPosition = ResolveTargetPosition(CurrentTarget)
-                if aimPosition then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+                if ResolvedPosition then
+                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
+                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
+                    tween:Play()
                 end
             else
                 CurrentTarget = nil
             end
+        else
+            CurrentTarget = nil
         end
     end
 end)
