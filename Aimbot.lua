@@ -33,10 +33,12 @@ _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
 
-_G.BoxEnabled = true
-_G.BoxColor = Color3.fromRGB(255, 0, 0)
-_G.BoxTransparency = 0.5
-_G.BoxThickness = 0.05
+_G.CoolEffectEnabled = true
+_G.EffectColor = Color3.fromRGB(0, 255, 0) -- Neon green
+_G.EffectTransparency = 0.2
+_G.EffectThickness = 0.1
+_G.BeamTransparency = 0.3
+_G.BeamSpeed = 2 -- Speed for animated beams
 
 _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
@@ -128,6 +130,69 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
+local function CreateCoolEffect(targetCharacter)
+    local adornments = {}
+
+    -- Create glowing box edges
+    for i = 1, 12 do
+        local Box = Instance.new("BoxHandleAdornment")
+        Box.Adornee = targetCharacter
+        Box.Color3 = _G.EffectColor
+        Box.Transparency = _G.EffectTransparency
+        Box.Size = Vector3.new(4 + math.random() * 0.5, 6 + math.random() * 0.5, 4 + math.random() * 0.5)
+        Box.AlwaysOnTop = true
+        Box.ZIndex = 2
+        Box.Parent = targetCharacter
+        table.insert(adornments, Box)
+    end
+
+    -- Create beams connecting corners
+    local function CreateBeam(part1, part2)
+        local Beam = Instance.new("Beam")
+        Beam.Color = ColorSequence.new(_G.EffectColor)
+        Beam.Transparency = NumberSequence.new(_G.BeamTransparency)
+        Beam.Width0 = _G.EffectThickness
+        Beam.Width1 = _G.EffectThickness
+        Beam.TextureSpeed = _G.BeamSpeed
+        Beam.Attachment0 = part1
+        Beam.Attachment1 = part2
+        Beam.Parent = targetCharacter
+        return Beam
+    end
+
+    -- Attachments for beam endpoints
+    local attachments = {}
+    for i = 1, 8 do
+        local Attachment = Instance.new("Attachment")
+        Attachment.Position = Vector3.new(
+            (i % 2 == 0 and 2 or -2), -- X-alternating
+            (i > 4 and 3 or -3), -- Y-alternating
+            (i % 4 > 2 and 2 or -2) -- Z-alternating
+        )
+        Attachment.Parent = targetCharacter
+        table.insert(attachments, Attachment)
+    end
+
+    -- Connect attachments with beams
+    for i = 1, #attachments do
+        for j = i + 1, #attachments do
+            local beam = CreateBeam(attachments[i], attachments[j])
+            table.insert(adornments, beam)
+        end
+    end
+
+    return adornments
+end
+
+-- Cleanup function for cool effects
+local function CleanupCoolEffect(adornments)
+    for _, adornment in ipairs(adornments) do
+        if adornment then
+            adornment:Destroy()
+        end
+    end
+end
+
 -- Predict Target Position with separate horizontal and vertical prediction
 -- Predict Target Position with separate horizontal and vertical prediction
 -- Predict Target Position with separate horizontal and vertical prediction
@@ -200,13 +265,8 @@ UserInputService.InputBegan:Connect(function(Input)
             CurrentTarget = GetClosestPlayerToMouse()
             if CurrentTarget then
                 Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
-                if _G.VisibleHighlight then
-                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
-                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
-                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
-                end
-                if _G.BoxEnabled then
-                    CurrentBox = CreateBox(CurrentTarget.Character)
+                if _G.CoolEffectEnabled then
+                    CurrentEffects = CreateCoolEffect(CurrentTarget.Character)
                 end
             end
         end
@@ -216,18 +276,13 @@ UserInputService.InputBegan:Connect(function(Input)
     end
 end)
 
--- Update InputEnded to remove the box
 UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
-        if CurrentHighlight then
-            CurrentHighlight:Destroy()
-            CurrentHighlight = nil
-        end
-        if CurrentBox then
-            CurrentBox:Destroy()
-            CurrentBox = nil
+        if CurrentEffects then
+            CleanupCoolEffect(CurrentEffects)
+            CurrentEffects = {}
         end
     end
 end)
