@@ -68,18 +68,6 @@ local function Notify(title, text)
     })
 end
 
-local function CreateBox(targetCharacter)
-    local Box = Instance.new("BoxHandleAdornment")
-    Box.Adornee = targetCharacter
-    Box.Color3 = _G.BoxColor
-    Box.Transparency = _G.BoxTransparency
-    Box.Size = Vector3.new(4, 6, 4) -- Default size; adjust as needed
-    Box.AlwaysOnTop = true
-    Box.ZIndex = 1
-    Box.Parent = targetCharacter
-    return Box
-end
-
 -- Function to check if the target is visible (Wall Check)
 local function IsTargetVisible(targetPart)
     if _G.WallCheck then
