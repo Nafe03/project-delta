@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = false
+_G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
