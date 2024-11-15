@@ -34,6 +34,14 @@ local function createHighlight(character)
     return highlight
 end
 
+
+local function createESPUI1(character, playerName)
+    local billboardGui1 = Instance.new("BillboardGui", character)
+    billboardGui1.Size = UDim2.new(0, 100, 0, 100)
+    billboardGui1.Adornee = character:WaitForChild("RightUpperArm")
+    billboardGui1.StudsOffset = Vector3.new(0, 3, 0)
+    billboardGui1.AlwaysOnTop = true
+
 -- Function to create Distance, Name, and Health Bar ESP UI
 local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
@@ -80,7 +88,7 @@ local function createESPUI(character, playerName)
     healthLabel.Visible = _G.HealthTextEnabled
 
     -- Health Bar Background
-    local healthBarBackground = Instance.new("Frame", billboardGui)
+    local healthBarBackground = Instance.new("Frame", billboardGui1)
     healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
     healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
