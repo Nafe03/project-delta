@@ -1,50 +1,48 @@
--- Super Cool Enhanced ESP Script by Blissful#4992
+-- Made by Blissful#4992
 
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 -- Local Player Info
 local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
-_G.ESPEnabled = true  
+_G.ESPEnabled = true  -- Master toggle for all ESP
 _G.HealthESPEnabled = false
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
-_G.HealthTextEnabled = false
-_G.GlowEnabled = false  -- New feature for glowing effect
-_G.HighlightColor = Color3.fromRGB(0, 255, 0)
-_G.BoxColor = Color3.fromRGB(255, 255, 255)
+_G.HealthTextEnabled = false -- Separate toggle for health text
+_G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
+_G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
-_G.GlowColor = Color3.fromRGB(255, 0, 0)
-_G.TransitionSpeed = 0.15  -- Smoothing speed
 
--- Function to create Highlight with Glow Effect
+-- Function to create ESP Highlight
 local function createHighlight(character)
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
     highlight.Parent = character
     highlight.FillColor = _G.HighlightColor
-    highlight.FillTransparency = 0.25
-    highlight.OutlineColor = _G.GlowEnabled and _G.GlowColor or Color3.fromRGB(0, 0, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
     highlight.OutlineTransparency = 0
     highlight.Enabled = _G.HighlightEnabled
     return highlight
 end
 
--- Function to create dynamic ESP UI with Labels and Health Bar
+-- Function to create Distance, Name, and Health Bar ESP UI
 local function createESPUI(character, playerName)
     local billboardGui = Instance.new("BillboardGui", character)
     billboardGui.Size = UDim2.new(0, 100, 0, 100)
     billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 3, 0) -- Keep ESP display above the character's head
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
     billboardGui.AlwaysOnTop = true
 
-    -- Name Label (Original Position)
+    -- Name Label
     local nameLabel = Instance.new("TextLabel", billboardGui)
     nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
     nameLabel.Position = UDim2.new(0, 0, -1, 0)
@@ -57,7 +55,7 @@ local function createESPUI(character, playerName)
     nameLabel.Text = playerName
     nameLabel.Visible = _G.NameESPEnabled
 
-    -- Distance Label (Original Position)
+    -- Distance Label
     local distanceLabel = Instance.new("TextLabel", billboardGui)
     distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
     distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
@@ -69,10 +67,10 @@ local function createESPUI(character, playerName)
     distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     distanceLabel.Visible = _G.DistanceESPEnabled
 
-    -- Health Label (Positioned Below the Player)
+    -- Health Label
     local healthLabel = Instance.new("TextLabel", billboardGui)
     healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    healthLabel.Position = UDim2.new(0, 0, 1.8, 0) -- Adjusted to be below the player
+    healthLabel.Position = UDim2.new(0, 0, 0, 0)
     healthLabel.BackgroundTransparency = 1
     healthLabel.TextColor3 = _G.HealthTextColor
     healthLabel.TextScaled = true
@@ -81,10 +79,10 @@ local function createESPUI(character, playerName)
     healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     healthLabel.Visible = _G.HealthTextEnabled
 
-    -- Health Bar Background (Positioned Below the Player)
+    -- Health Bar Background
     local healthBarBackground = Instance.new("Frame", billboardGui)
     healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 2.1, 0) -- Adjusted to be below the health label
+    healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
     healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBackground.BorderSizePixel = 0
     healthBarBackground.Visible = _G.HealthESPEnabled
@@ -127,13 +125,12 @@ local function createESPUI(character, playerName)
     return updateESP
 end
 
-
--- Draw stylish 2D Box ESP around a player
+-- Function to Draw 2D Box ESP around a player
 local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
     Box.Color = _G.BoxColor
-    Box.Thickness = 2
+    Box.Thickness = 1
     Box.Transparency = 1
 
     local function UpdateBox()
@@ -173,6 +170,7 @@ local function applyESP(Player)
     end
 
     local updateESPFunc = createESPUI(Character, Player.Name)
+    updateESPFunc()
     DrawESPBox(Player)
 
     RunService.RenderStepped:Connect(function()
@@ -182,7 +180,7 @@ local function applyESP(Player)
     end)
 end
 
--- Initialize ESP for all players
+-- Function to initialize ESP for all players
 local function initializeESP(Player)
     Player.CharacterAdded:Connect(function()
         applyESP(Player)
@@ -192,25 +190,75 @@ local function initializeESP(Player)
     end
 end
 
--- Apply ESP to all players and any new players
+-- Apply ESP to all players in-game and new ones joining
 for _, Player in ipairs(Players:GetPlayers()) do
     initializeESP(Player)
 end
 Players.PlayerAdded:Connect(initializeESP)
 
+-- Toggle ESP features dynamically
+local function toggleESPFeature(feature, state)
+    _G[feature] = state
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Character then
+            applyESP(Player)
+        end
+    end
+end
+
+-- Change highlight color
 local function setHighlightColor(newColor)
     _G.HighlightColor = newColor
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Character then
+            applyESP(Player)
+        end
+    end
 end
 
+-- Set box color
 local function setBoxColor(newColor)
     _G.BoxColor = newColor
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Character then
+            applyESP(Player)
+        end
+    end
 end
 
+-- Set health text color and update active ESPs
 local function setHealthTextColor(newColor)
     _G.HealthTextColor = newColor
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Character then
+            local updateESPFunc = createESPUI(Player.Character, Player.Name)
+            updateESPFunc()
+        end
+    end
 end
 
--- Example usage for toggles and color changes
-setHighlightColor(Color3.fromRGB(255, 0, 0))
-setBoxColor(Color3.fromRGB(0, 255, 0))
-setHealthTextColor(Color3.fromRGB(255, 255, 255))
+-- Example UI toggle functions
+local function onHealthESPToggle(newState)
+    toggleESPFeature("HealthESPEnabled", newState)
+end
+
+local function onNameESPToggle(newState)
+    toggleESPFeature("NameESPEnabled", newState)
+end
+
+local function onBoxESPToggle(newState)
+    toggleESPFeature("BoxESPEnabled", newState)
+end
+
+local function onDistanceESPToggle(newState)
+    toggleESPFeature("DistanceESPEnabled", newState)
+end
+
+local function onHighlightToggle(newState)
+    toggleESPFeature("HighlightEnabled", newState)
+end
+
+-- Example color change usage
+setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
+setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text color to white
