@@ -33,6 +33,11 @@ _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
 
+_G.BoxEnabled = true
+_G.BoxColor = Color3.fromRGB(255, 0, 0)
+_G.BoxTransparency = 0.5
+_G.BoxThickness = 0.05
+
 _G.VisibleHighlight = true
 _G.TargetLockKey = Enum.KeyCode.E
 _G.ToggleAimbotKey = Enum.KeyCode.Q
@@ -59,6 +64,18 @@ local function Notify(title, text)
         Text = text;
         Duration = 2;
     })
+end
+
+local function CreateBox(targetCharacter)
+    local Box = Instance.new("BoxHandleAdornment")
+    Box.Adornee = targetCharacter
+    Box.Color3 = _G.BoxColor
+    Box.Transparency = _G.BoxTransparency
+    Box.Size = Vector3.new(4, 6, 4) -- Default size; adjust as needed
+    Box.AlwaysOnTop = true
+    Box.ZIndex = 1
+    Box.Parent = targetCharacter
+    return Box
 end
 
 -- Function to check if the target is visible (Wall Check)
@@ -173,6 +190,9 @@ local function ResolveTargetPosition(Target)
     return ResolvedPosition
 end
 
+local CurrentBox = nil
+
+-- Update InputBegan to create the box
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -185,6 +205,9 @@ UserInputService.InputBegan:Connect(function(Input)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                     CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
                 end
+                if _G.BoxEnabled then
+                    CurrentBox = CreateBox(CurrentTarget.Character)
+                end
             end
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
@@ -193,6 +216,7 @@ UserInputService.InputBegan:Connect(function(Input)
     end
 end)
 
+-- Update InputEnded to remove the box
 UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
@@ -200,6 +224,10 @@ UserInputService.InputEnded:Connect(function(Input)
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
+        end
+        if CurrentBox then
+            CurrentBox:Destroy()
+            CurrentBox = nil
         end
     end
 end)
