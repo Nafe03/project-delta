@@ -12,7 +12,7 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true  -- Master toggle for all ESP
-_G.HealthESPEnabled = false
+_G.HealthESPEnabled = true
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
