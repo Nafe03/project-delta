@@ -24,13 +24,13 @@ _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 -- Function to create or update ESP Highlight
 local function updateHighlight(character)
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
+    highlight.Name = "Highlight"
     highlight.Parent = character
     highlight.FillColor = _G.HighlightColor
     highlight.FillTransparency = 0.5
     highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
     highlight.OutlineTransparency = 0
     highlight.Enabled = _G.HighlightEnabled and _G.ESPEnabled
-    return highlight
 end
 
 -- Function to create or update ESP UI
@@ -122,6 +122,7 @@ end
 -- Function to draw or update Box ESP
 local function updateBoxESP(player)
     local box = player:FindFirstChild("ESPBox") or Drawing.new("Quad")
+    box.Name = "ESPBox"
     box.Visible = false
     box.Color = _G.BoxColor
     box.Thickness = 1
