@@ -11,7 +11,7 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
 local LastUpdate = tick()
-local UpdateInterval = 0.016 -- 60fps target
+local UpdateInterval = 0.016
 
 -- Settings with improved defaults
 local Settings = {
@@ -25,7 +25,7 @@ local Settings = {
     BulletDropCompensation = 0,
     DistanceAdjustment = false,
     UseCircle = true,
-    WallCheck = false,
+    WallCheck = true,
     PredictionMultiplier = 1.5,
     MaxDistance = 1000,
     TargetLockKey = Enum.KeyCode.E,
@@ -38,18 +38,7 @@ local Settings = {
     CircleRadius = 120,
     CircleFilled = false,
     CircleVisible = true,
-    CircleThickness = 1,
-    
-    -- Box settings
-    BoxEnabled = true,
-    BoxColor = Color3.fromRGB(255, 0, 0),
-    BoxTransparency = 0.5,
-    BoxThickness = 0.05,
-    
-    -- Highlight settings
-    VisibleHighlight = true,
-    HighlightFillColor = Color3.fromRGB(255, 0, 0),
-    HighlightOutlineColor = Color3.fromRGB(255, 255, 0)
+    CircleThickness = 1
 }
 
 -- Initialize FOV Circle
@@ -67,8 +56,6 @@ end
 
 -- Cached variables
 local CurrentTarget = nil
-local CurrentHighlight = nil
-local CurrentBox = nil
 local CachedParts = {}
 
 -- Optimized wall check with caching
@@ -156,56 +143,15 @@ local function PredictTargetPosition(target)
     return position
 end
 
--- Visual feedback
-local function CreateVisuals(character)
-    if Settings.BoxEnabled then
-        CurrentBox = Instance.new("BoxHandleAdornment")
-        CurrentBox.Adornee = character
-        CurrentBox.Color3 = Settings.BoxColor
-        CurrentBox.Transparency = Settings.BoxTransparency
-        CurrentBox.Size = character:GetExtentsSize()
-        CurrentBox.AlwaysOnTop = true
-        CurrentBox.ZIndex = 1
-        CurrentBox.Parent = character
-    end
-    
-    if Settings.VisibleHighlight then
-        CurrentHighlight = Instance.new("Highlight")
-        CurrentHighlight.FillColor = Settings.HighlightFillColor
-        CurrentHighlight.OutlineColor = Settings.HighlightOutlineColor
-        CurrentHighlight.Parent = character
-    end
-end
-
-local function CleanupVisuals()
-    if CurrentHighlight then CurrentHighlight:Destroy() end
-    if CurrentBox then CurrentBox:Destroy() end
-    CurrentHighlight = nil
-    CurrentBox = nil
-end
-
 -- Input handling
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
         if Settings.AimbotEnabled then
             CurrentTarget = GetClosestPlayerToMouse()
-            if CurrentTarget then
-                StarterGui:SetCore("SendNotification", {
-                    Title = "Target Locked",
-                    Text = CurrentTarget.Name,
-                    Duration = 2
-                })
-                CreateVisuals(CurrentTarget.Character)
-            end
         end
     elseif input.KeyCode == Settings.ToggleAimbotKey then
         Settings.AimbotEnabled = not Settings.AimbotEnabled
-        StarterGui:SetCore("SendNotification", {
-            Title = "Aimbot",
-            Text = Settings.AimbotEnabled and "Enabled" or "Disabled",
-            Duration = 2
-        })
     end
 end)
 
@@ -213,7 +159,6 @@ UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
-        CleanupVisuals()
     end
 end)
 
@@ -232,7 +177,6 @@ RunService.RenderStepped:Connect(function()
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - Settings.Sensitivity)
         else
             CurrentTarget = nil
-            CleanupVisuals()
         end
     end
 end)
