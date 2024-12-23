@@ -22,6 +22,9 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
+-- Track active box ESPs
+local ActiveBoxes = {}
+
 -- Function to create ESP Highlight
 local function createHighlight(character)
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
@@ -128,6 +131,8 @@ end
 -- Function to Draw 2D Box ESP around a player
 local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
+    ActiveBoxes[player] = Box
+
     Box.Visible = false
     Box.Color = _G.BoxColor
     Box.Thickness = 1
@@ -135,6 +140,11 @@ local function DrawESPBox(player)
 
     local function UpdateBox()
         RunService.RenderStepped:Connect(function()
+            if not _G.BoxESPEnabled then
+                Box.Visible = false
+                return
+            end
+
             if player.Character and player.Character.PrimaryPart then
                 local character = player.Character
                 local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
@@ -148,7 +158,7 @@ local function DrawESPBox(player)
                     Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
                     Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
                     Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
-                    Box.Visible = _G.BoxESPEnabled
+                    Box.Visible = true
                     Box.Color = _G.BoxColor
                 else
                     Box.Visible = false
@@ -160,6 +170,16 @@ local function DrawESPBox(player)
     end
 
     UpdateBox()
+end
+
+-- Cleanup function for Box ESP
+local function CleanupBoxESP()
+    for player, box in pairs(ActiveBoxes) do
+        if box then
+            box:Remove()
+            ActiveBoxes[player] = nil
+        end
+    end
 end
 
 -- Apply ESP to each player
@@ -199,6 +219,11 @@ Players.PlayerAdded:Connect(initializeESP)
 -- Toggle ESP features dynamically
 local function toggleESPFeature(feature, state)
     _G[feature] = state
+
+    if feature == "BoxESPEnabled" and not state then
+        CleanupBoxESP()
+    end
+
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player.Character then
             applyESP(Player)
