@@ -102,62 +102,115 @@ local function createESPUI(character)
     end
 end
 
--- Draw 2D Box
-local function createESPBox(player)
+-- Improved BoxESP Implementation
+
+-- Table to track ESP elements for cleanup
+local activeBoxes = {}
+
+-- Function to create BoxESP for a player
+local function createBoxESP(player)
     local box = Drawing.new("Quad")
     box.Thickness = 1
     box.Transparency = 1
     box.Visible = false
 
-    return function()
-        if player.Character and player.Character.PrimaryPart then
-            local pos, visible = Camera:WorldToViewportPoint(player.Character.PrimaryPart.Position)
-            if visible and _G.BoxESPEnabled then
-                -- Calculate corners of the box
-                local cframe = player.Character.PrimaryPart.CFrame
-                local topLeft = Camera:WorldToViewportPoint((cframe * CFrame.new(-2, 3, 0)).Position)
-                local topRight = Camera:WorldToViewportPoint((cframe * CFrame.new(2, 3, 0)).Position)
-                local bottomLeft = Camera:WorldToViewportPoint((cframe * CFrame.new(-2, -3, 0)).Position)
-                local bottomRight = Camera:WorldToViewportPoint((cframe * CFrame.new(2, -3, 0)).Position)
+    local function updateBox()
+        if player.Character and player.Character.PrimaryPart and _G.BoxESPEnabled then
+            local character = player.Character
+            local primaryPart = character.PrimaryPart
 
-                -- Assign points
-                box.PointA = Vector2.new(topRight.X, topRight.Y)
-                box.PointB = Vector2.new(topLeft.X, topLeft.Y)
-                box.PointC = Vector2.new(bottomLeft.X, bottomLeft.Y)
-                box.PointD = Vector2.new(bottomRight.X, bottomRight.Y)
-                box.Color = _G.BoxColor
-                box.Visible = true
-            else
-                box.Visible = false
-            end
+            -- Calculate the box corners
+            local topLeft = Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
+            local topRight = Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
+            local bottomLeft = Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
+            local bottomRight = Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(2, -3, 0)).Position)
+
+            -- Update box points and visibility
+            box.PointA = Vector2.new(topRight.X, topRight.Y)
+            box.PointB = Vector2.new(topLeft.X, topLeft.Y)
+            box.PointC = Vector2.new(bottomLeft.X, bottomLeft.Y)
+            box.PointD = Vector2.new(bottomRight.X, bottomRight.Y)
+            box.Color = _G.BoxColor
+            box.Visible = true
         else
             box.Visible = false
         end
     end
+
+    -- Return both the box and its updater function
+    return box, updateBox
 end
 
--- Apply ESP to a Player
-local function applyESP(player)
-    player.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        local updateUI = createESPUI(character)
-        local updateBox = createESPBox(player)
+-- Function to apply BoxESP to a player
+local function applyBoxESP(player)
+    -- Create and track the BoxESP
+    local box, updateBox = createBoxESP(player)
+    activeBoxes[player] = box
 
-        RunService.RenderStepped:Connect(function()
-            if _G.ESPEnabled then
-                updateUI(humanoid)
-                updateBox()
-            end
-        end)
+    -- Update the box on each frame
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if _G.ESPEnabled and _G.BoxESPEnabled then
+            updateBox()
+        else
+            box.Visible = false -- Hide if ESP is disabled
+        end
     end)
 
-    if player.Character then
-        applyESP(player)
+    -- Cleanup when the player leaves
+    player.AncestryChanged:Connect(function()
+        if not player:IsDescendantOf(game) then
+            box:Remove()
+            activeBoxes[player] = nil
+            connection:Disconnect()
+        end
+    end)
+end
+
+-- Function to remove all active ESP elements
+local function removeAllESP()
+    for player, box in pairs(activeBoxes) do
+        if box then
+            box:Remove()
+        end
+    end
+    activeBoxes = {}
+end
+
+-- Function to toggle ESP dynamically
+local function toggleESPFeature(feature, state)
+    _G[feature] = state
+
+    if not _G.ESPEnabled then
+        removeAllESP() -- Cleanup all ESP if master toggle is off
+    elseif feature == "BoxESPEnabled" and not state then
+        -- Specific cleanup for BoxESP
+        for _, box in pairs(activeBoxes) do
+            if box then
+                box.Visible = false
+            end
+        end
     end
 end
 
--- Initialize ESP for All Players
-Players.PlayerAdded:Connect(applyESP)
-for _, player in ipairs(Players:GetPlayers()) do
-    applyESP(player)
+-- Initialize BoxESP for all players
+local function initializeBoxESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        applyBoxESP(player)
+    end
+
+    -- Handle new players joining
+    Players.PlayerAdded:Connect(applyBoxESP)
+
+    -- Cleanup for players leaving
+    Players.PlayerRemoving:Connect(function(player)
+        if activeBoxes[player] then
+            activeBoxes[player]:Remove()
+            activeBoxes[player] = nil
+        end
+    end)
 end
+
+-- Initialize BoxESP
+initializeBoxESP()
+
