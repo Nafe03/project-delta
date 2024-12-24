@@ -21,18 +21,27 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
--- Function to create ESP UI
-local function createBillboardESP(character, playerName)
-    -- Find or create the BillboardGui
-    local billboardGui = character:FindFirstChild("ESPUI")
+-- Function to create ESP highlight
+local function createHighlight(character)
+    local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
+    highlight.Parent = character
+    highlight.FillColor = _G.HighlightColor
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+    highlight.OutlineTransparency = 0
+    highlight.Enabled = _G.HighlightEnabled
+    return highlight
+end
+
+-- Function to create and update ESP UI
+local function createOrUpdateESPUI(character, playerName)
+    local billboardGui = character:FindFirstChildOfClass("BillboardGui")
     if not billboardGui then
-        billboardGui = Instance.new("BillboardGui")
-        billboardGui.Name = "ESPUI"
+        billboardGui = Instance.new("BillboardGui", character)
+        billboardGui.Size = UDim2.new(0, 100, 0, 100)
         billboardGui.Adornee = character:WaitForChild("Head")
-        billboardGui.Size = UDim2.new(0, 200, 0, 50)
         billboardGui.StudsOffset = Vector3.new(0, 3, 0)
         billboardGui.AlwaysOnTop = true
-        billboardGui.Parent = character
     end
 
     -- Name Label
@@ -41,9 +50,9 @@ local function createBillboardESP(character, playerName)
         nameLabel = Instance.new("TextLabel", billboardGui)
         nameLabel.Name = "NameLabel"
         nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+        nameLabel.Position = UDim2.new(0, 0, -1, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = _G.BoxColor
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         nameLabel.TextScaled = true
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextStrokeTransparency = 0.5
@@ -58,9 +67,9 @@ local function createBillboardESP(character, playerName)
         distanceLabel = Instance.new("TextLabel", billboardGui)
         distanceLabel.Name = "DistanceLabel"
         distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        distanceLabel.Position = UDim2.new(0, 0, 0.3, 0)
+        distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
         distanceLabel.BackgroundTransparency = 1
-        distanceLabel.TextColor3 = _G.BoxColor
+        distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         distanceLabel.TextScaled = true
         distanceLabel.Font = Enum.Font.GothamBold
         distanceLabel.TextStrokeTransparency = 0.5
@@ -74,7 +83,7 @@ local function createBillboardESP(character, playerName)
         healthLabel = Instance.new("TextLabel", billboardGui)
         healthLabel.Name = "HealthLabel"
         healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        healthLabel.Position = UDim2.new(0, 0, 0.6, 0)
+        healthLabel.Position = UDim2.new(0, 0, 0, 0)
         healthLabel.BackgroundTransparency = 1
         healthLabel.TextColor3 = _G.HealthTextColor
         healthLabel.TextScaled = true
@@ -84,77 +93,92 @@ local function createBillboardESP(character, playerName)
     end
     healthLabel.Visible = _G.HealthTextEnabled
 
-    return function()
+    -- Update function for ESP
+    local function updateESP()
         local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            if _G.DistanceESPEnabled then
-                local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
-                distanceLabel.Text = string.format("%.1f studs", playerDistance)
-                distanceLabel.Visible = true
-            else
-                distanceLabel.Visible = false
-            end
+        if not humanoid then return end
 
-            if _G.HealthTextEnabled then
-                healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
-                healthLabel.Visible = true
-            else
-                healthLabel.Visible = false
-            end
-
-            nameLabel.Visible = _G.NameESPEnabled
-        end
-    end
-end
-
--- Function to remove ESP UI
-local function removeESP(character)
-    local billboardGui = character:FindFirstChild("ESPUI")
-    if billboardGui then
-        billboardGui:Destroy()
-    end
-end
-
--- Apply ESP to each player
-local function applyESP(player)
-    local character = player.Character or player.CharacterAdded:Wait()
-
-    -- Remove any existing ESP to prevent duplicates
-    removeESP(character)
-
-    -- Create ESP UI
-    local updateESP = createBillboardESP(character, player.Name)
-
-    -- Update ESP every frame
-    RunService.RenderStepped:Connect(function()
-        if _G.ESPEnabled then
-            updateESP()
+        local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
+        if _G.DistanceESPEnabled then
+            distanceLabel.Text = string.format("%.1f studs", playerDistance)
+            distanceLabel.Visible = true
         else
-            removeESP(character)
+            distanceLabel.Visible = false
         end
-    end)
+
+        if _G.HealthTextEnabled then
+            healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
+            healthLabel.Visible = true
+        else
+            healthLabel.Visible = false
+        end
+
+        nameLabel.Visible = _G.NameESPEnabled
+    end
+
+    return updateESP
+end
+
+-- Function to draw 2D Box ESP
+local function drawESPBox(character)
+    local box = Drawing.new("Quad")
+    box.Visible = false
+    box.Color = _G.BoxColor
+    box.Thickness = 1
+    box.Transparency = 1
+
+    local function updateBox()
+        if not _G.BoxESPEnabled then
+            box.Visible = false
+            return
+        end
+
+        local primaryPart = character.PrimaryPart
+        if primaryPart then
+            local corners = {
+                Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(-2, 3, 0)).Position),
+                Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(2, 3, 0)).Position),
+                Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(2, -3, 0)).Position),
+                Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(-2, -3, 0)).Position),
+            }
+            if not _G.BoxESPEnabled then
+                box.Visible = false
+            else
+                box.PointA, box.PointB, box.PointC, box.PointD = corners[1], corners[2], corners[3], corners[4]
+                box.Visible = true
+            end
+        else
+            box.Visible = false
+        end
+    end
+
+    RunService.RenderStepped:Connect(updateBox)
+end
+
+-- Apply ESP to a player
+local function applyESP(player)
+    local function onCharacterAdded(character)
+        if _G.HighlightEnabled then
+            createHighlight(character)
+        end
+
+        local updateESPFunc = createOrUpdateESPUI(character, player.Name)
+        drawESPBox(character)
+        RunService.RenderStepped:Connect(function()
+            if _G.ESPEnabled then
+                updateESPFunc()
+            end
+        end)
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
 end
 
 -- Initialize ESP for all players
-local function initializeESP(player)
-    player.CharacterAdded:Connect(function()
-        applyESP(player)
-    end)
-    if player.Character then
-        applyESP(player)
-    end
-end
-
--- Apply ESP to all existing players
 for _, player in ipairs(Players:GetPlayers()) do
-    initializeESP(player)
+    applyESP(player)
 end
-Players.PlayerAdded:Connect(initializeESP)
-
--- Toggle ESP features dynamically
-local function toggleESPFeature(feature, state)
-    _G[feature] = state
-end
-
--- Example color and feature toggle functions
-toggleESPFeature("BoxESPEnabled", true) -- Enable Box ESP
+Players.PlayerAdded:Connect(applyESP)
