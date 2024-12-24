@@ -36,97 +36,119 @@ end
 
 -- Function to create Distance, Name, and Health Bar ESP UI
 local function createESPUI(character, playerName)
-    local billboardGui = Instance.new("BillboardGui", character)
-    billboardGui.Size = UDim2.new(0, 100, 0, 100)
-    billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-    billboardGui.AlwaysOnTop = true
+    local billboardGui = character:FindFirstChildOfClass("BillboardGui")
+    if not billboardGui then
+        billboardGui = Instance.new("BillboardGui", character)
+        billboardGui.Size = UDim2.new(0, 100, 0, 100)
+        billboardGui.Adornee = character:WaitForChild("Head")
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+        billboardGui.AlwaysOnTop = true
+    end
 
     -- Name Label
-    local nameLabel = Instance.new("TextLabel", billboardGui)
-    nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    nameLabel.Position = UDim2.new(0, 0, -1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.TextScaled = true
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextStrokeTransparency = 0.5
-    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    local nameLabel = billboardGui:FindFirstChild("NameLabel")
+    if not nameLabel then
+        nameLabel = Instance.new("TextLabel", billboardGui)
+        nameLabel.Name = "NameLabel"
+        nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        nameLabel.Position = UDim2.new(0, 0, -1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    end
     nameLabel.Text = playerName
     nameLabel.Visible = _G.NameESPEnabled
 
     -- Distance Label
-    local distanceLabel = Instance.new("TextLabel", billboardGui)
-    distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    distanceLabel.TextScaled = true
-    distanceLabel.Font = Enum.Font.GothamBold
-    distanceLabel.TextStrokeTransparency = 0.5
-    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    local distanceLabel = billboardGui:FindFirstChild("DistanceLabel")
+    if not distanceLabel then
+        distanceLabel = Instance.new("TextLabel", billboardGui)
+        distanceLabel.Name = "DistanceLabel"
+        distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
+        distanceLabel.BackgroundTransparency = 1
+        distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        distanceLabel.TextScaled = true
+        distanceLabel.Font = Enum.Font.GothamBold
+        distanceLabel.TextStrokeTransparency = 0.5
+        distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    end
     distanceLabel.Visible = _G.DistanceESPEnabled
 
     -- Health Label
-    local healthLabel = Instance.new("TextLabel", billboardGui)
-    healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    healthLabel.Position = UDim2.new(0, 0, 0, 0)
-    healthLabel.BackgroundTransparency = 1
-    healthLabel.TextColor3 = _G.HealthTextColor
-    healthLabel.TextScaled = true
-    healthLabel.Font = Enum.Font.Arcade
-    healthLabel.TextStrokeTransparency = 0.5
-    healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    local healthLabel = billboardGui:FindFirstChild("HealthLabel")
+    if not healthLabel then
+        healthLabel = Instance.new("TextLabel", billboardGui)
+        healthLabel.Name = "HealthLabel"
+        healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        healthLabel.Position = UDim2.new(0, 0, 0, 0)
+        healthLabel.BackgroundTransparency = 1
+        healthLabel.TextColor3 = _G.HealthTextColor
+        healthLabel.TextScaled = true
+        healthLabel.Font = Enum.Font.Arcade
+        healthLabel.TextStrokeTransparency = 0.5
+        healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    end
     healthLabel.Visible = _G.HealthTextEnabled
 
     -- Health Bar Background
-    local healthBarBackground = Instance.new("Frame", billboardGui)
-    healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
-    healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    healthBarBackground.BorderSizePixel = 0
+    local healthBarBackground = billboardGui:FindFirstChild("HealthBarBackground")
+    if not healthBarBackground then
+        healthBarBackground = Instance.new("Frame", billboardGui)
+        healthBarBackground.Name = "HealthBarBackground"
+        healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
+        healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
+        healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        healthBarBackground.BorderSizePixel = 0
+    end
     healthBarBackground.Visible = _G.HealthESPEnabled
 
     -- Health Bar
-    local healthBar = Instance.new("Frame", healthBarBackground)
-    healthBar.Size = UDim2.new(1, 0, 1, 0)
-    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    healthBar.BorderSizePixel = 0
+    local healthBar = healthBarBackground:FindFirstChild("HealthBar")
+    if not healthBar then
+        healthBar = Instance.new("Frame", healthBarBackground)
+        healthBar.Name = "HealthBar"
+        healthBar.Size = UDim2.new(1, 0, 1, 0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        healthBar.BorderSizePixel = 0
+    end
 
     -- Update function for Distance, Name, and Health
-    -- Update function for Distance, Name, and Health
-local function updateESP()
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
+    local function updateESP()
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
 
-    local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
-    distanceLabel.Visible = _G.DistanceESPEnabled
-    distanceLabel.Text = string.format("%.1f studs", playerDistance)
+        local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
+        if _G.DistanceESPEnabled then
+            distanceLabel.Text = string.format("%.1f studs", playerDistance)
+            distanceLabel.Visible = true
+        else
+            distanceLabel.Visible = false
+        end
 
-    if _G.HealthESPEnabled then
-        local healthFraction = humanoid.Health / humanoid.MaxHealth
-        healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
-        healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-        healthBarBackground.Visible = true
-    else
-        healthBarBackground.Visible = false
+        if _G.HealthESPEnabled then
+            local healthFraction = humanoid.Health / humanoid.MaxHealth
+            healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
+            healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+            healthBarBackground.Visible = true
+        else
+            healthBarBackground.Visible = false
+        end
+
+        if _G.HealthTextEnabled then
+            healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
+            healthLabel.Visible = true
+        else
+            healthLabel.Visible = false
+        end
+
+        nameLabel.Visible = _G.NameESPEnabled
     end
 
-    if _G.HealthTextEnabled then
-        healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
-        healthLabel.Visible = true
-        healthLabel.TextColor3 = _G.HealthTextColor
-    else
-        healthLabel.Visible = false
-    end
-
-    -- Fix for Name ESP
-    if _G.NameESPEnabled then
-        nameLabel.Visible = true
-        nameLabel.Text = playerName -- Ensure the player's name is correctly set
-    else
-        nameLabel.Visible = false
-    end
+    return updateESP
 end
 
 -- Function to Draw 2D Box ESP around a player
