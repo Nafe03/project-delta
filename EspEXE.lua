@@ -94,35 +94,39 @@ local function createESPUI(character, playerName)
     healthBar.BorderSizePixel = 0
 
     -- Update function for Distance, Name, and Health
-    local function updateESP()
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
+    -- Update function for Distance, Name, and Health
+local function updateESP()
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
 
-        local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
-        distanceLabel.Visible = _G.DistanceESPEnabled
-        distanceLabel.Text = string.format("%.1f studs", playerDistance)
+    local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
+    distanceLabel.Visible = _G.DistanceESPEnabled
+    distanceLabel.Text = string.format("%.1f studs", playerDistance)
 
-        if _G.HealthESPEnabled then
-            local healthFraction = humanoid.Health / humanoid.MaxHealth
-            healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
-            healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-            healthBarBackground.Visible = true
-        else
-            healthBarBackground.Visible = false
-        end
-
-        if _G.HealthTextEnabled then
-            healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
-            healthLabel.Visible = true
-            healthLabel.TextColor3 = _G.HealthTextColor
-        else
-            healthLabel.Visible = false
-        end
-
-        nameLabel.Visible = _G.NameESPEnabled
+    if _G.HealthESPEnabled then
+        local healthFraction = humanoid.Health / humanoid.MaxHealth
+        healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+        healthBarBackground.Visible = true
+    else
+        healthBarBackground.Visible = false
     end
 
-    return updateESP
+    if _G.HealthTextEnabled then
+        healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
+        healthLabel.Visible = true
+        healthLabel.TextColor3 = _G.HealthTextColor
+    else
+        healthLabel.Visible = false
+    end
+
+    -- Fix for Name ESP
+    if _G.NameESPEnabled then
+        nameLabel.Visible = true
+        nameLabel.Text = playerName -- Ensure the player's name is correctly set
+    else
+        nameLabel.Visible = false
+    end
 end
 
 -- Function to Draw 2D Box ESP around a player
