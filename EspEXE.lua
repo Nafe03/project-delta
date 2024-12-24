@@ -19,7 +19,24 @@ _G.HighlightEnabled = false
 _G.HealthTextEnabled = false -- Separate toggle for health text
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
-_G.HealthTextColor = Color3.fromRGB(255, 255, 255)
+_G.HealthTextColor = Color3.fromRGB(255, 255, 255) -- Health text color
+
+-- Update functions for real-time color changes
+local function updateHighlightColor(character)
+    local highlight = character:FindFirstChild("Highlight")
+    if highlight then
+        highlight.FillColor = _G.HighlightColor
+    end
+end
+
+local function updateHealthTextColor(billboardGui)
+    if billboardGui then
+        local healthLabel = billboardGui:FindFirstChild("HealthLabel")
+        if healthLabel then
+            healthLabel.TextColor3 = _G.HealthTextColor
+        end
+    end
+end
 
 -- Function to create ESP highlight
 local function createHighlight(character)
@@ -108,6 +125,7 @@ local function createOrUpdateESPUI(character, playerName)
 
         if _G.HealthTextEnabled then
             healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
+            healthLabel.TextColor3 = _G.HealthTextColor -- Real-time update
             healthLabel.Visible = true
         else
             healthLabel.Visible = false
@@ -124,7 +142,7 @@ local function drawESPBox(character)
     local box = Drawing.new("Quad")
     box.Visible = false
     box.Color = _G.BoxColor
-    box.Thickness = 1
+    box.Thickness = 2
     box.Transparency = 1
 
     local function updateBox()
@@ -141,12 +159,9 @@ local function drawESPBox(character)
                 Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(2, -3, 0)).Position),
                 Camera:WorldToViewportPoint((primaryPart.CFrame * CFrame.new(-2, -3, 0)).Position),
             }
-            if not _G.BoxESPEnabled then
-                box.Visible = false
-            else
-                box.PointA, box.PointB, box.PointC, box.PointD = corners[1], corners[2], corners[3], corners[4]
-                box.Visible = true
-            end
+            box.PointA, box.PointB, box.PointC, box.PointD = corners[1], corners[2], corners[3], corners[4]
+            box.Color = _G.BoxColor -- Real-time update
+            box.Visible = true
         else
             box.Visible = false
         end
