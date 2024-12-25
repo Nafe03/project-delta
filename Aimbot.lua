@@ -16,14 +16,14 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
-_G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
+_G.Sensitivity = 0
+_G.PredictionAmount = 0
+_G.AirPredictionAmount = 0
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = true
 _G.WallCheck = false
-_G.PredictionMultiplier = 0   -- Multiplier for prediction on fast targets
+_G.PredictionMultiplier = 0
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -66,6 +66,13 @@ local function Notify(title, text)
     })
 end
 
+-- Function to check if a point is within the FOV circle
+local function IsWithinFOVCircle(screenPoint)
+    local mousePos = UserInputService:GetMouseLocation()
+    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+    return distance <= _G.CircleRadius
+end
+
 -- Function to check if the target is visible (Wall Check)
 local function IsTargetVisible(targetPart)
     if _G.WallCheck then
@@ -76,18 +83,16 @@ local function IsTargetVisible(targetPart)
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
-        
-        if raycastResult and raycastResult.Instance ~= targetPart then
-            return false
-        end
+        return not (raycastResult and raycastResult.Instance ~= targetPart)
     end
     return true
 end
 
--- Function to get the closest player to the mouse
+-- Improved function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
+    local ShortestDistance = math.huge
+    local MousePosition = UserInputService:GetMouseLocation()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -96,19 +101,34 @@ local function GetClosestPlayerToMouse()
             end
 
             local humanoid = player.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local part = player.Character:FindFirstChild(_G.AimPart)
-                if part then
-                    local screenPoint = Camera:WorldToScreenPoint(part.Position)
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
+            if not (humanoid and humanoid.Health > 0) then
+                continue
+            end
 
-                    -- Only consider players within the current circle radius and closest to the mouse
-                    if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
-                        ShortestDistance = vectorDistance
-                        Target = player
-                    end
-                end
+            local aimPart = player.Character:FindFirstChild(_G.AimPart)
+            if not aimPart then
+                continue
+            end
+
+            local screenPoint = Camera:WorldToScreenPoint(aimPart.Position)
+            if screenPoint.Z < 0 then
+                continue
+            end
+
+            -- Check if the player is within the FOV circle
+            if not IsWithinFOVCircle(screenPoint) then
+                continue
+            end
+
+            -- Check if the target is visible through walls if wall check is enabled
+            if not IsTargetVisible(aimPart) then
+                continue
+            end
+
+            local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - MousePosition).Magnitude
+            if distance < ShortestDistance then
+                ShortestDistance = distance
+                Target = player
             end
         end
     end
@@ -116,21 +136,20 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
+-- Function to create box ESP
 local function CreateBox(targetCharacter)
     local Box = Instance.new("BoxHandleAdornment")
     Box.Adornee = targetCharacter
     Box.Color3 = _G.BoxColor
     Box.Transparency = _G.BoxTransparency
-    Box.Size = Vector3.new(4, 6, 4) -- Default size; adjust as needed
+    Box.Size = Vector3.new(4, 6, 4)
     Box.AlwaysOnTop = true
     Box.ZIndex = 1
     Box.Parent = targetCharacter
     return Box
 end
 
--- Predict Target Position with separate horizontal and vertical prediction
--- Predict Target Position with separate horizontal and vertical prediction
--- Predict Target Position with separate horizontal and vertical prediction
+-- Improved target position prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return AimPart.Position end
@@ -138,61 +157,26 @@ local function PredictTargetPosition(Target)
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
 
-    -- Horizontal prediction only when on the ground
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid then
         local walkSpeed = humanoid.WalkSpeed
         local predictionAmount = _G.PredictionAmount
 
-        -- Increase prediction for fast-moving targets
         if walkSpeed > 30 then
             predictionAmount = predictionAmount * _G.PredictionMultiplier
         end
 
-        -- Apply horizontal prediction for ground targets
         if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
             predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * predictionAmount
-        end
-
-        -- Vertical prediction if target is airborne
-        if humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping then
-            predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y) * _G.AirPredictionAmount, 0
+        else
+            predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
         end
     end
 
     return predictedPosition
 end
 
-
-
--- Resolve Target Position with bullet drop compensation and random offset
-local function ResolveTargetPosition(Target)
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    local AimPart = Target.Character:FindFirstChild(aimPartName)
-    if not AimPart then return end
-
-    local PredictedPosition = PredictTargetPosition(Target)
-    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-
-    -- Adjust for bullet drop if enabled
-    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
-    end
-
-    -- Final resolved position, including adjustments for evasive movement patterns
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1,
-        math.random(-_G.Sensitivity, _G.Sensitivity) * 0.1
-    )
-
-    return ResolvedPosition
-end
-
-local CurrentBox = nil
-
--- Update InputBegan to create the box
+-- Input handling
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -201,9 +185,10 @@ UserInputService.InputBegan:Connect(function(Input)
             if CurrentTarget then
                 Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
                 if _G.VisibleHighlight then
-                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                    CurrentHighlight = Instance.new("Highlight")
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                     CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                    CurrentHighlight.Parent = CurrentTarget.Character
                 end
                 if _G.BoxEnabled then
                     CurrentBox = CreateBox(CurrentTarget.Character)
@@ -216,7 +201,6 @@ UserInputService.InputBegan:Connect(function(Input)
     end
 end)
 
--- Update InputEnded to remove the box
 UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
@@ -232,31 +216,49 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- Update FOV circle on RenderStepped to follow mouse and adjust radius
+-- Main aimbot loop
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Ensure the radius can be changed dynamically
+        FOVCircle.Position = UserInputService:GetMouseLocation()
+        FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Visible = true
     else
         FOVCircle.Visible = false
     end
 
     if Holding and _G.AimbotEnabled and CurrentTarget then
         local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-                if ResolvedPosition then
-                    local newCFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
-                    local tween = TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = newCFrame})
-                    tween:Play()
-                end
-            else
-                CurrentTarget = nil
-            end
-        else
+        if not character then
             CurrentTarget = nil
+            return
+        end
+
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not (humanoid and humanoid.Health > 0) then
+            CurrentTarget = nil
+            return
+        end
+
+        local aimPart = character:FindFirstChild(_G.AimPart)
+        if not aimPart then
+            CurrentTarget = nil
+            return
+        end
+
+        local screenPoint = Camera:WorldToScreenPoint(aimPart.Position)
+        if screenPoint.Z < 0 or not IsWithinFOVCircle(screenPoint) then
+            CurrentTarget = nil
+            return
+        end
+
+        local predictedPos = PredictTargetPosition(CurrentTarget)
+        if predictedPos then
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, predictedPos)
+            if _G.Sensitivity > 0 then
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - _G.Sensitivity)
+            else
+                Camera.CFrame = targetCFrame
+            end
         end
     end
 end)
