@@ -156,7 +156,7 @@ local function PredictTargetPosition(Target)
 
         -- Vertical prediction if target is airborne
         if humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping then
-            predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Y * _G.AirPredictionAmount, 0)
+            predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount, 0)
         end
     end
 
