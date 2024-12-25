@@ -11,216 +11,204 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
--- Global Settings
+-- Global Settings (Optimized for Da Hood)
 _G.AimbotEnabled = true
 _G.TeamCheck = false
-_G.AimPart = "Head"
-_G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0  -- Increased for smoother tracking
-_G.StickyRadius = 3000  -- Radius for sticky aim effect
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0
-_G.BulletDropCompensation = 0
-_G.DistanceAdjustment = true
-_G.UseCircle = true
-_G.WallCheck = false
-_G.PredictionMultiplier = 1
-_G.StickDuration = 0  -- How long aim stays "stuck" after releasing key
+_G.AimPart = "Head"  -- Head for Da Hood is most effective
+_G.LockPart = "HumanoidRootPart"  -- For better prediction
+_G.Sensitivity = 0.15  -- Smoothed for Da Hood's movement
+_G.PredictionAmount = 0.135  -- Tuned for Da Hood's netcode
+_G.JumpOffset = 0.2  -- Compensation for jumping
+_G.UseAcceleration = true  -- Better prediction for Da Hood movement
+_G.MaxAcceleration = 0.3  -- Limit prediction scaling
+_G.SmartPrediction = true  -- Adapts to target movement
+_G.AutoPrediction = true  -- Adjusts based on ping
 
 -- FOV Settings
-_G.CircleSides = 64
-_G.CircleColor = Color3.fromRGB(255, 255, 255)
-_G.CircleTransparency = 0.7
-_G.CircleRadius = 120
+_G.UseCircle = true
+_G.CircleRadius = 100  -- Smaller for better accuracy
+_G.CircleColor = Color3.fromRGB(255, 0, 0)
+_G.CircleTransparency = 0.5
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
+_G.CircleSides = 64
 
--- Additional Sticky Aim Variables
-local LastTargetTime = 0
-local StickyTarget = nil
-local IsSticky = false
+-- Visual Settings
+_G.VisibleCheck = true
+_G.ShowLockIndicator = true
+_G.LockIndicatorColor = Color3.fromRGB(255, 0, 0)
+_G.ShowPrediction = false  -- Visual prediction point
 
--- FOV Circle Setup
+-- Lock Settings
+_G.LockMode = true  -- Enhanced target locking
+_G.Stickiness = 0.8  -- How "sticky" the aim is
+_G.MaxLockRange = 350  -- Maximum lock range
+_G.UnlockOnDeath = true
+
+-- Setup FOV Circle
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
-FOVCircle.Filled = _G.CircleFilled
 FOVCircle.Color = _G.CircleColor
-FOVCircle.Visible = _G.CircleVisible
 FOVCircle.Transparency = _G.CircleTransparency
-FOVCircle.NumSides = _G.CircleSides
+FOVCircle.Filled = _G.CircleFilled
+FOVCircle.Visible = _G.CircleVisible
 FOVCircle.Thickness = _G.CircleThickness
+FOVCircle.NumSides = _G.CircleSides
 
--- Improved target finding with sticky effect
-local function GetClosestPlayerToMouse()
-    local Target = nil
-    local ShortestDistance = math.huge
-    local MousePosition = UserInputService:GetMouseLocation()
+-- Variables
+local CurrentTarget = nil
+local LockIndicator = nil
+local PredictionPoint = nil
+local LastPing = 0
+local LastPosition = nil
+local MovementPattern = {}
+
+-- Enhanced prediction system
+local function CalculatePrediction(target)
+    if not target or not target.Character then return nil end
     
-    -- Check if we should keep the sticky target
-    if StickyTarget and StickyTarget.Character and time() - LastTargetTime < _G.StickDuration then
-        local stickyPart = StickyTarget.Character:FindFirstChild(_G.AimPart)
-        if stickyPart then
-            local screenPoint = Camera:WorldToScreenPoint(stickyPart.Position)
-            if screenPoint.Z > 0 then
-                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - MousePosition).Magnitude
-                if distance <= _G.StickyRadius then
-                    return StickyTarget
+    local humanoid = target.Character:FindFirstChild("Humanoid")
+    local rootPart = target.Character:FindFirstChild(_G.LockPart)
+    if not (humanoid and rootPart) then return nil end
+
+    local velocity = rootPart.Velocity
+    local position = rootPart.Position
+    local prediction = position
+    
+    -- Calculate base prediction
+    local basePrediction = _G.PredictionAmount
+    
+    -- Adjust for ping if AutoPrediction is enabled
+    if _G.AutoPrediction then
+        local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+        basePrediction = basePrediction * (1 + (ping / 1000))
+    end
+    
+    -- Smart movement prediction
+    if _G.SmartPrediction then
+        -- Store movement pattern
+        if LastPosition then
+            local movement = (position - LastPosition).Magnitude
+            table.insert(MovementPattern, movement)
+            if #MovementPattern > 5 then
+                table.remove(MovementPattern, 1)
+            end
+            
+            -- Calculate average movement
+            local avgMovement = 0
+            for _, mov in ipairs(MovementPattern) do
+                avgMovement = avgMovement + mov
+            end
+            avgMovement = avgMovement / #MovementPattern
+            
+            -- Adjust prediction based on movement pattern
+            basePrediction = basePrediction * (1 + (avgMovement / 10))
+        end
+        LastPosition = position
+    end
+    
+    -- Apply prediction
+    prediction = prediction + (velocity * basePrediction)
+    
+    -- Jump compensation
+    if humanoid:GetState() == Enum.HumanoidStateType.Jumping or 
+       humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        prediction = prediction + Vector3.new(0, _G.JumpOffset, 0)
+    end
+    
+    return prediction
+end
+
+-- Improved target selection
+local function GetClosestTarget()
+    local closest = nil
+    local shortestDistance = _G.MaxLockRange
+    local mousePosition = UserInputService:GetMouseLocation()
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        
+        -- Basic checks
+        if not player.Character or not player.Character:FindFirstChild(_G.AimPart) then continue end
+        if _G.TeamCheck and player.Team == LocalPlayer.Team then continue end
+        
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then continue end
+        
+        -- Position checks
+        local aimPart = player.Character[_G.AimPart]
+        local screenPoint = Camera:WorldToScreenPoint(aimPart.Position)
+        if screenPoint.Z < 0 then continue end
+        
+        -- FOV check
+        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePosition).Magnitude
+        if distance > _G.CircleRadius then continue end
+        
+        -- Visibility check
+        if _G.VisibleCheck then
+            local ray = Ray.new(Camera.CFrame.Position, (aimPart.Position - Camera.CFrame.Position).Unit * shortestDistance)
+            local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, player.Character})
+            if hit then continue end
+        end
+        
+        -- Update closest target
+        if distance < shortestDistance then
+            shortestDistance = distance
+            closest = player
+        end
+    end
+    
+    return closest
+end
+
+-- Main aimbot loop
+RunService.RenderStepped:Connect(function()
+    -- Update FOV Circle
+    if _G.UseCircle then
+        FOVCircle.Position = UserInputService:GetMouseLocation()
+        FOVCircle.Visible = true
+    end
+    
+    -- Main aimbot logic
+    if Holding and _G.AimbotEnabled then
+        -- Get or update target
+        CurrentTarget = CurrentTarget or GetClosestTarget()
+        
+        if CurrentTarget and CurrentTarget.Character then
+            local aimPart = CurrentTarget.Character:FindFirstChild(_G.AimPart)
+            if aimPart then
+                -- Calculate aim position
+                local predictionPoint = CalculatePrediction(CurrentTarget)
+                if predictionPoint then
+                    -- Create camera CFrame
+                    local targetCFrame = CFrame.new(Camera.CFrame.Position, predictionPoint)
+                    
+                    -- Apply smoothing
+                    if _G.Sensitivity > 0 then
+                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - _G.Sensitivity)
+                    else
+                        Camera.CFrame = targetCFrame
+                    end
                 end
             end
         end
     end
+end)
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if _G.TeamCheck and player.Team == LocalPlayer.Team then
-                continue
-            end
-
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            if not (humanoid and humanoid.Health > 0) then
-                continue
-            end
-
-            local aimPart = player.Character:FindFirstChild(_G.AimPart)
-            if not aimPart then
-                continue
-            end
-
-            local screenPoint = Camera:WorldToScreenPoint(aimPart.Position)
-            if screenPoint.Z < 0 then
-                continue
-            end
-
-            if not IsWithinFOVCircle(screenPoint) then
-                continue
-            end
-
-            if not IsTargetVisible(aimPart) then
-                continue
-            end
-
-            local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - MousePosition).Magnitude
-            if distance < ShortestDistance then
-                ShortestDistance = distance
-                Target = player
-            end
-        end
-    end
-
-    if Target then
-        StickyTarget = Target
-        LastTargetTime = time()
-        IsSticky = true
-    end
-
-    return Target
-end
-
--- Enhanced prediction function
-local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return AimPart.Position end
-
-    local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    
-    if humanoid then
-        local walkSpeed = humanoid.WalkSpeed
-        local predictionAmount = _G.PredictionAmount
-        
-        -- Enhanced prediction for moving targets
-        if walkSpeed > 0 then
-            predictionAmount = predictionAmount * (1 + (walkSpeed / 50)) * _G.PredictionMultiplier
-        end
-
-        -- Different prediction for airborne targets
-        if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-            predictedPosition = predictedPosition + (Velocity * _G.AirPredictionAmount)
-        else
-            predictedPosition = predictedPosition + (Velocity * predictionAmount)
-        end
-
-        -- Distance-based adjustment
-        if _G.DistanceAdjustment then
-            local distance = (AimPart.Position - Camera.CFrame.Position).Magnitude
-            local distanceMultiplier = math.clamp(distance / 100, 0.1, 2)
-            predictedPosition = predictedPosition + (Velocity * predictionAmount * distanceMultiplier)
-        end
-    end
-
-    return predictedPosition
-end
-
--- Modified input handling for sticky aim
-UserInputService.InputBegan:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+-- Input handling
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
-        if _G.AimbotEnabled then
-            CurrentTarget = GetClosestPlayerToMouse()
-            if CurrentTarget then
-                LastTargetTime = time()
-                IsSticky = true
-                -- Rest of your notification and highlight code...
-            end
-        end
     end
 end)
 
-UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
-        -- Don't immediately clear target for sticky effect
-        wait(_G.StickDuration)
-        if not Holding then
-            CurrentTarget = nil
-            IsSticky = false
-            -- Clear highlights and boxes...
-        end
-    end
-end)
-
--- Enhanced aimbot loop with smooth tracking
-RunService.RenderStepped:Connect(function()
-    if _G.UseCircle then
-        FOVCircle.Position = UserInputService:GetMouseLocation()
-        FOVCircle.Radius = _G.CircleRadius
-        FOVCircle.Visible = true
-    else
-        FOVCircle.Visible = false
-    end
-
-    if (Holding or IsSticky) and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if not character then
-            CurrentTarget = nil
-            IsSticky = false
-            return
-        end
-
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not (humanoid and humanoid.Health > 0) then
-            CurrentTarget = nil
-            IsSticky = false
-            return
-        end
-
-        local aimPart = character:FindFirstChild(_G.AimPart)
-        if not aimPart then
-            CurrentTarget = nil
-            IsSticky = false
-            return
-        end
-
-        local predictedPos = PredictTargetPosition(CurrentTarget)
-        if predictedPos then
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, predictedPos)
-            
-            -- Smooth aim transition
-            local smoothness = IsSticky and _G.Sensitivity * 1.5 or _G.Sensitivity
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - smoothness)
-        end
+        CurrentTarget = nil
+        LastPosition = nil
+        MovementPattern = {}
     end
 end)
