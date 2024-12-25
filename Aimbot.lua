@@ -266,6 +266,3 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
--- Initialize
-Notify("Da Hood Aimbot", "Loaded Successfully", 3)
