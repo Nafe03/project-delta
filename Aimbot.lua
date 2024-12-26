@@ -104,7 +104,7 @@ local function IsTargetVisible(targetPart)
     return true
 end
 
--- Function to get the closest player to the mouse that is inside the FOV Circle
+-- Function to get the closest player to the mouse that is inside the FOV Circle and in front of the camera
 local function GetClosestPlayerToMouse()
     local Target = nil
     local ShortestDistance = _G.CircleRadius
@@ -114,7 +114,7 @@ local function GetClosestPlayerToMouse()
             if _G.TeamCheck and player.Team == LocalPlayer.Team then
                 continue
             end
-            
+
             if IsPlayerKnocked(player) then
                 continue
             end
@@ -127,7 +127,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local distanceFromMouse = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Check if the target is within the FOV circle and in front of the camera
+                    -- Ensure the target is in front of the camera, within the FOV circle, and visible
                     if onScreen and screenPoint.Z > 0 and distanceFromMouse <= ShortestDistance and distanceFromMouse <= _G.CircleRadius and IsTargetVisible(aimPart) then
                         ShortestDistance = distanceFromMouse
                         Target = player
@@ -140,26 +140,33 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
-
 -- Resolve Target Position with dynamic adjustments for fast targets
--- Function to calculate prediction for moving targets
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    local PredictedPosition = AimPart.Position
-    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
+    local AimPartPosition = AimPart.Position
+    local Distance = (Camera.CFrame.Position - AimPartPosition).Magnitude
 
-    -- Bullet drop compensation if enabled
-    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
+    -- Prediction adjustments for moving targets
+    local Velocity = Target.Character:FindFirstChild("HumanoidRootPart") and Target.Character.HumanoidRootPart.Velocity or Vector3.zero
+    local Prediction = Velocity * (_G.PredictionAmount / 100)
+
+    -- Apply air prediction if the target is in Freefall
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        Prediction = Prediction + Vector3.new(0, _G.AirPredictionAmount, 0)
     end
 
-    return PredictedPosition
-end
+    -- Adjust predicted position based on bullet drop compensation
+    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+        Prediction = Prediction + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
+    end
 
+    -- Final predicted position
+    return AimPartPosition + Prediction
+end
 
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
