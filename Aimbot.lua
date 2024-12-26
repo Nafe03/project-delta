@@ -17,7 +17,7 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0.25       -- Horizontal prediction for moving targets
+_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
 _G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
