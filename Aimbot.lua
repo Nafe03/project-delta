@@ -228,24 +228,22 @@ end)
 -- Update FOV circle on RenderStepped to follow mouse and adjust radius
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+        FOVCircle.Position = UserInputService:GetMouseLocation()
         FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Filled = _G.CircleFilled
+        FOVCircle.Color = _G.CircleColor
+        FOVCircle.Visible = _G.CircleVisible
+        FOVCircle.Transparency = _G.CircleTransparency
+        FOVCircle.NumSides = _G.CircleSides
+        FOVCircle.Thickness = _G.CircleThickness
     else
         FOVCircle.Visible = false
     end
 
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
-                local aimPosition = ResolveTargetPosition(CurrentTarget)
-                if aimPosition then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-                end
-            else
-                CurrentTarget = nil
-            end
+    if Holding and CurrentTarget and _G.AimbotEnabled then
+        local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
+        if ResolvedPosition then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
         end
     end
 end)
