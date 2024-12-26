@@ -104,7 +104,7 @@ local function IsTargetVisible(targetPart)
     return true
 end
 
--- Function to get the closest player to the mouse
+-- Function to get the closest player to the mouse that is inside the FOV Circle
 local function GetClosestPlayerToMouse()
     local Target = nil
     local ShortestDistance = _G.CircleRadius
@@ -128,6 +128,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
+                    -- Check if the player is inside the FOV circle
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
