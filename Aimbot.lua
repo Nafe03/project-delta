@@ -144,29 +144,17 @@ end
 -- Resolve Target Position with dynamic adjustments for fast targets
 -- Function to calculate prediction for moving targets
 local function ResolveTargetPosition(Target)
-    if not Target or not Target.Character then return nil end
-
-    -- Determine the aim part (e.g., "Head" or "LowerTorso") based on the target's state
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
+    if not AimPart then return end
 
-    if not AimPart then return nil end
+    local PredictedPosition = AimPart.Position
+    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    local AimPosition = AimPart.Position
-    local TargetVelocity = Target.Character:FindFirstChild("HumanoidRootPart") and Target.Character.HumanoidRootPart.Velocity or Vector3.zero
-    local Distance = (Camera.CFrame.Position - AimPosition).Magnitude
-
-    -- Calculate bullet travel time based on distance and an assumed bullet speed
-    local BulletSpeed = 1000 -- Adjust this value based on your game's bullet speed
-    local TravelTime = Distance / BulletSpeed
-
-    -- Predict target's position based on their velocity and travel time
-    local PredictedPosition = AimPosition + TargetVelocity * TravelTime * _G.PredictionMultiplier
-
-    -- Adjust for bullet drop if enabled
+    -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        PredictedPosition = PredictedPosition - Vector3.new(0, Distance * _G.BulletDropCompensation, 0)
+        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
     return PredictedPosition
