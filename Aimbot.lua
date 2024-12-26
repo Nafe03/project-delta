@@ -15,8 +15,8 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.PredictionAmount = 0.15  -- Adjust prediction scaling
-_G.AirPredictionAmount = 0.25
+_G.PredictionAmount = 0  -- Adjust prediction scaling
+_G.AirPredictionAmount = 0
 _G.Sensitivity = 0          -- Lower = faster snapping
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = true
