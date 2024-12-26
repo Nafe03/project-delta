@@ -3,7 +3,6 @@ local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local StarterGui = game:GetService("StarterGui")
 
@@ -16,16 +15,14 @@ _G.AimbotEnabled = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
-_G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
-_G.BulletDropCompensation = 0
-_G.DistanceAdjustment = false
+_G.Sensitivity = 1
+_G.PredictionAmount = 1
+_G.AirPredictionAmount = 1
+_G.BulletDropCompensation = 0.1
+_G.DistanceAdjustment = true
 _G.UseCircle = true
 _G.WallCheck = false
-_G.PredictionMultiplier = 1.5 -- Multiplier for prediction on fast targets
-_G.FastTargetSpeedThreshold = 35  -- Speed threshold to identify macros or rapid movements
-_G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
+_G.DynamicSensitivity = true
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -54,7 +51,7 @@ FOVCircle.Thickness = _G.CircleThickness
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
--- Function to send notifications
+-- Notify function
 local function Notify(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title;
@@ -63,24 +60,7 @@ local function Notify(title, text)
     })
 end
 
--- Function to check if a player is knocked
-local function IsPlayerKnocked(player)
-    local character = player.Character
-    if not character then return true end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return true end
-    
-    -- Check if player is knocked in Da Hood
-    local knocked = character:FindFirstChild("BodyEffects")
-    if knocked and knocked:FindFirstChild("K.O") then
-        return knocked["K.O"].Value
-    end
-    
-    return false
-end
-
--- Function to check if the target is visible (Wall Check)
+-- Check if the target is visible
 local function IsTargetVisible(targetPart)
     if _G.WallCheck then
         local origin = Camera.CFrame.Position
@@ -90,55 +70,58 @@ local function IsTargetVisible(targetPart)
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 
         local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
-        
-        if raycastResult and raycastResult.Instance ~= targetPart then
-            return false
-        end
+        return not raycastResult or raycastResult.Instance == targetPart
     end
     return true
 end
 
--- Prediction Logic
-local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+-- Get the closest player to the mouse
+local function GetClosestPlayerToMouse()
+    local Target = nil
+    local ShortestDistance = _G.CircleRadius
 
-    local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position
-    local speed = Velocity.Magnitude
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if _G.TeamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
 
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local part = player.Character:FindFirstChild(_G.AimPart)
+                if part then
+                    local screenPoint = Camera:WorldToScreenPoint(part.Position)
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount * predictionFactor
+                    if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
+                        ShortestDistance = vectorDistance
+                        Target = player
+                    end
+                end
+            end
+        end
     end
 
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
-    end
-
-    return predictedPosition
+    return Target
 end
 
+-- Resolve Target Position
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    local AimPart = Target.Character:FindFirstChild(aimPartName)
-    if not AimPart then return end
+    local AimPart = Target.Character:FindFirstChild((humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart)
+    if not AimPart then return nil end
 
-    local PredictedPosition = PredictTargetPosition(Target)
-    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-
-    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+    local PredictedPosition = AimPart.Position
+    if _G.DistanceAdjustment then
+        local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
     return PredictedPosition
 end
 
--- Input Handling
+-- Input handling
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -146,6 +129,10 @@ UserInputService.InputBegan:Connect(function(Input)
             CurrentTarget = GetClosestPlayerToMouse()
             if CurrentTarget then
                 Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
+                if _G.VisibleHighlight then
+                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                end
             end
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
@@ -158,25 +145,26 @@ UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
+        if CurrentHighlight then
+            CurrentHighlight:Destroy()
+            CurrentHighlight = nil
+        end
     end
 end)
 
--- Update FOV Circle and Aimbot Behavior
+-- Update loop
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
-        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Position = UserInputService:GetMouseLocation()
+        FOVCircle.Visible = true
     else
         FOVCircle.Visible = false
     end
 
     if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local aimPosition = ResolveTargetPosition(CurrentTarget)
-            if aimPosition then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-            end
+        local aimPosition = ResolveTargetPosition(CurrentTarget)
+        if aimPosition then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
         end
     end
 end)
