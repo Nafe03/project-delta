@@ -63,6 +63,23 @@ local function Notify(title, text)
     })
 end
 
+-- Function to check if a player is knocked in Da Hood
+local function IsPlayerKnocked(player)
+    local character = player.Character
+    if not character then return true end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return true end
+    
+    -- Check if player is knocked in Da Hood
+    local knocked = character:FindFirstChild("BodyEffects")
+    if knocked and knocked:FindFirstChild("K.O") then
+        return knocked["K.O"].Value
+    end
+    
+    return false
+end
+
 -- Function to check if the target is visible (Wall Check)
 local function IsTargetVisible(targetPart)
     if _G.WallCheck then
@@ -84,11 +101,16 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius  -- Dynamic FOV circle radius
+    local ShortestDistance = _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             if _G.TeamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
+            -- Skip if player is knocked
+            if IsPlayerKnocked(player) then
                 continue
             end
 
@@ -100,7 +122,6 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Only consider players within the current circle radius and closest to the mouse
                     if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
@@ -207,7 +228,7 @@ end)
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-        FOVCircle.Radius = _G.CircleRadius  -- Ensure the radius can be changed dynamically
+        FOVCircle.Radius = _G.CircleRadius
     else
         FOVCircle.Visible = false
     end
@@ -216,7 +237,7 @@ RunService.RenderStepped:Connect(function()
         local character = CurrentTarget.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
+            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 if aimPosition then
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
