@@ -17,9 +17,9 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false
 _G.AimPart = "Head"  -- Head for Da Hood is most effective
 _G.LockPart = "HumanoidRootPart"  -- For better prediction
-_G.Sensitivity = 0.2  -- Smoothed for Da Hood's movement
-_G.PredictionAmount = 0.135  -- Tuned for Da Hood's netcode
-_G.JumpOffset = 0.2  -- Compensation for jumping
+_G.Sensitivity = 0  -- Smoothed for Da Hood's movement
+_G.PredictionAmount = 0  -- Tuned for Da Hood's netcode
+_G.JumpOffset = 0  -- Compensation for jumping
 _G.MaxLockRange = 350  -- Maximum lock range
 _G.UnlockOnDeath = true
 
