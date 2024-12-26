@@ -192,6 +192,7 @@ local function ResolveTargetPosition(Target)
 
     return ResolvedPosition
 end
+
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
