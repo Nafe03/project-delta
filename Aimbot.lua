@@ -67,9 +67,10 @@ local function GetClosestPlayer()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if _G.TeamCheck and player.Team == LocalPlayer.Team then continue end
             local character = player.Character
             local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 and (not _G.TeamCheck or player.Team ~= LocalPlayer.Team) then
+            if humanoid and humanoid.Health > 0 then
                 local aimPart = character:FindFirstChild(_G.AimPart)
                 if aimPart and IsVisible(aimPart) then
                     local screenPos, onScreen = Camera:WorldToScreenPoint(aimPart.Position)
@@ -89,27 +90,23 @@ local function GetClosestPlayer()
 end
 
 -- Function to calculate prediction
-local function PredictPosition(target)
-    local character = target.Character
-    if not character then return end
-
-    local aimPart = character:FindFirstChild(_G.AimPart)
+local function PredictTargetPosition(target)
+    local aimPart = target.Character:FindFirstChild(_G.AimPart)
     if not aimPart then return end
 
-    local velocity = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Velocity or Vector3.zero
-    local prediction = velocity * _G.PredictionAmount
+    local velocity = aimPart.Velocity
+    local speed = velocity.Magnitude
+    local predictionFactor = _G.PredictionMultiplier * (speed >= _G.FastTargetSpeedThreshold and 1.5 or 1)
 
-    if character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-        prediction = prediction + Vector3.new(0, _G.AirPredictionAmount, 0)
+    local prediction = Vector3.new(velocity.X, 0, velocity.Z) * _G.PredictionAmount * predictionFactor
+
+    if target.Character:FindFirstChild("Humanoid").FloorMaterial == Enum.Material.Air then
+        prediction = prediction + Vector3.new(0, velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
     end
 
-    local adjustedPosition = aimPart.Position + prediction
-    if _G.DistanceAdjustment then
-        local distance = (Camera.CFrame.Position - adjustedPosition).Magnitude
-        adjustedPosition = adjustedPosition - Vector3.new(0, distance * _G.BulletDropCompensation, 0)
-    end
-    return adjustedPosition
+    return aimPart.Position + prediction
 end
+
 
 -- Input handlers
 UserInputService.InputBegan:Connect(function(input)
@@ -134,7 +131,7 @@ RunService.RenderStepped:Connect(function()
     if Holding and _G.AimbotEnabled then
         local target = GetClosestPlayer()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local predictedPosition = PredictPosition(target)
+            local predictedPosition = PredictTargetPosition(target)
             if predictedPosition then
                 local cameraPosition = Camera.CFrame.Position
                 local direction = (predictedPosition - cameraPosition).Unit
