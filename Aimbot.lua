@@ -114,23 +114,22 @@ local function GetClosestPlayerToMouse()
             if _G.TeamCheck and player.Team == LocalPlayer.Team then
                 continue
             end
-
-            -- Skip if player is knocked
+            
             if IsPlayerKnocked(player) then
                 continue
             end
 
             local humanoid = player.Character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                local part = player.Character:FindFirstChild(_G.AimPart)
-                if part then
-                    local screenPoint = Camera:WorldToScreenPoint(part.Position)
+                local aimPart = player.Character:FindFirstChild(_G.AimPart)
+                if aimPart then
+                    local screenPoint, onScreen = Camera:WorldToScreenPoint(aimPart.Position)
                     local mousePos = UserInputService:GetMouseLocation()
-                    local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
+                    local distanceFromMouse = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    -- Check if the player is inside the FOV circle
-                    if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
-                        ShortestDistance = vectorDistance
+                    -- Check if the target is within the FOV circle and in front of the camera
+                    if onScreen and screenPoint.Z > 0 and distanceFromMouse <= ShortestDistance and distanceFromMouse <= _G.CircleRadius and IsTargetVisible(aimPart) then
+                        ShortestDistance = distanceFromMouse
                         Target = player
                     end
                 end
@@ -140,6 +139,7 @@ local function GetClosestPlayerToMouse()
 
     return Target
 end
+
 
 -- Resolve Target Position with dynamic adjustments for fast targets
 local function ResolveTargetPosition(Target)
