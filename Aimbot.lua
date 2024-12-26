@@ -150,13 +150,13 @@ local function PredictTargetPosition(Target)
         math.clamp(Velocity.Z, -_G.FastTargetSpeedThreshold, _G.FastTargetSpeedThreshold)
     )
 
-    -- Apply prediction for all types of movement including abnormal speed hacks
-    predictedPosition = predictedPosition + clampedVelocity * _G.PredictionAmount * _G.PredictionMultiplier
+    -- Apply horizontal prediction using PredictionMultiplier
+    predictedPosition = predictedPosition + Vector3.new(clampedVelocity.X, 0, clampedVelocity.Z) * _G.PredictionAmount * _G.PredictionMultiplier
 
-    -- Vertical prediction for airborne targets
+    -- Vertical prediction for airborne targets using AirPredictionAmount
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(0, clampedVelocity.Y * _G.AirPredictionAmount * _G.PredictionMultiplier, 0)
+        predictedPosition = predictedPosition + Vector3.new(0, clampedVelocity.Y * _G.AirPredictionAmount, 0)
     end
 
     return predictedPosition
