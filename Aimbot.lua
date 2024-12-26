@@ -143,20 +143,17 @@ local function PredictTargetPosition(Target)
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
-    -- Clamp velocity to avoid extreme prediction values
-    local clampedVelocity = Vector3.new(
-        math.clamp(Velocity.X, -_G.FastTargetSpeedThreshold, _G.FastTargetSpeedThreshold),
-        math.clamp(Velocity.Y, -_G.FastTargetSpeedThreshold, _G.FastTargetSpeedThreshold),
-        math.clamp(Velocity.Z, -_G.FastTargetSpeedThreshold, _G.FastTargetSpeedThreshold)
-    )
+    -- Check if target is moving faster than the threshold
+    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
+    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply horizontal prediction using PredictionMultiplier
-    predictedPosition = predictedPosition + Vector3.new(clampedVelocity.X, 0, clampedVelocity.Z) * _G.PredictionAmount * _G.PredictionMultiplier
+    -- Apply prediction for all types of movement including abnormal speed hacks
+    predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
 
-    -- Vertical prediction for airborne targets using AirPredictionAmount
+    -- Vertical prediction for airborne targets
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(0, clampedVelocity.Y * _G.AirPredictionAmount, 0)
+        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
     end
 
     return predictedPosition
