@@ -17,7 +17,7 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0       -- Smoothness level (lower = faster)
-_G.PredictionAmount = 0       -- Horizontal prediction for moving targets
+_G.PredictionAmount = 0.25       -- Horizontal prediction for moving targets
 _G.AirPredictionAmount = 0    -- Vertical prediction for airborne targets
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
@@ -26,7 +26,6 @@ _G.WallCheck = false
 _G.PredictionMultiplier = 1.5 -- Multiplier for prediction on fast targets
 _G.FastTargetSpeedThreshold = 35  -- Speed threshold to identify macros or rapid movements
 _G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
-_G.IsPlayerKnocked = true
 
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -64,8 +63,8 @@ local function Notify(title, text)
     })
 end
 
--- Global function to check if a player is knocked in Da Hood
-_G.IsPlayerKnocked = function(player)
+-- Function to check if a player is knocked in Da Hood
+local function IsPlayerKnocked(player)
     local character = player.Character
     if not character then return true end
     
@@ -111,7 +110,7 @@ local function GetClosestPlayerToMouse()
             end
             
             -- Skip if player is knocked
-            if _G.IsPlayerKnocked(player) then
+            if IsPlayerKnocked(player) then
                 continue
             end
 
@@ -148,13 +147,11 @@ local function PredictTargetPosition(Target)
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Horizontal prediction for grounded targets
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-        predictedPosition = predictedPosition + Vector3.new(Velocity.X, 0, Velocity.Z) * _G.PredictionAmount * predictionFactor
-    end
+    -- Apply prediction for all types of movement including abnormal speed hacks
+    predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
 
     -- Vertical prediction for airborne targets
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
         predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
     end
@@ -228,22 +225,24 @@ end)
 -- Update FOV circle on RenderStepped to follow mouse and adjust radius
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
-        FOVCircle.Position = UserInputService:GetMouseLocation()
+        FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
-        FOVCircle.Filled = _G.CircleFilled
-        FOVCircle.Color = _G.CircleColor
-        FOVCircle.Visible = _G.CircleVisible
-        FOVCircle.Transparency = _G.CircleTransparency
-        FOVCircle.NumSides = _G.CircleSides
-        FOVCircle.Thickness = _G.CircleThickness
     else
         FOVCircle.Visible = false
     end
 
-    if Holding and CurrentTarget and _G.AimbotEnabled then
-        local ResolvedPosition = ResolveTargetPosition(CurrentTarget)
-        if ResolvedPosition then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, ResolvedPosition)
+    if Holding and _G.AimbotEnabled and CurrentTarget then
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
+                local aimPosition = ResolveTargetPosition(CurrentTarget)
+                if aimPosition then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                end
+            else
+                CurrentTarget = nil
+            end
         end
     end
 end)
