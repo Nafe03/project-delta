@@ -12,12 +12,12 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true  -- Master toggle for all ESP
-_G.HealthESPEnabled = true
-_G.NameESPEnabled = true
-_G.BoxESPEnabled = true
-_G.DistanceESPEnabled = true
-_G.HighlightEnabled = true
-_G.HealthTextEnabled = true -- Separate toggle for health text
+_G.HealthESPEnabled = false
+_G.NameESPEnabled = false
+_G.BoxESPEnabled = false
+_G.DistanceESPEnabled = false
+_G.HighlightEnabled = false
+_G.HealthTextEnabled = false -- Separate toggle for health text
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(0, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
