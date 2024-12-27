@@ -12,102 +12,135 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true  -- Master toggle for all ESP
-_G.HealthESPEnabled = true
+_G.HealthESPEnabled = false
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
 _G.HealthTextEnabled = false -- Separate toggle for health text
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
-_G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
+_G.BoxColor = Color3.fromRGB(0, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
+_G.GradientHealthBar = false -- Enable gradient health bar
+_G.SmoothTransitions = true -- Enable smooth transitions
+
+-- Utility: Smooth transition for UI elements
+local function tweenProperty(instance, property, targetValue, duration)
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = game:GetService("TweenService"):Create(instance, tweenInfo, {[property] = targetValue})
+    tween:Play()
+    return tween
+end
 
 -- Function to create ESP Highlight
 local function createHighlight(character)
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
     highlight.Parent = character
     highlight.FillColor = _G.HighlightColor
-    highlight.FillTransparency = 0.5
+    highlight.FillTransparency = 0.3
     highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-    highlight.OutlineTransparency = 0
+    highlight.OutlineTransparency = 0.2
     highlight.Enabled = _G.HighlightEnabled
     return highlight
 end
 
--- Function to create Distance, Name, and Vertical Health Bar ESP UI
+-- Function to create Distance, Name, and Health Bar ESP UI
 local function createESPUI(character, playerName)
-    local billboardGui = character:FindFirstChildOfClass("BillboardGui")
-    if not billboardGui then
-        billboardGui = Instance.new("BillboardGui", character)
-        billboardGui.Size = UDim2.new(0, 100, 0, 100)
-        billboardGui.Adornee = character:WaitForChild("Head")
-        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-        billboardGui.AlwaysOnTop = true
-    end
+    local billboardGui = Instance.new("BillboardGui", character)
+    billboardGui.Size = UDim2.new(0, 150, 0, 150)
+    billboardGui.Adornee = character:WaitForChild("Head")
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    billboardGui.AlwaysOnTop = true
 
     -- Name Label
-    local nameLabel = billboardGui:FindFirstChild("NameLabel")
-    if not nameLabel then
-        nameLabel = Instance.new("TextLabel", billboardGui)
-        nameLabel.Name = "NameLabel"
-        nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        nameLabel.Position = UDim2.new(0, 0, -1, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        nameLabel.TextScaled = true
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextStrokeTransparency = 0.5
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    end
+    local nameLabel = Instance.new("TextLabel", billboardGui)
+    nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    nameLabel.Position = UDim2.new(0, 0, -0.5, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextStrokeTransparency = 0.4
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     nameLabel.Text = playerName
     nameLabel.Visible = _G.NameESPEnabled
 
-    -- Health Bar Container
-    local healthBarContainer = billboardGui:FindFirstChild("HealthBarContainer")
-    if not healthBarContainer then
-        healthBarContainer = Instance.new("Frame", billboardGui)
-        healthBarContainer.Name = "HealthBarContainer"
-        healthBarContainer.Size = UDim2.new(0.1, 0, 1.5, 0)
-        healthBarContainer.Position = UDim2.new(-0.2, 0, 0, 0)
-        healthBarContainer.BackgroundTransparency = 1
-        healthBarContainer.BorderSizePixel = 0
-    end
+    -- Distance Label
+    local distanceLabel = Instance.new("TextLabel", billboardGui)
+    distanceLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    distanceLabel.Position = UDim2.new(0, 0, 0.1, 0)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distanceLabel.TextScaled = true
+    distanceLabel.Font = Enum.Font.GothamSemibold
+    distanceLabel.TextStrokeTransparency = 0.4
+    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    distanceLabel.Visible = _G.DistanceESPEnabled
+
+    -- Health Label
+    local healthLabel = Instance.new("TextLabel", billboardGui)
+    healthLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    healthLabel.Position = UDim2.new(0, 0, 0.3, 0)
+    healthLabel.BackgroundTransparency = 1
+    healthLabel.TextColor3 = _G.HealthTextColor
+    healthLabel.TextScaled = true
+    healthLabel.Font = Enum.Font.GothamSemibold
+    healthLabel.TextStrokeTransparency = 0.4
+    healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    healthLabel.Visible = _G.HealthTextEnabled
 
     -- Health Bar Background
-    local healthBarBackground = healthBarContainer:FindFirstChild("HealthBarBackground")
-    if not healthBarBackground then
-        healthBarBackground = Instance.new("Frame", healthBarContainer)
-        healthBarBackground.Name = "HealthBarBackground"
-        healthBarBackground.Size = UDim2.new(1, 0, 1, 0)
-        healthBarBackground.Position = UDim2.new(0, 0, 0, 0)
-        healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        healthBarBackground.BorderSizePixel = 0
-    end
+    local healthBarBackground = Instance.new("Frame", billboardGui)
+    healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
+    healthBarBackground.Position = UDim2.new(0, 0, 0.5, 0)
+    healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarBackground.BorderSizePixel = 0
+    healthBarBackground.Visible = _G.HealthESPEnabled
 
     -- Health Bar
-    local healthBar = healthBarBackground:FindFirstChild("HealthBar")
-    if not healthBar then
-        healthBar = Instance.new("Frame", healthBarBackground)
-        healthBar.Name = "HealthBar"
-        healthBar.AnchorPoint = Vector2.new(0.5, 1)
-        healthBar.Position = UDim2.new(0.5, 0, 1, 0)
-        healthBar.Size = UDim2.new(0.6, 0, 0, 0)
-        healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        healthBar.BorderSizePixel = 0
+    local healthBar = Instance.new("Frame", healthBarBackground)
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.BorderSizePixel = 0
+
+    -- Gradient for Health Bar
+    if _G.GradientHealthBar then
+        local gradient = Instance.new("UIGradient", healthBar)
+        gradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 0))
+        }
     end
 
-    -- Update function for Health Bar
+    -- Update function for Distance, Name, and Health
     local function updateESP()
         local humanoid = character:FindFirstChild("Humanoid")
         if not humanoid then return end
 
+        local playerDistance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
+        distanceLabel.Visible = _G.DistanceESPEnabled
+        distanceLabel.Text = string.format("%.1f studs", playerDistance)
+
         if _G.HealthESPEnabled then
             local healthFraction = humanoid.Health / humanoid.MaxHealth
-            healthBar.Size = UDim2.new(0.6, 0, healthFraction, 0)
+            local newSize = UDim2.new(healthFraction, 0, 1, 0)
+            if _G.SmoothTransitions then
+                tweenProperty(healthBar, "Size", newSize, 0.2)
+            else
+                healthBar.Size = newSize
+            end
+
             healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
             healthBarBackground.Visible = true
         else
             healthBarBackground.Visible = false
+        end
+
+        if _G.HealthTextEnabled then
+            healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), humanoid.MaxHealth)
+            healthLabel.Visible = true
+        else
+            healthLabel.Visible = false
         end
 
         nameLabel.Visible = _G.NameESPEnabled
@@ -121,7 +154,7 @@ local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
     Box.Visible = false
     Box.Color = _G.BoxColor
-    Box.Thickness = 1
+    Box.Thickness = 2
     Box.Transparency = 1
 
     local function UpdateBox()
@@ -129,7 +162,7 @@ local function DrawESPBox(player)
             if player.Character and player.Character.PrimaryPart then
                 local character = player.Character
                 local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
-                if vis and _G.BoxESPEnabled then
+                if vis then
                     local TopLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
                     local TopRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
                     local BottomLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
@@ -139,13 +172,9 @@ local function DrawESPBox(player)
                     Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
                     Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
                     Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
-                    Box.Visible = true
+                    Box.Visible = _G.BoxESPEnabled
                     Box.Color = _G.BoxColor
                 else
-                    Box.Visible = false
-                end
-
-                if not _G.BoxESPEnabled then
                     Box.Visible = false
                 end
             else
@@ -256,4 +285,4 @@ end
 -- Example color change usage
 setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
 setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
-setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text color
