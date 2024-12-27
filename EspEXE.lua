@@ -281,6 +281,6 @@ local function onHighlightToggle(newState)
 end
 
 -- Example color change usage
-setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
-setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
+setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Changes highlight to red
+setBoxColor(Color3.fromRGB(255, 255, 255)) -- Changes box to green
 setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text color
