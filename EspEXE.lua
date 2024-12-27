@@ -152,7 +152,7 @@ end
 -- Function to Draw 2D Box ESP around a player
 local function DrawESPBox(player)
     local Box = Drawing.new("Quad")
-    Box.Visible = false
+    Box.Visible = _G.BoxESPEnabled
     Box.Color = _G.BoxColor
     Box.Thickness = 2
     Box.Transparency = 1
