@@ -12,16 +12,16 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true  -- Master toggle for all ESP
-_G.HealthESPEnabled = false
-_G.NameESPEnabled = false
-_G.BoxESPEnabled = false
-_G.DistanceESPEnabled = false
-_G.HighlightEnabled = false
-_G.HealthTextEnabled = false -- Separate toggle for health text
+_G.HealthESPEnabled = true
+_G.NameESPEnabled = true
+_G.BoxESPEnabled = true
+_G.DistanceESPEnabled = true
+_G.HighlightEnabled = true
+_G.HealthTextEnabled = true -- Separate toggle for health text
 _G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
 _G.BoxColor = Color3.fromRGB(0, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
-_G.GradientHealthBar = false -- Enable gradient health bar
+_G.GradientHealthBar = true -- Enable gradient health bar
 _G.SmoothTransitions = true -- Enable smooth transitions
 
 -- Utility: Smooth transition for UI elements
@@ -158,32 +158,30 @@ local function DrawESPBox(player)
     Box.Transparency = 1
 
     local function UpdateBox()
-        RunService.RenderStepped:Connect(function()
-            if player.Character and player.Character.PrimaryPart then
-                local character = player.Character
-                local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
-                if vis then
-                    local TopLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
-                    local TopRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
-                    local BottomLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
-                    local BottomRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, -3, 0)).Position)
+        if player.Character and player.Character.PrimaryPart then
+            local character = player.Character
+            local pos, vis = Camera:WorldToViewportPoint(character.PrimaryPart.Position)
+            if vis then
+                local TopLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, 3, 0)).Position)
+                local TopRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, 3, 0)).Position)
+                local BottomLeft = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(-2, -3, 0)).Position)
+                local BottomRight = Camera:WorldToViewportPoint((character.PrimaryPart.CFrame * CFrame.new(2, -3, 0)).Position)
 
-                    Box.PointA = Vector2.new(TopRight.X, TopRight.Y)
-                    Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
-                    Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
-                    Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
-                    Box.Visible = _G.BoxESPEnabled
-                    Box.Color = _G.BoxColor
-                else
-                    Box.Visible = false
-                end
+                Box.PointA = Vector2.new(TopRight.X, TopRight.Y)
+                Box.PointB = Vector2.new(TopLeft.X, TopLeft.Y)
+                Box.PointC = Vector2.new(BottomLeft.X, BottomLeft.Y)
+                Box.PointD = Vector2.new(BottomRight.X, BottomRight.Y)
+                Box.Visible = _G.BoxESPEnabled
+                Box.Color = _G.BoxColor
             else
                 Box.Visible = false
             end
-        end)
+        else
+            Box.Visible = false
+        end
     end
 
-    UpdateBox()
+    RunService.RenderStepped:Connect(UpdateBox)
 end
 
 -- Apply ESP to each player
