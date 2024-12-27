@@ -18,10 +18,10 @@ _G.BoxESPEnabled = false
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
 _G.HealthTextEnabled = false -- Separate toggle for health text
-_G.HighlightColor = Color3.fromRGB(0, 255, 0) -- Default highlight color
-_G.BoxColor = Color3.fromRGB(0, 255, 255) -- Default box color
+_G.HighlightColor = Color3.fromRGB(255, 255, 255) -- Default highlight color
+_G.BoxColor = Color3.fromRGB(255, 255, 255) -- Default box color
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
-_G.GradientHealthBar = true -- Enable gradient health bar
+_G.GradientHealthBar = false -- Enable gradient health bar
 _G.SmoothTransitions = true -- Enable smooth transitions
 
 -- Utility: Smooth transition for UI elements
