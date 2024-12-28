@@ -149,11 +149,12 @@ local function PredictTargetPosition(Target)
 
     -- Apply prediction for all types of movement including abnormal speed hacks
     predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
+    AirpredictedPosition = predictedPosition + Velocity * _G.AirPredictionAmount * predictionFactor
 
     -- Vertical prediction for airborne targets
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
+        AirpredictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
     end
 
     return predictedPosition
