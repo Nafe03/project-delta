@@ -10,10 +10,10 @@ local Camera = Workspace.CurrentCamera
 -- ESP Settings
 _G.ESPEnabled = true
 _G.HealthESPEnabled = true
-_G.NameESPEnabled = true
+_G.NameESPEnabled = false
 _G.BoxESPEnabled = true
-_G.DistanceESPEnabled = true
-_G.HighlightEnabled = true
+_G.DistanceESPEnabled = false
+_G.HighlightEnabled = false
 
 _G.HighlightColor = Color3.fromRGB(0, 255, 0)
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
