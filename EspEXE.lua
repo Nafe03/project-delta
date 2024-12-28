@@ -1,3 +1,5 @@
+-- Made by Blissful#4992
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -105,23 +107,30 @@ local function createESPUI(character, playerName)
     return updateESP
 end
 
--- Enhanced Box ESP
-local function createBoxESP(character)
+-- Function to Create Box ESP
+-- Function to Draw 2D Box ESP around a player
+local function DrawESPBox(player)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Create Box
     local box = Drawing.new("Square")
     box.Thickness = 2
-    box.Color = _G.BoxColor
     box.Filled = false
+    box.Color = _G.BoxColor
     box.Visible = false
 
+    -- Update Box Position
     RunService.RenderStepped:Connect(function()
-        if character:FindFirstChild("HumanoidRootPart") and _G.BoxESPEnabled then
-            local rootPart = character.HumanoidRootPart
-            local rootPosition, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        if character and rootPart and _G.BoxESPEnabled then
+            local rootPos = rootPart.Position
+            local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
 
             if onScreen then
-                local size = Vector2.new(4000 / rootPosition.Z, 5000 / rootPosition.Z)
+                local size = Vector2.new(4000 / screenPos.Z, 5000 / screenPos.Z)
                 box.Size = size
-                box.Position = Vector2.new(rootPosition.X - size.X / 2, rootPosition.Y - size.Y / 2)
+                box.Position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+                box.Color = _G.BoxColor
                 box.Visible = true
             else
                 box.Visible = false
@@ -132,29 +141,37 @@ local function createBoxESP(character)
     end)
 end
 
--- Apply ESP to Each Player
--- Apply ESP to Each Player
+-- Apply ESP to each player
 local function applyESP(player)
-    player.CharacterAdded:Connect(function(character)
-        if _G.HighlightEnabled then createHighlight(character) end
-        local updateFunc = createESPUI(character, player.Name)
-        createBoxESP(character)
+    local character = player.Character or player.CharacterAdded:Wait()
+    if _G.HighlightEnabled then
+        createHighlight(character)
+    end
 
-        RunService.RenderStepped:Connect(function()
-            if _G.ESPEnabled then
-                updateFunc()
-            end
-        end)
+    local updateESPFunc = createESPUI(character, player.Name)
+    updateESPFunc()
+    DrawESPBox(player)
+
+    RunService.RenderStepped:Connect(function()
+        if _G.ESPEnabled then
+            updateESPFunc()
+        end
     end)
+end
 
+-- Initialize ESP for all players
+local function initializeESP(player)
+    player.CharacterAdded:Connect(function()
+        applyESP(player)
+    end)
     if player.Character then
         applyESP(player)
     end
 end
 
--- Initialize ESP for All Players
+-- Apply ESP to all players in-game and new ones joining
 for _, player in ipairs(Players:GetPlayers()) do
-    applyESP(player)
+    initializeESP(player)
 end
 Players.PlayerAdded:Connect(applyESP)
 
