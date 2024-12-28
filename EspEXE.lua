@@ -1,5 +1,3 @@
--- Made by Blissful#4992
-
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -21,8 +19,12 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0)
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
+-- Active ESP Storage
+local activeESP = {}
+
 -- Function to create Highlight ESP
 local function createHighlight(character)
+    if not character then return end
     local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
     highlight.Parent = character
     highlight.FillColor = _G.HighlightColor
@@ -30,6 +32,7 @@ local function createHighlight(character)
     highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
     highlight.OutlineTransparency = 0
     highlight.Enabled = _G.HighlightEnabled
+    return highlight
 end
 
 -- Function to create ESP UI
@@ -86,7 +89,7 @@ local function createESPUI(character, playerName)
     -- Update Function
     local function updateESP()
         local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
+        if not humanoid or not character.PrimaryPart then return end
 
         -- Distance Calculation
         local distance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
@@ -104,15 +107,15 @@ local function createESPUI(character, playerName)
         healthBarBackground.Visible = _G.HealthESPEnabled
     end
 
-    return updateESP
+    return billboardGui, updateESP
 end
 
 -- Function to Create Box ESP
--- Function to Draw 2D Box ESP around a player
 local function DrawESPBox(player)
     local character = player.Character or player.CharacterAdded:Wait()
-    local rootPart = character:WaitForChild("HumanoidRootPart")
-    
+    local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+    if not rootPart then return end -- Avoid errors if HumanoidRootPart is missing
+
     -- Create Box
     local box = Drawing.new("Square")
     box.Thickness = 2
@@ -121,7 +124,8 @@ local function DrawESPBox(player)
     box.Visible = false
 
     -- Update Box Position
-    RunService.RenderStepped:Connect(function()
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
         if character and rootPart and _G.BoxESPEnabled then
             local rootPos = rootPart.Position
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
@@ -139,30 +143,72 @@ local function DrawESPBox(player)
             box.Visible = false
         end
     end)
+
+    return box, connection
 end
 
 -- Apply ESP to each player
 local function applyESP(player)
+    if not player then return end -- Ensure player object exists
     local character = player.Character or player.CharacterAdded:Wait()
-    if _G.HighlightEnabled then
-        createHighlight(character)
+    if not character then return end -- Prevent errors if character is nil
+
+    -- Create Highlight
+    local highlight = createHighlight(character)
+
+    -- Create UI
+    local billboardGui, updateESPFunc = createESPUI(character, player.Name)
+
+    -- Create Box
+    local box, connection = DrawESPBox(player)
+
+    -- Store ESP objects for cleanup later
+    activeESP[player] = {
+        highlight = highlight,
+        billboardGui = billboardGui,
+        box = box,
+        updateConnection = connection,
+        updateFunc = updateESPFunc,
+    }
+
+    if updateESPFunc then
+        RunService.RenderStepped:Connect(function()
+            if _G.ESPEnabled then
+                updateESPFunc()
+            end
+        end)
     end
+end
 
-    local updateESPFunc = createESPUI(character, player.Name)
-    updateESPFunc()
-    DrawESPBox(player)
-
-    RunService.RenderStepped:Connect(function()
-        if _G.ESPEnabled then
-            updateESPFunc()
+-- Remove ESP for a player
+local function removeESP(player)
+    local espData = activeESP[player]
+    if espData then
+        if espData.highlight then
+            espData.highlight:Destroy()
         end
-    end)
+        if espData.billboardGui then
+            espData.billboardGui:Destroy()
+        end
+        if espData.box then
+            espData.box:Remove()
+        end
+        if espData.updateConnection then
+            espData.updateConnection:Disconnect()
+        end
+        activeESP[player] = nil
+    end
 end
 
 -- Initialize ESP for all players
 local function initializeESP(player)
     player.CharacterAdded:Connect(function()
         applyESP(player)
+    end)
+    player.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            removeESP(player)
+        end
     end)
     if player.Character then
         applyESP(player)
@@ -173,7 +219,10 @@ end
 for _, player in ipairs(Players:GetPlayers()) do
     initializeESP(player)
 end
-Players.PlayerAdded:Connect(applyESP)
+Players.PlayerAdded:Connect(initializeESP)
+Players.PlayerRemoving:Connect(removeESP)
+
+
 
 -- Toggle ESP Features
 local function toggleESPFeature(feature, state)
