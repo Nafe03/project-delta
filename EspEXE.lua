@@ -133,11 +133,10 @@ local function createBoxESP(character)
 end
 
 -- Apply ESP to Each Player
+-- Apply ESP to Each Player
 local function applyESP(player)
-    local function onCharacterAdded(character)
-        if _G.HighlightEnabled then
-            createHighlight(character)
-        end
+    player.CharacterAdded:Connect(function(character)
+        if _G.HighlightEnabled then createHighlight(character) end
         local updateFunc = createESPUI(character, player.Name)
         createBoxESP(character)
 
@@ -146,12 +145,10 @@ local function applyESP(player)
                 updateFunc()
             end
         end)
-    end
+    end)
 
-    -- Connect to CharacterAdded and handle the current character
-    player.CharacterAdded:Connect(onCharacterAdded)
     if player.Character then
-        onCharacterAdded(player.Character)
+        applyESP(player)
     end
 end
 
