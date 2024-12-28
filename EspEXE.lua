@@ -1,15 +1,11 @@
--- Made by Blissful#4992
-
--- Services
+-- Enhanced ESP System
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
--- Local Player Info
-local Player = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-
--- ESP Settings
+-- ESP Settings (preserved from original)
 _G.ESPEnabled = true
 _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
@@ -21,185 +17,240 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0)
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
--- Function to create Highlight ESP
-local function createHighlight(character)
-    local highlight = character:FindFirstChild("Highlight") or Instance.new("Highlight")
-    highlight.Parent = character
-    highlight.FillColor = _G.HighlightColor
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-    highlight.OutlineTransparency = 0
-    highlight.Enabled = _G.HighlightEnabled
-end
+-- Create ESP Container
+local ESP = {
+    Players = {},
+    Enabled = _G.ESPEnabled,
+    HealthEnabled = _G.HealthESPEnabled,
+    NamesEnabled = _G.NameESPEnabled,
+    BoxesEnabled = _G.BoxESPEnabled,
+    DistanceEnabled = _G.DistanceESPEnabled,
+    HighlightEnabled = _G.HighlightEnabled
+}
 
--- Function to create ESP UI
-local function createESPUI(character, playerName)
-    local head = character:FindFirstChild("Head")
-    if not head then return end
-
-    local billboardGui = Instance.new("BillboardGui")
-    billboardGui.Size = UDim2.new(0, 100, 0, 100)
-    billboardGui.Adornee = head
-    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-    billboardGui.AlwaysOnTop = true
-    billboardGui.Parent = character
-
-    -- Name Label
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    nameLabel.Position = UDim2.new(0, 0, -1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.TextScaled = true
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.Text = playerName
-    nameLabel.Visible = _G.NameESPEnabled
-    nameLabel.Parent = billboardGui
-
-    -- Distance Label
-    local distanceLabel = Instance.new("TextLabel")
-    distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    distanceLabel.Position = UDim2.new(0, 0, 1.3, 0)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    distanceLabel.TextScaled = true
-    distanceLabel.Font = Enum.Font.GothamBold
-    distanceLabel.Visible = _G.DistanceESPEnabled
-    distanceLabel.Parent = billboardGui
-
-    -- Health Bar Background
-    local healthBarBackground = Instance.new("Frame")
-    healthBarBackground.Size = UDim2.new(1, 0, 0.1, 0)
-    healthBarBackground.Position = UDim2.new(0, 0, 0.3, 0)
-    healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    healthBarBackground.BorderSizePixel = 0
-    healthBarBackground.Visible = _G.HealthESPEnabled
-    healthBarBackground.Parent = billboardGui
-
+-- ESP Components Constructor
+local function CreateESPComponents()
+    local Components = {}
+    
+    -- Create Container
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ESP"
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.Size = UDim2.new(0, 200, 0, 50)
+    BillboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
+    
+    -- Name ESP
+    local Name = Instance.new("TextLabel")
+    Name.Name = "PlayerName"
+    Name.BackgroundTransparency = 1
+    Name.Size = UDim2.new(1, 0, 0, 20)
+    Name.Font = Enum.Font.GothamBold
+    Name.TextColor3 = Color3.new(1, 1, 1)
+    Name.TextScaled = true
+    Name.TextStrokeTransparency = 0.5
+    Name.Parent = BillboardGui
+    
+    -- Health Bar Container
+    local HealthBarBG = Instance.new("Frame")
+    HealthBarBG.Name = "HealthBarBG"
+    HealthBarBG.BorderSizePixel = 0
+    HealthBarBG.BackgroundColor3 = Color3.new(0, 0, 0)
+    HealthBarBG.BackgroundTransparency = 0.5
+    HealthBarBG.Size = UDim2.new(0.8, 0, 0, 4)
+    HealthBarBG.Position = UDim2.new(0.1, 0, 0.8, 0)
+    HealthBarBG.Parent = BillboardGui
+    
     -- Health Bar
-    local healthBar = Instance.new("Frame")
-    healthBar.Size = UDim2.new(1, 0, 1, 0)
-    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    healthBar.BorderSizePixel = 0
-    healthBar.Parent = healthBarBackground
-
-    -- Update Function
-    local function updateESP()
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
-
-        -- Distance Calculation
-        local distance = (Player.Character.PrimaryPart.Position - character.PrimaryPart.Position).Magnitude
-        distanceLabel.Text = string.format("%.1f studs", distance)
-
-        -- Health Bar Update
-        if _G.HealthESPEnabled then
-            local healthFraction = humanoid.Health / humanoid.MaxHealth
-            healthBar.Size = UDim2.new(healthFraction, 0, 1, 0)
-            healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-        end
-
-        nameLabel.Visible = _G.NameESPEnabled
-        distanceLabel.Visible = _G.DistanceESPEnabled
-        healthBarBackground.Visible = _G.HealthESPEnabled
-    end
-
-    return updateESP
+    local HealthBar = Instance.new("Frame")
+    HealthBar.Name = "HealthBar"
+    HealthBar.BorderSizePixel = 0
+    HealthBar.BackgroundColor3 = Color3.new(0, 1, 0)
+    HealthBar.Size = UDim2.new(1, 0, 1, 0)
+    HealthBar.Parent = HealthBarBG
+    
+    -- Health Text
+    local HealthText = Instance.new("TextLabel")
+    HealthText.Name = "HealthText"
+    HealthText.BackgroundTransparency = 1
+    HealthText.Size = UDim2.new(1, 0, 0, 20)
+    HealthText.Position = UDim2.new(0, 0, 0.9, 0)
+    HealthText.Font = Enum.Font.GothamBold
+    HealthText.TextColor3 = _G.HealthTextColor
+    HealthText.TextScaled = true
+    HealthText.TextStrokeTransparency = 0.5
+    HealthText.Parent = BillboardGui
+    
+    -- Distance Text
+    local Distance = Instance.new("TextLabel")
+    Distance.Name = "Distance"
+    Distance.BackgroundTransparency = 1
+    Distance.Size = UDim2.new(1, 0, 0, 20)
+    Distance.Position = UDim2.new(0, 0, 1.1, 0)
+    Distance.Font = Enum.Font.GothamBold
+    Distance.TextColor3 = Color3.new(1, 1, 1)
+    Distance.TextScaled = true
+    Distance.TextStrokeTransparency = 0.5
+    Distance.Parent = BillboardGui
+    
+    Components.BillboardGui = BillboardGui
+    Components.Name = Name
+    Components.HealthBarBG = HealthBarBG
+    Components.HealthBar = HealthBar
+    Components.HealthText = HealthText
+    Components.Distance = Distance
+    
+    return Components
 end
 
--- Function to Create Box ESP
-local function createBoxESP(character)
-    local box = Drawing.new("Quad")
-    box.Visible = false
-    box.Color = _G.BoxColor
-    box.Thickness = 2
-    box.Transparency = 1
-
-    RunService.RenderStepped:Connect(function()
-        if character.PrimaryPart and _G.BoxESPEnabled then
-            local cframe = character.PrimaryPart.CFrame
-
-            local corners = {
-                Camera:WorldToViewportPoint((cframe * CFrame.new(2, 3, 0)).Position),
-                Camera:WorldToViewportPoint((cframe * CFrame.new(-2, 3, 0)).Position),
-                Camera:WorldToViewportPoint((cframe * CFrame.new(-2, -3, 0)).Position),
-                Camera:WorldToViewportPoint((cframe * CFrame.new(2, -3, 0)).Position)
-            }
-
-            box.PointA = Vector2.new(corners[1].X, corners[1].Y)
-            box.PointB = Vector2.new(corners[2].X, corners[2].Y)
-            box.PointC = Vector2.new(corners[3].X, corners[3].Y)
-            box.PointD = Vector2.new(corners[4].X, corners[4].Y)
-            box.Visible = true
+-- ESP Update Function
+local function UpdateESP(player, components)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChild("Humanoid") then
+        return
+    end
+    
+    local character = player.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    -- Update Position
+    components.BillboardGui.Adornee = rootPart
+    
+    -- Update Name
+    components.Name.Text = player.Name
+    components.Name.Visible = ESP.NamesEnabled
+    
+    -- Update Health
+    local health = humanoid.Health
+    local maxHealth = humanoid.MaxHealth
+    local healthPercent = health / maxHealth
+    
+    components.HealthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
+    components.HealthBar.BackgroundColor3 = Color3.new(1 - healthPercent, healthPercent, 0)
+    components.HealthText.Text = math.floor(health) .. "/" .. math.floor(maxHealth)
+    
+    components.HealthBarBG.Visible = ESP.HealthEnabled
+    components.HealthText.Visible = ESP.HealthEnabled
+    
+    -- Update Distance
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+        components.Distance.Text = math.floor(distance) .. " studs"
+        components.Distance.Visible = ESP.DistanceEnabled
+    end
+    
+    -- Update Box ESP
+    if ESP.BoxesEnabled then
+        -- Create box ESP if it doesn't exist
+        if not components.Box then
+            components.Box = Drawing.new("Square")
+            components.Box.Thickness = 2
+            components.Box.Color = _G.BoxColor
+            components.Box.Filled = false
+        end
+        
+        -- Update box position
+        local rootPos = rootPart.Position
+        local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
+        
+        if onScreen then
+            local size = Vector2.new(4000 / screenPos.Z, 5000 / screenPos.Z)
+            components.Box.Size = size
+            components.Box.Position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+            components.Box.Visible = true
         else
-            box.Visible = false
+            components.Box.Visible = false
+        end
+    elseif components.Box then
+        components.Box.Visible = false
+    end
+    
+    -- Update Highlight
+    if ESP.HighlightEnabled then
+        if not components.Highlight then
+            components.Highlight = Instance.new("Highlight")
+            components.Highlight.FillColor = _G.HighlightColor
+            components.Highlight.OutlineColor = Color3.new(1, 1, 1)
+            components.Highlight.FillTransparency = 0.5
+            components.Highlight.Parent = character
+        end
+        components.Highlight.Enabled = true
+    elseif components.Highlight then
+        components.Highlight.Enabled = false
+    end
+end
+
+-- Player Added Function
+local function PlayerAdded(player)
+    if player == LocalPlayer then return end
+    
+    local components = CreateESPComponents()
+    ESP.Players[player] = components
+    
+    RunService.RenderStepped:Connect(function()
+        if ESP.Enabled then
+            UpdateESP(player, components)
+        else
+            components.BillboardGui.Enabled = false
+            if components.Box then
+                components.Box.Visible = false
+            end
+            if components.Highlight then
+                components.Highlight.Enabled = false
+            end
         end
     end)
 end
 
--- Apply ESP to Each Player
-local function applyESP(player)
-    player.CharacterAdded:Connect(function(character)
-        if _G.HighlightEnabled then createHighlight(character) end
-        local updateFunc = createESPUI(character, player.Name)
-        createBoxESP(character)
+-- Initialize
+for _, player in pairs(Players:GetPlayers()) do
+    PlayerAdded(player)
+end
 
-        RunService.RenderStepped:Connect(function()
-            if _G.ESPEnabled then
-                updateFunc()
+Players.PlayerAdded:Connect(PlayerAdded)
+
+Players.PlayerRemoving:Connect(function(player)
+    if ESP.Players[player] then
+        -- Clean up ESP components
+        for _, component in pairs(ESP.Players[player]) do
+            if typeof(component) == "Instance" then
+                component:Destroy()
+            elseif typeof(component) == "table" and component.Remove then
+                component:Remove()
             end
-        end)
-    end)
-
-    if player.Character then
-        applyESP(player)
+        end
+        ESP.Players[player] = nil
     end
+end)
+
+-- Toggle Functions
+function ESP:ToggleESP(enabled)
+    self.Enabled = enabled
+    _G.ESPEnabled = enabled
 end
 
--- Initialize ESP for All Players
-for _, player in ipairs(Players:GetPlayers()) do
-    applyESP(player)
-end
-Players.PlayerAdded:Connect(applyESP)
-
--- Toggle ESP Features
-local function toggleESPFeature(feature, state)
-    _G[feature] = state
+function ESP:ToggleHealth(enabled)
+    self.HealthEnabled = enabled
+    _G.HealthESPEnabled = enabled
 end
 
-local function onHealthESPToggle(newState)
-    toggleESPFeature("HealthESPEnabled", newState)
+function ESP:ToggleNames(enabled)
+    self.NamesEnabled = enabled
+    _G.NameESPEnabled = enabled
 end
 
-local function onNameESPToggle(newState)
-    toggleESPFeature("NameESPEnabled", newState)
+function ESP:ToggleBoxes(enabled)
+    self.BoxesEnabled = enabled
+    _G.BoxESPEnabled = enabled
 end
 
-local function onBoxESPToggle(newState)
-    toggleESPFeature("BoxESPEnabled", newState)
+function ESP:ToggleDistance(enabled)
+    self.DistanceEnabled = enabled
+    _G.DistanceESPEnabled = enabled
 end
 
-local function onDistanceESPToggle(newState)
-    toggleESPFeature("DistanceESPEnabled", newState)
+function ESP:ToggleHighlight(enabled)
+    self.HighlightEnabled = enabled
+    _G.HighlightEnabled = enabled
 end
 
-local function onHighlightToggle(newState)
-    toggleESPFeature("HighlightEnabled", newState)
-end
-
--- Example color change usage
-local function setHighlightColor(newColor)
-    _G.HighlightColor = newColor
-end
-
-local function setBoxColor(newColor)
-    _G.BoxColor = newColor
-end
-
-local function setHealthTextColor(newColor)
-    _G.HealthTextColor = newColor
-end
-
-setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
-setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
-setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text
+return ESP
