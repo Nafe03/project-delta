@@ -137,28 +137,36 @@ end
 -- Predict Target Position with improved horizontal and vertical prediction for fast targets
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+    if not AimPart then return nil end
 
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
-    -- Check if target is moving faster than the threshold
+    -- Determine if the target is fast-moving
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply prediction for all types of movement including abnormal speed hacks
-    predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
-    AirpredictedPosition = predictedPosition + Velocity * _G.AirPredictionAmount * predictionFactor
+    -- Apply horizontal prediction (x-axis only)
+    predictedPosition = predictedPosition + Vector3.new(
+        Velocity.X * _G.PredictionAmount * predictionFactor,
+        0,
+        Velocity.Z * _G.PredictionAmount * predictionFactor
+    )
 
-    -- Vertical prediction for airborne targets
+    -- Vertical prediction for airborne targets (y-axis only)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        AirpredictedPosition = predictedPosition + Vector3.new(0, Velocity.Y * _G.AirPredictionAmount * predictionFactor, 0)
+        predictedPosition = predictedPosition + Vector3.new(
+            0,
+            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
+            0
+        )
     end
 
     return predictedPosition
 end
+
 
 -- Resolve Target Position with dynamic adjustments for fast targets
 local function ResolveTargetPosition(Target)
