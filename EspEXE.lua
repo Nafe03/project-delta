@@ -1,14 +1,11 @@
--- Enhanced ESP System with UI Integration
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- ESP Settings (synced with UI)
+-- ESP Settings
 _G.ESPEnabled = true
 _G.HealthESPEnabled = true
-_G.HealthTextEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.DistanceESPEnabled = true
@@ -18,7 +15,7 @@ _G.HighlightColor = Color3.fromRGB(0, 255, 0)
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
--- ESP Components for each player
+-- ESP Components storage
 local PlayerESP = {}
 
 -- Create ESP Components for a player
@@ -111,7 +108,7 @@ local function CreateESPComponents(player)
 end
 
 -- Update ESP for a player
-function updateESP(player)
+local function updateESP(player)
     if not player or player == LocalPlayer then return end
     if not PlayerESP[player] then
         PlayerESP[player] = CreateESPComponents(player)
@@ -120,19 +117,29 @@ function updateESP(player)
     local components = PlayerESP[player]
     if not components then return end
     
+    -- Check if ESP is enabled globally
+    local isEnabled = _G.ESPEnabled
+    components.BillboardGui.Enabled = isEnabled
+    components.Box.Visible = isEnabled and _G.BoxESPEnabled
+    if components.Highlight then
+        components.Highlight.Enabled = isEnabled and _G.HighlightEnabled
+    end
+    
+    -- If ESP is disabled, return early
+    if not isEnabled then return end
+    
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Humanoid") then
         components.BillboardGui.Enabled = false
         components.Box.Visible = false
-        components.Highlight.Enabled = false
+        if components.Highlight then components.Highlight.Enabled = false end
         return
     end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     
-    -- Update Billboard GUI
-    components.BillboardGui.Enabled = true
+    -- Update Billboard GUI position
     components.BillboardGui.Adornee = rootPart
     
     -- Update Name ESP
@@ -150,7 +157,7 @@ function updateESP(player)
     
     -- Update Health Text
     components.HealthText.Text = math.floor(health) .. "/" .. math.floor(maxHealth)
-    components.HealthText.Visible = _G.HealthTextEnabled
+    components.HealthText.Visible = _G.HealthESPEnabled
     components.HealthText.TextColor3 = _G.HealthTextColor
     
     -- Update Distance ESP
@@ -179,8 +186,10 @@ function updateESP(player)
     end
     
     -- Update Highlight
-    components.Highlight.Parent = _G.HighlightEnabled and character or nil
-    components.Highlight.FillColor = _G.HighlightColor
+    if components.Highlight then
+        components.Highlight.Parent = _G.HighlightEnabled and character or nil
+        components.Highlight.FillColor = _G.HighlightColor
+    end
 end
 
 -- Clean up ESP components
@@ -197,16 +206,20 @@ end
 -- Initialize ESP for all players
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
-        PlayerESP[player] = CreateESPComponents(player)
-        updateESP(player)
+        task.spawn(function()
+            PlayerESP[player] = CreateESPComponents(player)
+            updateESP(player)
+        end)
     end
 end
 
 -- Connect player events
 Players.PlayerAdded:Connect(function(player)
     if player ~= LocalPlayer then
-        PlayerESP[player] = CreateESPComponents(player)
-        updateESP(player)
+        task.spawn(function()
+            PlayerESP[player] = CreateESPComponents(player)
+            updateESP(player)
+        end)
     end
 end)
 
@@ -216,12 +229,46 @@ end)
 
 -- Update ESP every frame
 RunService.RenderStepped:Connect(function()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            updateESP(player)
+    if _G.ESPEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                updateESP(player)
+            end
         end
     end
 end)
 
--- Return the update function for use with the UI
-return updateESP
+-- Functions to toggle ESP features
+local function toggleESP()
+    _G.ESPEnabled = not _G.ESPEnabled
+end
+
+local function toggleHealthESP()
+    _G.HealthESPEnabled = not _G.HealthESPEnabled
+end
+
+local function toggleNameESP()
+    _G.NameESPEnabled = not _G.NameESPEnabled
+end
+
+local function toggleBoxESP()
+    _G.BoxESPEnabled = not _G.BoxESPEnabled
+end
+
+local function toggleDistanceESP()
+    _G.DistanceESPEnabled = not _G.DistanceESPEnabled
+end
+
+local function toggleHighlight()
+    _G.HighlightEnabled = not _G.HighlightEnabled
+end
+
+-- Return toggle functions for use with UI
+return {
+    toggleESP = toggleESP,
+    toggleHealthESP = toggleHealthESP,
+    toggleNameESP = toggleNameESP,
+    toggleBoxESP = toggleBoxESP,
+    toggleDistanceESP = toggleDistanceESP,
+    toggleHighlight = toggleHighlight
+}
