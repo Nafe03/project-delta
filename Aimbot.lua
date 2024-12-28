@@ -135,26 +135,27 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Predict Target Position with improved horizontal and vertical prediction for fast targets
+-- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return nil end
+    if not AimPart then return end
 
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
-    -- Determine if the target is fast-moving
+    -- Check if target is moving faster than the threshold
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply horizontal prediction (x-axis only)
+    -- Apply horizontal prediction for moving targets
     predictedPosition = predictedPosition + Vector3.new(
         Velocity.X * _G.PredictionAmount * predictionFactor,
         0,
         Velocity.Z * _G.PredictionAmount * predictionFactor
     )
 
-    -- Vertical prediction for airborne targets (y-axis only)
+    -- Vertical prediction for airborne targets
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
         predictedPosition = predictedPosition + Vector3.new(
@@ -166,7 +167,6 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
-
 
 -- Resolve Target Position with dynamic adjustments for fast targets
 local function ResolveTargetPosition(Target)
@@ -198,6 +198,7 @@ local function ResolveTargetPosition(Target)
 
     return ResolvedPosition
 end
+
 
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
