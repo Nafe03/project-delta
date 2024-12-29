@@ -126,7 +126,7 @@ local function DrawESPBox(player)
     -- Update Box Position
     local connection
     connection = RunService.RenderStepped:Connect(function()
-        if character and rootPart and _G.BoxESPEnabled then
+        if character and character.Parent and rootPart and _G.BoxESPEnabled then
             local rootPos = rootPart.Position
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
 
@@ -141,6 +141,17 @@ local function DrawESPBox(player)
             end
         else
             box.Visible = false
+        end
+    end)
+
+    -- Handle Character Removal
+    character.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            box.Visible = false
+            if connection then
+                connection:Disconnect()
+            end
+            box:Remove()
         end
     end)
 
@@ -221,6 +232,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(initializeESP)
 Players.PlayerRemoving:Connect(removeESP)
+
 
 
 
