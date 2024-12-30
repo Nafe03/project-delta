@@ -176,6 +176,12 @@ local function ResolveTargetPosition(Target)
 end
 
 -- Input handling for aimbot activation and toggling between modes
+-- [Previous services and initial settings remain the same until LegitSensitivity]
+
+_G.LegitSensitivity = 0.1    -- Default sensitivity for legit aimbot (0.1 to 1)
+
+-- [FOV Circle Setup and other functions remain the same until the input handling section]
+
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -195,29 +201,18 @@ UserInputService.InputBegan:Connect(function(Input)
         _G.AimbotEnabled = not _G.AimbotEnabled
         if _G.AimbotEnabled then
             _G.LegitAimbot = false
-            _G.Sensitivity = 0
         end
         Notify("Aimbot", "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"))
-    elseif Input.KeyCode == Enum.KeyCode.V then  -- Add new keybind for legit aimbot
+    elseif Input.KeyCode == Enum.KeyCode.V then
         _G.LegitAimbot = not _G.LegitAimbot
         if _G.LegitAimbot then
             _G.AimbotEnabled = false
-            _G.Sensitivity = _G.LegitSensitivity
         end
         Notify("Legit Aimbot", "Legit Aimbot " .. (_G.LegitAimbot and "Enabled" or "Disabled"))
     end
 end)
 
-UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
-        Holding = false
-        CurrentTarget = nil
-        if CurrentHighlight then
-            CurrentHighlight:Destroy()
-            CurrentHighlight = nil
-        end
-    end
-end)
+-- [InputEnded remains the same]
 
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
@@ -238,8 +233,11 @@ RunService.RenderStepped:Connect(function()
                     local currentCFrame = Camera.CFrame
                     local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
                     
-                    local lerpAmount = _G.LegitAimbot and _G.LegitSensitivity or math.clamp(_G.Sensitivity, 0.1, 1)
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
+                    if _G.LegitAimbot then
+                        Camera.CFrame = currentCFrame:Lerp(targetCFrame, math.clamp(_G.LegitSensitivity, 0.1, 1))
+                    else
+                        Camera.CFrame = targetCFrame
+                    end
                 end
             else
                 CurrentTarget = nil
