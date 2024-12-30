@@ -15,7 +15,7 @@ _G.BoxESPEnabled = true
 _G.DistanceESPEnabled = false
 _G.HighlightEnabled = false
 
-_G.HighlightColor = Color3.fromRGB(0, 255, 0)
+_G.HighlightColor = Color3.fromRGB(255, 255, 255)
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.HealthTextColor = Color3.fromRGB(255, 255, 255)
 
@@ -274,6 +274,6 @@ local function setHealthTextColor(newColor)
     _G.HealthTextColor = newColor
 end
 
-setHighlightColor(Color3.fromRGB(255, 0, 0)) -- Changes highlight to red
-setBoxColor(Color3.fromRGB(0, 255, 0)) -- Changes box to green
+setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Changes highlight to red
+setBoxColor(Color3.fromRGB(255, 255, 255)) -- Changes box to green
 setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text
