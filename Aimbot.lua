@@ -286,7 +286,14 @@ RunService.RenderStepped:Connect(function()
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 if aimPosition then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                    -- Smoothly transition to the predicted position using Lerp
+                    local currentCameraPosition = Camera.CFrame.Position
+                    local targetCameraPosition = aimPosition
+                    local smoothFactor = math.clamp(_G.Sensitivity, 0.01, 1) -- Ensure smoothFactor is between 0.01 and 1
+                    local smoothedCFrame = Camera.CFrame:Lerp(CFrame.new(currentCameraPosition, targetCameraPosition), smoothFactor)
+
+                    -- Apply the smoothed CFrame
+                    Camera.CFrame = smoothedCFrame
                 end
             else
                 CurrentTarget = nil
@@ -294,3 +301,4 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
