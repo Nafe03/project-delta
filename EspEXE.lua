@@ -177,6 +177,7 @@ local function applyESP(player)
     activeESP[player] = {
         highlight = highlight,
         billboardGui = billboardGui,
+        nameLabel = nameLabel,
         box = box,
         updateConnection = connection,
         updateFunc = updateESPFunc,
