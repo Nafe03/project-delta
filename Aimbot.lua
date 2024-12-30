@@ -178,25 +178,11 @@ local function ResolveTargetPosition(Target)
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Adjust sensitivity based on target speed for smoother targeting
-    local dynamicSensitivity = _G.Sensitivity
-    if _G.DynamicSensitivity then
-        local speed = AimPart.Velocity.Magnitude
-        dynamicSensitivity = dynamicSensitivity * (speed / _G.FastTargetSpeedThreshold)
-    end
-
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1
-    )
-
-    return ResolvedPosition
+    return PredictedPosition
 end
 
 
@@ -236,7 +222,6 @@ local LastAimPosition = nil  -- Cache for the last predicted aim position
 local SnapThreshold = 1     -- Threshold to ignore small movements in prediction
 
 RunService.RenderStepped:Connect(function()
-    -- Update FOV circle
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
@@ -244,7 +229,6 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 
-    -- Handle aimbot snapping
     if Holding and _G.AimbotEnabled and CurrentTarget then
         local character = CurrentTarget.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
@@ -252,21 +236,16 @@ RunService.RenderStepped:Connect(function()
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 
-                -- Check if aimPosition is valid
                 if aimPosition then
-                    -- Snap only if the movement exceeds the threshold
-                    if LastAimPosition and (aimPosition - LastAimPosition).Magnitude < SnapThreshold then
-                        aimPosition = LastAimPosition
-                    else
-                        LastAimPosition = aimPosition
-                    end
-
-                    -- Set camera CFrame directly to aim position
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                    local currentCFrame = Camera.CFrame
+                    local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
+                    
+                    -- Smooth aim movement
+                    local lerpAmount = math.clamp(_G.Sensitivity, 0.1, 1)
+                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
                 end
             else
                 CurrentTarget = nil
-                LastAimPosition = nil
             end
         end
     end
