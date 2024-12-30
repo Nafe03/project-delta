@@ -71,7 +71,6 @@ local function IsPlayerKnocked(player)
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return true end
     
-    -- Check if player is knocked in Da Hood
     local knocked = character:FindFirstChild("BodyEffects")
     if knocked and knocked:FindFirstChild("K.O") then
         return knocked["K.O"].Value
@@ -109,7 +108,6 @@ local function GetClosestPlayerToMouse()
                 continue
             end
             
-            -- Skip if player is knocked
             if IsPlayerKnocked(player) then
                 continue
             end
@@ -134,8 +132,7 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with improved horizontal and vertical prediction for fast targets
--- Predict Target Position with separate horizontal and vertical prediction
+-- Predict Target Position
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
@@ -144,31 +141,20 @@ local function PredictTargetPosition(Target)
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
-    -- Check if target is moving faster than the threshold
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply horizontal prediction for moving targets
-    predictedPosition = predictedPosition + Vector3.new(
-        Velocity.X * _G.PredictionAmount * predictionFactor,
-        0,
-        Velocity.Z * _G.PredictionAmount * predictionFactor
+    -- Apply horizontal and vertical prediction dynamically
+    predictedPosition = predictedPosition + Velocity * Vector3.new(
+        _G.PredictionAmount * predictionFactor,
+        _G.AirPredictionAmount * predictionFactor,
+        _G.PredictionAmount * predictionFactor
     )
-
-    -- Vertical prediction for airborne targets
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(
-            0,
-            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
-            0
-        )
-    end
 
     return predictedPosition
 end
 
--- Resolve Target Position with dynamic adjustments for fast targets
+-- Resolve Target Position
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -178,27 +164,12 @@ local function ResolveTargetPosition(Target)
     local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
-    -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    -- Adjust sensitivity based on target speed for smoother targeting
-    local dynamicSensitivity = _G.Sensitivity
-    if _G.DynamicSensitivity then
-        local speed = AimPart.Velocity.Magnitude
-        dynamicSensitivity = dynamicSensitivity * (speed / _G.FastTargetSpeedThreshold)
-    end
-
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1
-    )
-
-    return ResolvedPosition
+    return PredictedPosition
 end
-
 
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
@@ -232,7 +203,7 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- Update FOV circle on RenderStepped to follow mouse and adjust radius
+-- Update FOV circle and target locking logic
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
