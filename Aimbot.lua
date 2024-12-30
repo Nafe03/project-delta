@@ -219,25 +219,48 @@ end)
 
 -- Update FOV circle and target locking logic
 RunService.RenderStepped:Connect(function()
+    -- Update FOV Circle
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
+        FOVCircle.Visible = true
     else
         FOVCircle.Visible = false
     end
 
-    if Holding and _G.AimbotEnabled and CurrentTarget then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
+    -- Aimbot Logic
+    if Holding and _G.AimbotEnabled then
+        if not CurrentTarget or not CurrentTarget.Character or not CurrentTarget.Character:FindFirstChild("Humanoid") then
+            CurrentTarget = GetClosestPlayerToMouse()
+        end
+
+        if CurrentTarget and CurrentTarget.Character then
+            local humanoid = CurrentTarget.Character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 if aimPosition then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                    -- Smooth Aim (Optional: Adjust based on _G.Sensitivity)
+                    local currentCFrame = Camera.CFrame
+                    local targetCFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+
+                    if _G.Sensitivity > 0 then
+                        local lerpedCFrame = currentCFrame:Lerp(targetCFrame, math.clamp(_G.Sensitivity, 0, 1))
+                        Camera.CFrame = lerpedCFrame
+                    else
+                        Camera.CFrame = targetCFrame
+                    end
+                else
+                    -- Fallback to actual part position
+                    local AimPart = CurrentTarget.Character:FindFirstChild(_G.AimPart)
+                    if AimPart then
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, AimPart.Position)
+                    end
                 end
             else
+                -- Reset target if invalid
                 CurrentTarget = nil
             end
         end
     end
 end)
+
