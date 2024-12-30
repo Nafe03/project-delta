@@ -148,3 +148,46 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(initializeESP)
 Players.PlayerRemoving:Connect(removeESP)
+
+
+-- Toggle ESP Features
+local function toggleESPFeature(feature, state)
+	_G[feature] = state
+end
+
+local function onHealthESPToggle(newState)
+	toggleESPFeature("HealthESPEnabled", newState)
+end
+
+local function onNameESPToggle(newState)
+	toggleESPFeature("NameESPEnabled", newState)
+end
+
+local function onBoxESPToggle(newState)
+	toggleESPFeature("BoxESPEnabled", newState)
+end
+
+local function onDistanceESPToggle(newState)
+	toggleESPFeature("DistanceESPEnabled", newState)
+end
+
+local function onHighlightToggle(newState)
+	toggleESPFeature("HighlightEnabled", newState)
+end
+
+-- Example color change usage
+local function setHighlightColor(newColor)
+	_G.HighlightColor = newColor
+end
+
+local function setBoxColor(newColor)
+	_G.BoxColor = newColor
+end
+
+local function setHealthTextColor(newColor)
+	_G.HealthTextColor = newColor
+end
+
+setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Changes highlight to red
+setBoxColor(Color3.fromRGB(255, 255, 255)) -- Changes box to green
+setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text
