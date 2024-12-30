@@ -13,6 +13,7 @@ local Holding = false
 
 -- Global Settings
 _G.AimbotEnabled = false
+_G.LegitAimbot = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
@@ -23,10 +24,11 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = true
 _G.WallCheck = false
-_G.PredictionMultiplier = 1.5 -- Multiplier for prediction on fast targets
-_G.FastTargetSpeedThreshold = 35  -- Speed threshold to identify macros or rapid movements
-_G.DynamicSensitivity = true  -- Enable dynamic sensitivity adjustment based on target movement speed
+_G.PredictionMultiplier = 1.5
+_G.FastTargetSpeedThreshold = 35
+_G.DynamicSensitivity = true
 
+_G.LegitSensitivity = 0.3    -- Default sensitivity for legit aimbot
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleTransparency = 0.7
@@ -34,10 +36,6 @@ _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
-
-_G.VisibleHighlight = true
-_G.TargetLockKey = Enum.KeyCode.E
-_G.ToggleAimbotKey = Enum.KeyCode.Q
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -71,7 +69,6 @@ local function IsPlayerKnocked(player)
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return true end
     
-    -- Check if player is knocked in Da Hood
     local knocked = character:FindFirstChild("BodyEffects")
     if knocked and knocked:FindFirstChild("K.O") then
         return knocked["K.O"].Value
@@ -109,7 +106,6 @@ local function GetClosestPlayerToMouse()
                 continue
             end
             
-            -- Skip if player is knocked
             if IsPlayerKnocked(player) then
                 continue
             end
@@ -134,8 +130,6 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with improved horizontal and vertical prediction for fast targets
--- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
@@ -144,18 +138,15 @@ local function PredictTargetPosition(Target)
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
-    -- Check if target is moving faster than the threshold
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply horizontal prediction for moving targets
     predictedPosition = predictedPosition + Vector3.new(
         Velocity.X * _G.PredictionAmount * predictionFactor,
         0,
         Velocity.Z * _G.PredictionAmount * predictionFactor
     )
 
-    -- Vertical prediction for airborne targets
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
         predictedPosition = predictedPosition + Vector3.new(
@@ -168,7 +159,6 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Resolve Target Position with dynamic adjustments for fast targets
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
@@ -185,15 +175,15 @@ local function ResolveTargetPosition(Target)
     return PredictedPosition
 end
 
-
--- Input handling for aimbot activation and locking
+-- Input handling for aimbot activation and toggling between modes
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
-        if _G.AimbotEnabled then
+        if _G.AimbotEnabled or _G.LegitAimbot then
             CurrentTarget = GetClosestPlayerToMouse()
             if CurrentTarget then
-                Notify("Aimbot", "Locked onto " .. CurrentTarget.Name)
+                local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
+                Notify(mode, "Locked onto " .. CurrentTarget.Name)
                 if _G.VisibleHighlight then
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
@@ -203,7 +193,18 @@ UserInputService.InputBegan:Connect(function(Input)
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
         _G.AimbotEnabled = not _G.AimbotEnabled
+        if _G.AimbotEnabled then
+            _G.LegitAimbot = false
+            _G.Sensitivity = 0
+        end
         Notify("Aimbot", "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"))
+    elseif Input.KeyCode == Enum.KeyCode.V then  -- Add new keybind for legit aimbot
+        _G.LegitAimbot = not _G.LegitAimbot
+        if _G.LegitAimbot then
+            _G.AimbotEnabled = false
+            _G.Sensitivity = _G.LegitSensitivity
+        end
+        Notify("Legit Aimbot", "Legit Aimbot " .. (_G.LegitAimbot and "Enabled" or "Disabled"))
     end
 end)
 
@@ -218,9 +219,6 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
-local LastAimPosition = nil  -- Cache for the last predicted aim position
-local SnapThreshold = 1     -- Threshold to ignore small movements in prediction
-
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
@@ -229,7 +227,7 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 
-    if Holding and _G.AimbotEnabled and CurrentTarget then
+    if Holding and ((_G.AimbotEnabled or _G.LegitAimbot) and CurrentTarget) then
         local character = CurrentTarget.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
@@ -240,8 +238,7 @@ RunService.RenderStepped:Connect(function()
                     local currentCFrame = Camera.CFrame
                     local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
                     
-                    -- Smooth aim movement
-                    local lerpAmount = math.clamp(_G.Sensitivity, 0.1, 1)
+                    local lerpAmount = _G.LegitAimbot and _G.LegitSensitivity or math.clamp(_G.Sensitivity, 0.1, 1)
                     Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
                 end
             else
