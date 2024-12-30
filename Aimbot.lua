@@ -17,7 +17,7 @@ _G.LegitAimbot = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 1     -- Default smoothness for regular aimbot
+_G.Sensitivity = 0     -- Default smoothness for regular aimbot
 _G.LegitSensitivity = 0.3 -- Default sensitivity for legit aimbot
 _G.PredictionAmount = 0
 _G.AirPredictionAmount = 0
@@ -238,8 +238,9 @@ RunService.RenderStepped:Connect(function()
                     local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
                     
                     -- Use appropriate smoothness based on mode
-                    local lerpAmount = _G.LegitAimbot and _G.LegitSensitivity or _G.Sensitivity
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
+                    -- Calculate smoothness factor based on LegitSensitivity
+                    local smoothness = _G.LegitAimbot and (1 / math.clamp(_G.LegitSensitivity, 0.01, 1)) or _G.Sensitivity
+                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, smoothness)
                 end
             else
                 CurrentTarget = nil
