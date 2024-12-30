@@ -235,11 +235,6 @@ end)
 local LastAimPosition = nil  -- Cache for the last predicted aim position
 local SnapThreshold = 1     -- Threshold to ignore small movements in prediction
 
--- Smoothly interpolate between two positions
-local function Lerp(a, b, t)
-    return a + (b - a) * t
-end
-
 RunService.RenderStepped:Connect(function()
     -- Update FOV circle
     if _G.UseCircle then
@@ -259,16 +254,19 @@ RunService.RenderStepped:Connect(function()
                 
                 -- Check if aimPosition is valid
                 if aimPosition then
-                    -- Smoothly interpolate camera to the target
-                    local currentCameraLookVector = Camera.CFrame.LookVector
-                    local targetDirection = (aimPosition - Camera.CFrame.Position).Unit
-                    local newLookVector = Lerp(currentCameraLookVector, targetDirection, _G.Sensitivity)
+                    -- Snap only if the movement exceeds the threshold
+                    if LastAimPosition and (aimPosition - LastAimPosition).Magnitude < SnapThreshold then
+                        aimPosition = LastAimPosition
+                    else
+                        LastAimPosition = aimPosition
+                    end
 
-                    -- Update camera CFrame smoothly
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + newLookVector)
+                    -- Set camera CFrame directly to aim position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
+                LastAimPosition = nil
             end
         end
     end
