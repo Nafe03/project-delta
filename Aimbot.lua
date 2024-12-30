@@ -54,6 +54,9 @@ FOVCircle.Thickness = _G.CircleThickness
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
+-- Track positions for manual velocity calculation
+local PositionCache = {}
+
 -- Function to send notifications
 local function Notify(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -132,65 +135,53 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position
+-- Calculate velocity manually
+local function GetManualVelocity(player)
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return Vector3.zero end
+
+    local rootPart = character.HumanoidRootPart
+    local currentPosition = rootPart.Position
+
+    if not PositionCache[player] then
+        PositionCache[player] = currentPosition
+        return Vector3.zero
+    end
+
+    local velocity = (currentPosition - PositionCache[player]) / RunService.Heartbeat:Wait()
+    PositionCache[player] = currentPosition
+
+    return velocity
+end
+
 -- Predict Target Position
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return AimPart.Position end
+    if not AimPart then return end
 
-    local Character = Target.Character
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    if not HumanoidRootPart then return AimPart.Position end
+    local Velocity = GetManualVelocity(Target)
+    local predictedPosition = AimPart.Position
+    local speed = Velocity.Magnitude
 
-    -- Detect velocity or unconventional CFrame movement
-    local Velocity = HumanoidRootPart.Velocity
-    local CFrameMovement = (HumanoidRootPart.CFrame.Position - (HumanoidRootPart.Position - Velocity)).Magnitude > 0
-    local PredictedPosition = AimPart.Position
+    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
+    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    if Velocity.Magnitude > 0 or CFrameMovement then
-        local PredictionFactor = _G.PredictionMultiplier
-        PredictedPosition = PredictedPosition + Vector3.new(
-            Velocity.X * _G.PredictionAmount * PredictionFactor,
-            Velocity.Y * _G.PredictionAmount * PredictionFactor,
-            Velocity.Z * _G.PredictionAmount * PredictionFactor
-        )
-    end
+    -- Apply horizontal prediction only
+    predictedPosition = predictedPosition + Vector3.new(
+        Velocity.X * _G.PredictionAmount * predictionFactor,
+        0,
+        Velocity.Z * _G.PredictionAmount * predictionFactor
+    )
 
-    return PredictedPosition
+    return predictedPosition
 end
-
--- Predict Airborne Target Position
-local function PredictAirborneTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AirAimPart)
-    if not AimPart then return AimPart.Position end
-
-    local Character = Target.Character
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    if not HumanoidRootPart then return AimPart.Position end
-
-    local Velocity = HumanoidRootPart.Velocity
-    local CFrameMovement = (HumanoidRootPart.CFrame.Position - (HumanoidRootPart.Position - Velocity)).Magnitude > 0
-    local PredictedPosition = AimPart.Position
-
-    if Velocity.Magnitude > 0 or CFrameMovement then
-        local PredictionFactor = _G.PredictionMultiplier
-        PredictedPosition = PredictedPosition + Vector3.new(
-            Velocity.X * _G.AirPredictionAmount * PredictionFactor,
-            Velocity.Y * _G.AirPredictionAmount * PredictionFactor,
-            Velocity.Z * _G.AirPredictionAmount * PredictionFactor
-        )
-    end
-
-    return PredictedPosition
-end
-
 
 -- Predict Airborne Target Position
 local function PredictAirborneTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AirAimPart)
     if not AimPart then return end
 
-    local Velocity = AimPart.Velocity
+    local Velocity = GetManualVelocity(Target)
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
