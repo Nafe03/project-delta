@@ -54,9 +54,6 @@ FOVCircle.Thickness = _G.CircleThickness
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
--- Track positions for manual velocity calculation
-local PositionCache = {}
-
 -- Function to send notifications
 local function Notify(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -74,6 +71,7 @@ local function IsPlayerKnocked(player)
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return true end
     
+    -- Check if player is knocked in Da Hood
     local knocked = character:FindFirstChild("BodyEffects")
     if knocked and knocked:FindFirstChild("K.O") then
         return knocked["K.O"].Value
@@ -111,6 +109,7 @@ local function GetClosestPlayerToMouse()
                 continue
             end
             
+            -- Skip if player is knocked
             if IsPlayerKnocked(player) then
                 continue
             end
@@ -135,91 +134,71 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Calculate velocity manually
-local function GetManualVelocity(player)
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return Vector3.zero end
-
-    local rootPart = character.HumanoidRootPart
-    local currentPosition = rootPart.Position
-
-    if not PositionCache[player] then
-        PositionCache[player] = currentPosition
-        return Vector3.zero
-    end
-
-    local velocity = (currentPosition - PositionCache[player]) / RunService.Heartbeat:Wait()
-    PositionCache[player] = currentPosition
-
-    return velocity
-end
-
--- Predict Target Position
+-- Predict Target Position with improved horizontal and vertical prediction for fast targets
+-- Predict Target Position with separate horizontal and vertical prediction
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
 
-    local Velocity = GetManualVelocity(Target)
+    local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
+    -- Check if target is moving faster than the threshold
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    -- Apply horizontal prediction only
+    -- Apply horizontal prediction for moving targets
     predictedPosition = predictedPosition + Vector3.new(
         Velocity.X * _G.PredictionAmount * predictionFactor,
         0,
         Velocity.Z * _G.PredictionAmount * predictionFactor
     )
 
-    return predictedPosition
-end
-
--- Predict Airborne Target Position
-local function PredictAirborneTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AirAimPart)
-    if not AimPart then return end
-
-    local Velocity = GetManualVelocity(Target)
-    local predictedPosition = AimPart.Position
-    local speed = Velocity.Magnitude
-
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
-
-    -- Apply vertical prediction only
-    predictedPosition = predictedPosition + Vector3.new(
-        0,
-        Velocity.Y * _G.AirPredictionAmount * predictionFactor,
-        0
-    )
+    -- Vertical prediction for airborne targets
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
+        predictedPosition = predictedPosition + Vector3.new(
+            0,
+            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
+            0
+        )
+    end
 
     return predictedPosition
 end
 
--- Resolve Target Position
+-- Resolve Target Position with dynamic adjustments for fast targets
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
     local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    local PredictedPosition
-    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-        PredictedPosition = PredictAirborneTargetPosition(Target)
-    else
-        PredictedPosition = PredictTargetPosition(Target)
-    end
-
+    local PredictedPosition = PredictTargetPosition(Target)
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
+    -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
 
-    return PredictedPosition
+    -- Adjust sensitivity based on target speed for smoother targeting
+    local dynamicSensitivity = _G.Sensitivity
+    if _G.DynamicSensitivity then
+        local speed = AimPart.Velocity.Magnitude
+        dynamicSensitivity = dynamicSensitivity * (speed / _G.FastTargetSpeedThreshold)
+    end
+
+    local ResolvedPosition = PredictedPosition + Vector3.new(
+        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
+        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
+        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1
+    )
+
+    return ResolvedPosition
 end
+
 
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
@@ -248,55 +227,32 @@ UserInputService.InputEnded:Connect(function(Input)
         CurrentTarget = nil
         if CurrentHighlight then
             CurrentHighlight:Destroy()
-            CurrentHighlight = nil 
+            CurrentHighlight = nil
         end
     end
 end)
 
--- Update FOV circle and target locking logic
+-- Update FOV circle on RenderStepped to follow mouse and adjust radius
 RunService.RenderStepped:Connect(function()
-    -- Update FOV Circle
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
-        FOVCircle.Visible = true
     else
         FOVCircle.Visible = false
     end
 
-    -- Aimbot Logic
-    if Holding and _G.AimbotEnabled then
-        if not CurrentTarget or not CurrentTarget.Character or not CurrentTarget.Character:FindFirstChild("Humanoid") then
-            CurrentTarget = GetClosestPlayerToMouse()
-        end
-
-        if CurrentTarget and CurrentTarget.Character then
-            local humanoid = CurrentTarget.Character:FindFirstChild("Humanoid")
+    if Holding and _G.AimbotEnabled and CurrentTarget then
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 if aimPosition then
-                    -- Smooth Aim (Optional: Adjust based on _G.Sensitivity)
-                    local currentCFrame = Camera.CFrame
-                    local targetCFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-
-                    if _G.Sensitivity > 0 then
-                        local lerpedCFrame = currentCFrame:Lerp(targetCFrame, math.clamp(_G.Sensitivity, 0, 1))
-                        Camera.CFrame = lerpedCFrame
-                    else
-                        Camera.CFrame = targetCFrame
-                    end
-                else
-                    -- Fallback to actual part position
-                    local AimPart = CurrentTarget.Character:FindFirstChild(_G.AimPart)
-                    if AimPart then
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, AimPart.Position)
-                    end
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
-                -- Reset target if invalid
                 CurrentTarget = nil
             end
         end
     end
 end)
-
