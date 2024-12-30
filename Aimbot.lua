@@ -248,7 +248,7 @@ UserInputService.InputEnded:Connect(function(Input)
         CurrentTarget = nil
         if CurrentHighlight then
             CurrentHighlight:Destroy()
-            CurrentHighlight = nil
+            CurrentHighlight = nil 
         end
     end
 end)
