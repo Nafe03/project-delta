@@ -133,26 +133,57 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Predict Target Position
+-- Predict Target Position
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+    if not AimPart then return AimPart.Position end
 
-    local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position
-    local speed = Velocity.Magnitude
+    local Character = Target.Character
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    if not HumanoidRootPart then return AimPart.Position end
 
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
+    -- Detect velocity or unconventional CFrame movement
+    local Velocity = HumanoidRootPart.Velocity
+    local CFrameMovement = (HumanoidRootPart.CFrame.Position - (HumanoidRootPart.Position - Velocity)).Magnitude > 0
+    local PredictedPosition = AimPart.Position
 
-    -- Apply horizontal prediction only
-    predictedPosition = predictedPosition + Vector3.new(
-        Velocity.X * _G.PredictionAmount * predictionFactor,
-        0,
-        Velocity.Z * _G.PredictionAmount * predictionFactor
-    )
+    if Velocity.Magnitude > 0 or CFrameMovement then
+        local PredictionFactor = _G.PredictionMultiplier
+        PredictedPosition = PredictedPosition + Vector3.new(
+            Velocity.X * _G.PredictionAmount * PredictionFactor,
+            Velocity.Y * _G.PredictionAmount * PredictionFactor,
+            Velocity.Z * _G.PredictionAmount * PredictionFactor
+        )
+    end
 
-    return predictedPosition
+    return PredictedPosition
 end
+
+-- Predict Airborne Target Position
+local function PredictAirborneTargetPosition(Target)
+    local AimPart = Target.Character:FindFirstChild(_G.AirAimPart)
+    if not AimPart then return AimPart.Position end
+
+    local Character = Target.Character
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    if not HumanoidRootPart then return AimPart.Position end
+
+    local Velocity = HumanoidRootPart.Velocity
+    local CFrameMovement = (HumanoidRootPart.CFrame.Position - (HumanoidRootPart.Position - Velocity)).Magnitude > 0
+    local PredictedPosition = AimPart.Position
+
+    if Velocity.Magnitude > 0 or CFrameMovement then
+        local PredictionFactor = _G.PredictionMultiplier
+        PredictedPosition = PredictedPosition + Vector3.new(
+            Velocity.X * _G.AirPredictionAmount * PredictionFactor,
+            Velocity.Y * _G.AirPredictionAmount * PredictionFactor,
+            Velocity.Z * _G.AirPredictionAmount * PredictionFactor
+        )
+    end
+
+    return PredictedPosition
+end
+
 
 -- Predict Airborne Target Position
 local function PredictAirborneTargetPosition(Target)
