@@ -232,8 +232,11 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- Update FOV circle on RenderStepped to follow mouse and adjust radius
+local LastAimPosition = nil  -- Cache for the last predicted aim position
+local SnapThreshold = 1     -- Threshold to ignore small movements in prediction
+
 RunService.RenderStepped:Connect(function()
+    -- Update FOV circle
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
         FOVCircle.Radius = _G.CircleRadius
@@ -241,18 +244,31 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 
+    -- Handle aimbot snapping
     if Holding and _G.AimbotEnabled and CurrentTarget then
         local character = CurrentTarget.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
+                
+                -- Check if aimPosition is valid
                 if aimPosition then
+                    -- Snap only if the movement exceeds the threshold
+                    if LastAimPosition and (aimPosition - LastAimPosition).Magnitude < SnapThreshold then
+                        aimPosition = LastAimPosition
+                    else
+                        LastAimPosition = aimPosition
+                    end
+
+                    -- Set camera CFrame directly to aim position
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
+                LastAimPosition = nil
             end
         end
     end
 end)
+
