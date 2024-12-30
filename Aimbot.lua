@@ -133,40 +133,48 @@ local function GetClosestPlayerToMouse()
 end
 
 -- Predict Target Position
--- Predict Target Position (Enhanced for Hackers)
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
 
     local Velocity = AimPart.Velocity
-    local speed = Velocity.Magnitude
     local predictedPosition = AimPart.Position
+    local speed = Velocity.Magnitude
 
-    -- Detect extreme speeds (hackers) and adjust prediction
-    local isFlying = AimPart.Position.Y > LocalPlayer.Character.HumanoidRootPart.Position.Y + 15
-    local isSpeedHacking = speed >= _G.FastTargetSpeedThreshold
+    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
+    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
 
-    local predictionFactor = _G.PredictionMultiplier
-    if isFlying then
-        -- Adjust for airborne hackers
-        predictionFactor = predictionFactor * 2
-        predictedPosition = predictedPosition + Velocity * Vector3.new(
-            0,
-            _G.AirPredictionAmount * predictionFactor,
-            0
-        )
-    elseif isSpeedHacking then
-        -- Adjust for speed hackers
-        predictionFactor = predictionFactor * 1.5
-        predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
-    else
-        -- Regular prediction for normal players
-        predictedPosition = predictedPosition + Velocity * _G.PredictionAmount * predictionFactor
-    end
+    -- Apply horizontal prediction only
+    predictedPosition = predictedPosition + Vector3.new(
+        Velocity.X * _G.PredictionAmount * predictionFactor,
+        0,
+        Velocity.Z * _G.PredictionAmount * predictionFactor
+    )
 
     return predictedPosition
 end
 
+-- Predict Airborne Target Position
+local function PredictAirborneTargetPosition(Target)
+    local AimPart = Target.Character:FindFirstChild(_G.AirAimPart)
+    if not AimPart then return end
+
+    local Velocity = AimPart.Velocity
+    local predictedPosition = AimPart.Position
+    local speed = Velocity.Magnitude
+
+    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
+    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
+
+    -- Apply vertical prediction only
+    predictedPosition = predictedPosition + Vector3.new(
+        0,
+        Velocity.Y * _G.AirPredictionAmount * predictionFactor,
+        0
+    )
+
+    return predictedPosition
+end
 
 -- Resolve Target Position
 local function ResolveTargetPosition(Target)
@@ -175,7 +183,13 @@ local function ResolveTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(aimPartName)
     if not AimPart then return end
 
-    local PredictedPosition = PredictTargetPosition(Target)
+    local PredictedPosition
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        PredictedPosition = PredictAirborneTargetPosition(Target)
+    else
+        PredictedPosition = PredictTargetPosition(Target)
+    end
+
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
 
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
