@@ -134,71 +134,109 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
--- Predict Target Position with improved horizontal and vertical prediction for fast targets
--- Predict Target Position with separate horizontal and vertical prediction
-local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+-- Track positions for manual velocity calculation
+local PositionCache = {
+    positions = {},
+    timestamps = {}
+}
 
-    local Velocity = AimPart.Velocity
+-- Calculate velocity manually with improved time tracking
+local function GetPartVelocity(part, player)
+    if not part then return Vector3.new(0, 0, 0) end
+    
+    local currentTime = tick()
+    local currentPosition = part.Position
+    
+    if not PositionCache.positions[player] then
+        PositionCache.positions[player] = currentPosition
+        PositionCache.timestamps[player] = currentTime
+        return Vector3.new(0, 0, 0)
+    end
+    
+    local deltaTime = currentTime - PositionCache.timestamps[player]
+    if deltaTime == 0 then return Vector3.new(0, 0, 0) end
+    
+    local velocity = (currentPosition - PositionCache.positions[player]) / deltaTime
+    
+    PositionCache.positions[player] = currentPosition
+    PositionCache.timestamps[player] = currentTime
+    
+    return velocity
+end
+
+-- Predict Target Position with specific part tracking
+local function PredictTargetPosition(Target)
+    local character = Target.Character
+    if not character then return end
+    
+    local AimPart = character:FindFirstChild(_G.AimPart)
+    if not AimPart then return end
+    
+    local Velocity = GetPartVelocity(AimPart, Target)
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
-
-    -- Check if target is moving faster than the threshold
+    
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
     local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
-
-    -- Apply horizontal prediction for moving targets
-    predictedPosition = predictedPosition + Vector3.new(
-        Velocity.X * _G.PredictionAmount * predictionFactor,
-        0,
-        Velocity.Z * _G.PredictionAmount * predictionFactor
-    )
-
-    -- Vertical prediction for airborne targets
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(
-            0,
-            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
-            0
-        )
-    end
-
+    
+    -- Apply full prediction based on actual part movement
+    predictedPosition = predictedPosition + (Velocity * _G.PredictionAmount * predictionFactor)
+    
     return predictedPosition
 end
 
--- Resolve Target Position with dynamic adjustments for fast targets
-local function ResolveTargetPosition(Target)
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    local AimPart = Target.Character:FindFirstChild(aimPartName)
+-- Predict Airborne Target Position with specific part tracking
+local function PredictAirborneTargetPosition(Target)
+    local character = Target.Character
+    if not character then return end
+    
+    local AimPart = character:FindFirstChild(_G.AirAimPart)
     if not AimPart then return end
+    
+    local Velocity = GetPartVelocity(AimPart, Target)
+    local predictedPosition = AimPart.Position
+    local speed = Velocity.Magnitude
+    
+    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
+    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
+    
+    -- Apply prediction with emphasis on vertical movement for airborne targets
+    predictedPosition = predictedPosition + Vector3.new(
+        Velocity.X * _G.PredictionAmount * predictionFactor * 0.5,  -- Reduced horizontal prediction
+        Velocity.Y * _G.AirPredictionAmount * predictionFactor,     -- Full vertical prediction
+        Velocity.Z * _G.PredictionAmount * predictionFactor * 0.5   -- Reduced horizontal prediction
+    )
+    
+    return predictedPosition
+end
 
-    local PredictedPosition = PredictTargetPosition(Target)
+-- Resolve Target Position with improved part-specific tracking
+local function ResolveTargetPosition(Target)
+    local character = Target.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
+    local AimPart = character:FindFirstChild(aimPartName)
+    if not AimPart then return end
+    
+    local PredictedPosition
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        PredictedPosition = PredictAirborneTargetPosition(Target)
+    else
+        PredictedPosition = PredictTargetPosition(Target)
+    end
+    
+    if not PredictedPosition then return AimPart.Position end
+    
     local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-
-    -- Bullet drop compensation if enabled
+    
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
     end
-
-    -- Adjust sensitivity based on target speed for smoother targeting
-    local dynamicSensitivity = _G.Sensitivity
-    if _G.DynamicSensitivity then
-        local speed = AimPart.Velocity.Magnitude
-        dynamicSensitivity = dynamicSensitivity * (speed / _G.FastTargetSpeedThreshold)
-    end
-
-    local ResolvedPosition = PredictedPosition + Vector3.new(
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1,
-        math.random(-dynamicSensitivity, dynamicSensitivity) * 0.1
-    )
-
-    return ResolvedPosition
+    
+    return PredictedPosition
 end
-
 
 -- Input handling for aimbot activation and locking
 UserInputService.InputBegan:Connect(function(Input)
