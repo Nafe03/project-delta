@@ -131,9 +131,9 @@ local function DrawESPBox(player)
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
 
             if onScreen then
-                local size = Vector2.new(4000 / screenPos.Z, 5000 / screenPos.Z)
+                local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
                 box.Size = size
-                box.Position = Vector2.new(screenPos.X - size.X / 1, screenPos.Y - size.Y / 1)
+                box.Position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
                 box.Color = _G.BoxColor
                 box.Visible = true
             else
