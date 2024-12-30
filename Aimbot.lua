@@ -238,9 +238,8 @@ RunService.RenderStepped:Connect(function()
                     local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
                     
                     -- Use appropriate smoothness based on mode
-                    -- Calculate smoothness factor based on LegitSensitivity
-                    local smoothness = _G.LegitAimbot and (1 / math.clamp(_G.LegitSensitivity, 0.01, 1)) or _G.Sensitivity
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, smoothness)
+                    local lerpAmount = _G.LegitAimbot and _G.LegitSensitivity or _G.Sensitivity
+                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
                 end
             else
                 CurrentTarget = nil
@@ -248,4 +247,3 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
