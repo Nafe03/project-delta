@@ -189,21 +189,14 @@ UserInputService.InputBegan:Connect(function(Input)
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                     CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
-                end
             end
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
         _G.AimbotEnabled = not _G.AimbotEnabled
         if _G.AimbotEnabled then
             _G.LegitAimbot = false
+           end
         end
-        Notify("Aimbot", "Aimbot " .. (_G.AimbotEnabled and "Enabled" or "Disabled"))
-    elseif Input.KeyCode == Enum.KeyCode.V then
-        _G.LegitAimbot = not _G.LegitAimbot
-        if _G.LegitAimbot then
-            _G.AimbotEnabled = false
-        end
-        Notify("Legit Aimbot", "Legit Aimbot " .. (_G.LegitAimbot and "Enabled" or "Disabled"))
     end
 end)
 
