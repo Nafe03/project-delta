@@ -48,7 +48,7 @@ local function DrawESPBoxWithHealth(player)
 
             if onScreen then
                 local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
-                local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+                local boxPosition = Vector2.new(screenPos.X - size.X / 8, screenPos.Y - size.Y / 2)
 
                 -- Update Box
                 box.Size = size
@@ -61,7 +61,7 @@ local function DrawESPBoxWithHealth(player)
                 if humanoid then
                     local healthFraction = humanoid.Health / humanoid.MaxHealth
                     healthBar.Size = Vector2.new(5, size.Y * healthFraction)
-                    healthBar.Position = Vector2.new(boxPosition.X - 5, boxPosition.Y + size.Y * (1 - healthFraction))
+                    healthBar.Position = Vector2.new(boxPosition.X - 3, boxPosition.Y + size.Y * (1 - healthFraction))
                     healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
                     healthBar.Visible = _G.HealthESPEnabled
                 else
