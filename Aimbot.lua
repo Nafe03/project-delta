@@ -18,7 +18,7 @@ _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 1      -- Default smoothness for regular aimbot
-_G.LegitSensitivity = 0.3 -- Default sensitivity for legit aimbot
+_G.LegitSensitivity = 0.1 -- Default sensitivity for legit aimbot
 _G.PredictionAmount = 0
 _G.AirPredictionAmount = 0
 _G.BulletDropCompensation = 0
@@ -32,7 +32,7 @@ _G.DynamicSensitivity = true
 -- FOV Circle Settings
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
-_G.CircleTransparency = 0.7
+_G.CircleTransparency = 1
 _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
