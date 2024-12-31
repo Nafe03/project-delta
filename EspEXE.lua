@@ -227,7 +227,3 @@ end
 local function setNameColor(newColor)
     _G.NameColor = newColor
 end
-
-setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Changes highlight to red
-setBoxColor(Color3.fromRGB(255, 255, 255)) -- Changes box to green
-setHealthTextColor(Color3.fromRGB(255, 255, 255)) -- Sets health text
