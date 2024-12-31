@@ -40,7 +40,9 @@ _G.CircleThickness = 1
 
 -- Damage Indicator Function
 local function CreateDamageIndicator(character, damage)
-    if not character then return end
+    if not character or not character:FindFirstChild("Head") then return end
+    
+    local head = character.Head
     
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 100, 0, 40)
@@ -51,7 +53,7 @@ local function CreateDamageIndicator(character, damage)
     local damageLabel = Instance.new("TextLabel")
     damageLabel.Size = UDim2.new(1, 0, 1, 0)
     damageLabel.BackgroundTransparency = 1
-    damageLabel.Text = "Damage: " .. tostring(damage)
+    damageLabel.Text = tostring(damage)
     damageLabel.TextColor3 = Color3.new(1, 0, 0)
     damageLabel.TextStrokeTransparency = 0
     damageLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
@@ -59,7 +61,7 @@ local function CreateDamageIndicator(character, damage)
     damageLabel.TextSize = 20
     damageLabel.Parent = billboard
     
-    billboard.Parent = character.Head
+    billboard.Parent = head
     
     local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(billboard, tweenInfo, {
@@ -71,7 +73,7 @@ local function CreateDamageIndicator(character, damage)
     game.Debris:AddItem(billboard, 1)
 end
 
--- Setup Damage Hook
+-- Hook to capture damage events and show damage indicators
 local function SetupDamageHook()
     if game.PlaceId == 2788229376 then
         local mt = getrawmetatable(game)
@@ -193,49 +195,68 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
+-- Function to check if a player is airborne
+local function IsPlayerAirborne(player)
+    local character = player.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        return true
+    end
+    
+    return false
+end
+
 -- Enhanced prediction function with more accurate calculations
 local function PredictTargetPosition(Target)
-    local Character = Target.Character
-    if not Character then return end
-    
-    local AimPart = Character:FindFirstChild(_G.AimPart)
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = Character:FindFirstChild("Humanoid")
-    
+    local character = Target.Character
+    if not character then return end
+
+    local AimPart = character:FindFirstChild(_G.AimPart)
+    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
+    local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = character:FindFirstChild("Humanoid")
+
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
+
+    -- Use AirAimPart if the target is airborne
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+    end
 
     local Velocity = HumanoidRootPart.Velocity
     local Position = AimPart.Position
     local Speed = Velocity.Magnitude
-    
+
     -- Detect potential exploiters/flyers
     local function DetectAbnormalMovement()
         local isFlying = false
         local isExploiting = false
-        
+
         local groundHeight = workspace:Raycast(Position, Vector3.new(0, -1000, 0))
         local heightFromGround = groundHeight and (Position.Y - groundHeight.Position.Y) or 0
-        
+
         local timeInAir = 0
         if Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
             timeInAir = timeInAir + 1
         else
             timeInAir = 0
         end
-        
+
         if heightFromGround > 20 and timeInAir > 50 then
             isFlying = true
         end
-        
+
         if Speed > 100 then
             isExploiting = true
         end
-        
+
         return isFlying, isExploiting
     end
 
     local isFlying, isExploiting = DetectAbnormalMovement()
-    
+
     if isFlying or isExploiting then
         local flyPredictionMultiplier = 2.5
         local verticalOffset = Vector3.new(
@@ -243,7 +264,7 @@ local function PredictTargetPosition(Target)
             Velocity.Y * _G.PredictionAmount * flyPredictionMultiplier,
             Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
         )
-        
+
         if isFlying then
             verticalOffset = verticalOffset + Vector3.new(
                 0,
@@ -251,21 +272,21 @@ local function PredictTargetPosition(Target)
                 0
             )
         end
-        
+
         return Position + verticalOffset
     end
-    
+
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
-        
+
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
             Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
             Velocity.Z * baseMultiplier * speedBasedMultiplier
         )
     end
-    
+
     local function AnalyzeMovementPattern()
         return {
             isZigZagging = math.abs(Velocity.X) > 15 and math.abs(Velocity.Z) > 15,
@@ -274,18 +295,18 @@ local function PredictTargetPosition(Target)
             isRunning = Speed > 15
         }
     end
-    
+
     local function CalculateAdaptivePrediction()
         local baseOffset = CalculateBaseOffset()
         local pattern = AnalyzeMovementPattern()
         local finalOffset = baseOffset
-        
+
         if pattern.isZigZagging then
             finalOffset = finalOffset * 1.2
         end
-        
+
         if pattern.isJumping or pattern.isFalling then
-            AimPart = Character:FindFirstChild(_G.AirAimPart) or AimPart
+            AimPart = character:FindFirstChild(_G.AirAimPart) or AimPart
             local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
             finalOffset = finalOffset + Vector3.new(
                 0,
@@ -293,17 +314,18 @@ local function PredictTargetPosition(Target)
                 0
             )
         end
-        
+
         local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
         local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
         finalOffset = finalOffset * distanceMultiplier
-        
+
         return finalOffset
     end
-    
+
     local predictedOffset = CalculateAdaptivePrediction()
     local predictedPosition = Position + predictedOffset
-    
+
+    -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
@@ -313,9 +335,10 @@ local function PredictTargetPosition(Target)
         )
         predictedPosition = predictedPosition + dropCompensation
     end
-    
+
     return predictedPosition
 end
+
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
