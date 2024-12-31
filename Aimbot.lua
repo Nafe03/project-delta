@@ -131,49 +131,118 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
+-- Enhanced prediction function with more accurate calculations
 local function PredictTargetPosition(Target)
-    local AimPart = Target.Character:FindFirstChild(_G.AimPart)
-    if not AimPart then return end
+    local Character = Target.Character
+    if not Character then return end
+    
+    local AimPart = Character:FindFirstChild(_G.AimPart)
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = Character:FindFirstChild("Humanoid")
+    
+    if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
-    local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position
-    local speed = Velocity.Magnitude
-
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
-
-    predictedPosition = predictedPosition + Vector3.new(
-        Velocity.X * _G.PredictionAmount * predictionFactor,
-        0,
-        Velocity.Z * _G.PredictionAmount * predictionFactor
-    )
-
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
-        predictedPosition = predictedPosition + Vector3.new(
-            0,
-            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
-            0
+    local Velocity = HumanoidRootPart.Velocity
+    local Position = AimPart.Position
+    local Speed = Velocity.Magnitude
+    
+    -- Base prediction calculation
+    local function CalculateBaseOffset()
+        local baseMultiplier = _G.PredictionAmount
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2) -- Adjust multiplier based on speed
+        
+        return Vector3.new(
+            Velocity.X * baseMultiplier * speedBasedMultiplier,
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5, -- Reduced vertical prediction
+            Velocity.Z * baseMultiplier * speedBasedMultiplier
         )
     end
-
+    
+    -- Movement pattern recognition
+    local function AnalyzeMovementPattern()
+        local pattern = {
+            isZigZagging = math.abs(Velocity.X) > 15 and math.abs(Velocity.Z) > 15,
+            isJumping = Humanoid:GetState() == Enum.HumanoidStateType.Jumping,
+            isFalling = Humanoid:GetState() == Enum.HumanoidStateType.Freefall,
+            isRunning = Speed > 15
+        }
+        return pattern
+    end
+    
+    -- Adaptive prediction based on movement patterns
+    local function CalculateAdaptivePrediction()
+        local baseOffset = CalculateBaseOffset()
+        local pattern = AnalyzeMovementPattern()
+        local finalOffset = baseOffset
+        
+        -- Adjust for zig-zagging
+        if pattern.isZigZagging then
+            finalOffset = finalOffset * 1.2 -- Increase prediction for erratic movement
+        end
+        
+        -- Adjust for vertical movement
+        if pattern.isJumping or pattern.isFalling then
+            -- Switch to air aim part if configured
+            AimPart = Character:FindFirstChild(_G.AirAimPart) or AimPart
+            
+            -- Enhanced vertical prediction
+            local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
+            finalOffset = finalOffset + Vector3.new(
+                0,
+                Velocity.Y * _G.AirPredictionAmount * verticalMultiplier,
+                0
+            )
+        end
+        
+        -- Distance-based adjustment
+        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
+        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
+        finalOffset = finalOffset * distanceMultiplier
+        
+        return finalOffset
+    end
+    
+    -- Calculate final predicted position
+    local predictedOffset = CalculateAdaptivePrediction()
+    local predictedPosition = Position + predictedOffset
+    
+    -- Apply bullet drop compensation if enabled
+    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+        local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
+        local dropCompensation = Vector3.new(
+            0,
+            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
+            0
+        )
+        predictedPosition = predictedPosition + dropCompensation
+    end
+    
     return predictedPosition
 end
 
+-- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    local aimPartName = (humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall) and _G.AirAimPart or _G.AimPart
-    local AimPart = Target.Character:FindFirstChild(aimPartName)
-    if not AimPart then return end
-
-    local PredictedPosition = PredictTargetPosition(Target)
-    local Distance = (Camera.CFrame.Position - PredictedPosition).Magnitude
-
-    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        PredictedPosition = PredictedPosition + Vector3.new(0, -Distance * _G.BulletDropCompensation, 0)
+    if not Target or not Target.Character then return end
+    
+    local predictedPosition = PredictTargetPosition(Target)
+    if not predictedPosition then return end
+    
+    -- Additional smoothing for very fast movements
+    local character = Target.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoid and rootPart then
+        local speed = rootPart.Velocity.Magnitude
+        if speed > _G.FastTargetSpeedThreshold then
+            -- Apply additional smoothing for high-speed targets
+            local currentPos = rootPart.Position
+            local smoothFactor = math.clamp(1 - (speed / 200), 0.3, 0.8)
+            predictedPosition = currentPos:Lerp(predictedPosition, smoothFactor)
+        end
     end
-
-    return PredictedPosition
+    
+    return predictedPosition
 end
 
 -- Input handling for aimbot activation and toggling between modes
