@@ -91,7 +91,6 @@ local function DrawESPBoxWithHealth(player)
                     healthBar.Size = Vector2.new(5, size.Y * healthFraction)
                     healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
                     healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-                    healthBar.BorderSizePixel = 1
                     healthBar.Visible = _G.HealthESPEnabled
                 else
                     healthBar.Visible = false
