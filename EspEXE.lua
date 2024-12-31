@@ -8,248 +8,167 @@ local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
--- [Previous code remains the same until the ESP Settings section]
-
--- ESP Settings
 _G.ESPEnabled = true
 _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.DistanceESPEnabled = false
-_G.SkeletonESP = true  -- New setting for skeleton ESP
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
-_G.SkeletonColor = Color3.fromRGB(255, 255, 255)  -- Color for skeleton lines
-
--- [Previous code remains the same until the activeESP storage]
 
 -- Active ESP Storage
 local activeESP = {}
 
--- Function to Create Skeleton Lines
-local function CreateSkeletonLines()
-    local lines = {}
-    for i = 1, 15 do  -- Create lines for skeleton connections
-        local line = Drawing.new("Line")
-        line.Thickness = 1
-        line.Color = _G.SkeletonColor
-        line.Visible = false
-        lines[i] = line
-    end
-    return lines
+-- Function to Create Name ESP
+local function CreateNameESP(player)
+    local nameTag = Drawing.new("Text")
+    nameTag.Size = 20
+    nameTag.Center = true
+    nameTag.Outline = true
+    nameTag.Color = _G.NameColor
+    nameTag.Font = 3
+    nameTag.Visible = false
+    return nameTag
 end
 
--- Function to Update Skeleton ESP
-local function UpdateSkeletonESP(character, skeletonLines)
-    if not character or not _G.SkeletonESP then
-        for _, line in ipairs(skeletonLines) do
-            line.Visible = false
-        end
-        return
-    end
-
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-
-    -- Define important parts for skeleton
-    local joints = {
-        head = character:FindFirstChild("Head"),
-        upperTorso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso"),
-        lowerTorso = character:FindFirstChild("LowerTorso"),
-        leftUpperArm = character:FindFirstChild("LeftUpperArm"),
-        rightUpperArm = character:FindFirstChild("RightUpperArm"),
-        leftLowerArm = character:FindFirstChild("LeftLowerArm"),
-        rightLowerArm = character:FindFirstChild("RightLowerArm"),
-        leftHand = character:FindFirstChild("LeftHand"),
-        rightHand = character:FindFirstChild("RightHand"),
-        leftUpperLeg = character:FindFirstChild("LeftUpperLeg"),
-        rightUpperLeg = character:FindFirstChild("RightUpperLeg"),
-        leftLowerLeg = character:FindFirstChild("LeftLowerLeg"),
-        rightLowerLeg = character:FindFirstChild("RightLowerLeg"),
-        leftFoot = character:FindFirstChild("LeftFoot"),
-        rightFoot = character:FindFirstChild("RightFoot")
-    }
-
-    local function drawBone(line, part1, part2)
-        if not part1 or not part2 then
-            line.Visible = false
-            return
-        end
-
-        local pos1 = Camera:WorldToViewportPoint(part1.Position)
-        local pos2 = Camera:WorldToViewportPoint(part2.Position)
-
-        if pos1.Z < 0 or pos2.Z < 0 then
-            line.Visible = false
-            return
-        end
-
-        line.From = Vector2.new(pos1.X, pos1.Y)
-        line.To = Vector2.new(pos2.X, pos2.Y)
-        line.Color = _G.SkeletonColor
-        line.Visible = true
-    end
-
-    local lineIndex = 1
-    
-    -- Draw spine
-    if joints.head and joints.upperTorso then
-        drawBone(skeletonLines[lineIndex], joints.head, joints.upperTorso)
-        lineIndex = lineIndex + 1
-    end
-    
-    if joints.upperTorso and joints.lowerTorso then
-        drawBone(skeletonLines[lineIndex], joints.upperTorso, joints.lowerTorso)
-        lineIndex = lineIndex + 1
-    end
-
-    -- Draw arms
-    if joints.upperTorso and joints.leftUpperArm then
-        drawBone(skeletonLines[lineIndex], joints.upperTorso, joints.leftUpperArm)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.leftUpperArm and joints.leftLowerArm then
-        drawBone(skeletonLines[lineIndex], joints.leftUpperArm, joints.leftLowerArm)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.leftLowerArm and joints.leftHand then
-        drawBone(skeletonLines[lineIndex], joints.leftLowerArm, joints.leftHand)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.upperTorso and joints.rightUpperArm then
-        drawBone(skeletonLines[lineIndex], joints.upperTorso, joints.rightUpperArm)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.rightUpperArm and joints.rightLowerArm then
-        drawBone(skeletonLines[lineIndex], joints.rightUpperArm, joints.rightLowerArm)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.rightLowerArm and joints.rightHand then
-        drawBone(skeletonLines[lineIndex], joints.rightLowerArm, joints.rightHand)
-        lineIndex = lineIndex + 1
-    end
-
-    -- Draw legs
-    if joints.lowerTorso and joints.leftUpperLeg then
-        drawBone(skeletonLines[lineIndex], joints.lowerTorso, joints.leftUpperLeg)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.leftUpperLeg and joints.leftLowerLeg then
-        drawBone(skeletonLines[lineIndex], joints.leftUpperLeg, joints.leftLowerLeg)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.leftLowerLeg and joints.leftFoot then
-        drawBone(skeletonLines[lineIndex], joints.leftLowerLeg, joints.leftFoot)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.lowerTorso and joints.rightUpperLeg then
-        drawBone(skeletonLines[lineIndex], joints.lowerTorso, joints.rightUpperLeg)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.rightUpperLeg and joints.rightLowerLeg then
-        drawBone(skeletonLines[lineIndex], joints.rightUpperLeg, joints.rightLowerLeg)
-        lineIndex = lineIndex + 1
-    end
-
-    if joints.rightLowerLeg and joints.rightFoot then
-        drawBone(skeletonLines[lineIndex], joints.rightLowerLeg, joints.rightFoot)
-        lineIndex = lineIndex + 1
-    end
-
-    -- Hide unused lines
-    for i = lineIndex, #skeletonLines do
-        skeletonLines[i].Visible = false
-    end
-end
-
--- Modify the DrawESPBoxWithHealth function to include skeleton lines
+-- Function to Create Box ESP with Health Bar
 local function DrawESPBoxWithHealth(player)
-    -- [Previous box, health bar, and name tag code remains the same]
-    
-    -- Add skeleton lines
-    local skeletonLines = CreateSkeletonLines()
-    
-    -- Modify the RenderStepped connection to include skeleton updates
+    local character = player.Character or player.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+    if not rootPart then return end
+
+    -- Create Box
+    local box = Drawing.new("Square")
+    box.Thickness = 2
+    box.Filled = false
+    box.Color = _G.BoxColor
+    box.Visible = false
+
+    -- Create Health Bar
+    local healthBar = Drawing.new("Square")
+    healthBar.Thickness = 1
+    healthBar.Filled = true
+    healthBar.Color = Color3.fromRGB(0, 255, 0)
+    healthBar.Visible = false
+
+    -- Create Name Tag
+    local nameTag = CreateNameESP(player)
+
+    local healthBackground = Drawing.new("Square")
+    healthBackground.Thickness = 1
+    healthBackground.Filled = true
+    healthBackground.Color = Color3.fromRGB(0, 255, 0)
+    healthBackground.Visible = false
+
+    -- Update Box, Health Bar, and Name Position
     local connection
     connection = RunService.RenderStepped:Connect(function()
         if character and character.Parent and rootPart then
-            -- [Previous box, health bar, and name tag updates remain the same]
-            
-            -- Update skeleton ESP
-            if _G.SkeletonESP then
-                UpdateSkeletonESP(character, skeletonLines)
-            else
-                for _, line in ipairs(skeletonLines) do
-                    line.Visible = false
+            local rootPos = rootPart.Position
+            local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
+
+            if onScreen then
+                local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
+                local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+
+                -- Update Box
+                box.Size = size
+                box.Position = boxPosition
+                box.Color = _G.BoxColor
+                box.Visible = _G.BoxESPEnabled
+
+                -- Update Name Tag
+                nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
+                nameTag.Text = player.Name
+                nameTag.Color = _G.NameColor
+                nameTag.Visible = _G.NameESPEnabled
+
+                -- Update Health Bar
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    local healthFraction = humanoid.Health / humanoid.MaxHealth
+                    healthBar.Size = Vector2.new(5, size.Y * healthFraction)
+                    healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
+                    healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+                    healthBar.Visible = _G.HealthESPEnabled
+                else
+                    healthBar.Visible = false
                 end
+            else
+                box.Visible = false
+                healthBar.Visible = false
+                nameTag.Visible = false
             end
         else
-            -- [Previous visibility settings remain the same]
-            for _, line in ipairs(skeletonLines) do
-                line.Visible = false
-            end
+            box.Visible = false
+
+            healthBar.Visible = false
+            nameTag.Visible = false
         end
     end)
 
-    -- Modify cleanup to include skeleton lines
+    -- Handle Character Removal
     character.AncestryChanged:Connect(function(_, parent)
         if not parent then
-            -- [Previous cleanup code remains the same]
-            for _, line in ipairs(skeletonLines) do
-                line.Visible = false
-                line:Remove()
+            box.Visible = false
+            healthBar.Visible = false
+
+            nameTag.Visible = false
+            if connection then
+                connection:Disconnect()
             end
+            box:Remove()
+            healthBackground:Remove()
+            healthBar:Remove()
+            nameTag:Remove()
         end
     end)
 
-    return box, healthBar, healthBackground, nameTag, skeletonLines, connection
+    return box, healthBar, healthBackground, nameTag, connection
 end
 
--- Add skeleton lines to ESP storage in applyBoxESPWithHealth
+-- Apply Box ESP with Health Bar to Player
 local function applyBoxESPWithHealth(player)
-    -- [Previous code remains the same until DrawESPBoxWithHealth call]
-    local box, healthBar, healthBackground, nameTag, skeletonLines, connection = DrawESPBoxWithHealth(player)
+    if not player then return end
+    local character = player.Character or player.CharacterAdded:Wait()
+    if not character then return end
 
+    -- Create Box, Health Bar, and Name Tag
+    local box, healthBar, healthBackground, nameTag, connection = DrawESPBoxWithHealth(player)
+
+    -- Store ESP objects for cleanup later
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
         healthBackground = healthBackground,
         nameTag = nameTag,
-        skeletonLines = skeletonLines,
         updateConnection = connection,
     }
 end
 
--- Modify removeESP to clean up skeleton lines
+-- Remove ESP for a player
 local function removeESP(player)
     local espData = activeESP[player]
     if espData then
-        -- [Previous cleanup code remains the same]
-        if espData.skeletonLines then
-            for _, line in ipairs(espData.skeletonLines) do
-                line:Remove()
-            end
+        if espData.box then
+            espData.box:Remove()
+        end
+        if espData.healthBar then
+            espData.healthBar:Remove()
+        end
+        if espData.healthBackground then
+            espData.healthBackground:Remove()
+        end
+        if espData.nameTag then
+            espData.nameTag:Remove()
+        end
+        if espData.updateConnection then
+            espData.updateConnection:Disconnect()
         end
         activeESP[player] = nil
     end
 end
-
--- Add skeleton ESP toggle function
-local function onSkeletonESPToggle(newState)
-    toggleESPFeature("SkeletonESP", newState)
-end
-
--- [Rest of the code remains the same]
 
 -- Initialize ESP for all players
 local function initializeESP(player)
