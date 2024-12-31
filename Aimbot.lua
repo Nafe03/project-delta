@@ -1,4 +1,3 @@
--- Services
 local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -17,8 +16,8 @@ _G.LegitAimbot = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 1      -- Default smoothness for regular aimbot
-_G.LegitSensitivity = 0.1 -- Default sensitivity for legit aimbot
+_G.Sensitivity = 1      
+_G.LegitSensitivity = 0.1 
 _G.PredictionAmount = 0
 _G.AirPredictionAmount = 0
 _G.BulletDropCompensation = 0
@@ -28,6 +27,7 @@ _G.WallCheck = false
 _G.PredictionMultiplier = 1.5
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
+_G.DamageAmount = 0
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -37,6 +37,68 @@ _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
+
+-- Damage Indicator Function
+local function CreateDamageIndicator(character, damage)
+    if not character then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Name = "DamageIndicator"
+    
+    local damageLabel = Instance.new("TextLabel")
+    damageLabel.Size = UDim2.new(1, 0, 1, 0)
+    damageLabel.BackgroundTransparency = 1
+    damageLabel.Text = "Damage: " .. tostring(damage)
+    damageLabel.TextColor3 = Color3.new(1, 0, 0)
+    damageLabel.TextStrokeTransparency = 0
+    damageLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    damageLabel.Font = Enum.Font.SourceSansBold
+    damageLabel.TextSize = 20
+    damageLabel.Parent = billboard
+    
+    billboard.Parent = character.Head
+    
+    local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(billboard, tweenInfo, {
+        StudsOffset = Vector3.new(0, 5, 0),
+        Size = UDim2.new(0, 120, 0, 48)
+    })
+    tween:Play()
+    
+    game.Debris:AddItem(billboard, 1)
+end
+
+-- Setup Damage Hook
+local function SetupDamageHook()
+    if game.PlaceId == 2788229376 then
+        local mt = getrawmetatable(game)
+        local old = mt.__namecall
+        setreadonly(mt, false)
+        
+        mt.__namecall = newcclosure(function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if method == "FireServer" and self.Name == "RemoteEvent" and args[1] == "Damage" then
+                local target = args[2]
+                if target and target.Character then
+                    _G.DamageAmount = args[3] or 0
+                    CreateDamageIndicator(target.Character, _G.DamageAmount)
+                end
+            end
+            
+            return old(self, ...)
+        end)
+        
+        setreadonly(mt, true)
+    end
+end
+
+-- Initialize damage hook
+SetupDamageHook()
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -151,11 +213,9 @@ local function PredictTargetPosition(Target)
         local isFlying = false
         local isExploiting = false
         
-        -- Check for abnormal height
         local groundHeight = workspace:Raycast(Position, Vector3.new(0, -1000, 0))
         local heightFromGround = groundHeight and (Position.Y - groundHeight.Position.Y) or 0
         
-        -- Check for consistent air time
         local timeInAir = 0
         if Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
             timeInAir = timeInAir + 1
@@ -163,12 +223,10 @@ local function PredictTargetPosition(Target)
             timeInAir = 0
         end
         
-        -- Detect flying
         if heightFromGround > 20 and timeInAir > 50 then
             isFlying = true
         end
         
-        -- Detect speed exploits
         if Speed > 100 then
             isExploiting = true
         end
@@ -178,7 +236,6 @@ local function PredictTargetPosition(Target)
 
     local isFlying, isExploiting = DetectAbnormalMovement()
     
-    -- Enhanced prediction for flying/exploiting players
     if isFlying or isExploiting then
         local flyPredictionMultiplier = 2.5
         local verticalOffset = Vector3.new(
@@ -187,7 +244,6 @@ local function PredictTargetPosition(Target)
             Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
         )
         
-        -- Add extra vertical prediction for flying players
         if isFlying then
             verticalOffset = verticalOffset + Vector3.new(
                 0,
@@ -199,7 +255,6 @@ local function PredictTargetPosition(Target)
         return Position + verticalOffset
     end
     
-    -- Regular prediction for normal players (rest of the original code)
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
@@ -269,7 +324,6 @@ local function ResolveTargetPosition(Target)
     local predictedPosition = PredictTargetPosition(Target)
     if not predictedPosition then return end
     
-    -- Additional smoothing for very fast movements
     local character = Target.Character
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -277,7 +331,6 @@ local function ResolveTargetPosition(Target)
     if humanoid and rootPart then
         local speed = rootPart.Velocity.Magnitude
         if speed > _G.FastTargetSpeedThreshold then
-            -- Apply additional smoothing for high-speed targets
             local currentPos = rootPart.Position
             local smoothFactor = math.clamp(1 - (speed / 200), 0.3, 0.8)
             predictedPosition = currentPos:Lerp(predictedPosition, smoothFactor)
@@ -287,7 +340,7 @@ local function ResolveTargetPosition(Target)
     return predictedPosition
 end
 
--- Input handling for aimbot activation and toggling between modes
+-- Input handling
 UserInputService.InputBegan:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
@@ -300,13 +353,13 @@ UserInputService.InputBegan:Connect(function(Input)
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                     CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                end
             end
         end
     elseif Input.KeyCode == _G.ToggleAimbotKey then
         _G.AimbotEnabled = not _G.AimbotEnabled
         if _G.AimbotEnabled then
             _G.LegitAimbot = false
-           end
         end
     end
 end)
@@ -321,6 +374,7 @@ UserInputService.InputEnded:Connect(function(Input)
         end
     end
 end)
+
 
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
