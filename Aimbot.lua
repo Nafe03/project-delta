@@ -131,34 +131,87 @@ local function GetClosestPlayerToMouse()
     return Target
 end
 
+-- Previous code remains the same until PredictTargetPosition function
+
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
 
+    -- Calculate base velocity
     local Velocity = AimPart.Velocity
     local predictedPosition = AimPart.Position
     local speed = Velocity.Magnitude
 
+    -- Enhanced velocity detection
+    local verticalSpeed = math.abs(Velocity.Y)
+    local horizontalSpeed = math.sqrt(Velocity.X^2 + Velocity.Z^2)
+    
+    -- Detect unusual movement patterns
     local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local predictionFactor = _G.PredictionMultiplier * (isFastMoving and 1.5 or 1)
-
-    predictedPosition = predictedPosition + Vector3.new(
-        Velocity.X * _G.PredictionAmount * predictionFactor,
-        0,
-        Velocity.Z * _G.PredictionAmount * predictionFactor
-    )
-
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid and (humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping) then
+    local isAbnormalVertical = verticalSpeed > 50 -- Threshold for detecting vertical cheats
+    local isAbnormalHorizontal = horizontalSpeed > 100 -- Threshold for detecting speed cheats
+    
+    -- Adjust prediction based on movement type
+    local predictionFactor = _G.PredictionMultiplier
+    
+    if isAbnormalVertical or isAbnormalHorizontal then
+        -- Enhanced prediction for cheated movement
+        predictionFactor = predictionFactor * 2.5 -- Increase prediction for cheated movement
+        
+        -- Add additional vertical prediction for flying cheats
+        if isAbnormalVertical then
+            predictedPosition = predictedPosition + Vector3.new(
+                0,
+                Velocity.Y * _G.PredictionAmount * predictionFactor * 1.5,
+                0
+            )
+        end
+        
+        -- Add enhanced horizontal prediction for speed cheats
+        if isAbnormalHorizontal then
+            local horizontalDirection = Vector3.new(Velocity.X, 0, Velocity.Z).Unit
+            predictedPosition = predictedPosition + horizontalDirection * (horizontalSpeed * _G.PredictionAmount * predictionFactor)
+        end
+    else
+        -- Normal prediction for regular movement
         predictedPosition = predictedPosition + Vector3.new(
+            Velocity.X * _G.PredictionAmount * predictionFactor,
             0,
-            Velocity.Y * _G.AirPredictionAmount * predictionFactor,
-            0
+            Velocity.Z * _G.PredictionAmount * predictionFactor
         )
     end
 
+    -- Check for jumping/falling state
+    local humanoid = Target.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        local state = humanoid:GetState()
+        if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+            -- Enhanced air prediction
+            predictedPosition = predictedPosition + Vector3.new(
+                0,
+                Velocity.Y * _G.AirPredictionAmount * predictionFactor * 1.2,
+                0
+            )
+        end
+    end
+
+    -- Add acceleration-based prediction
+    local lastPosition = AimPart:GetAttribute("LastPosition")
+    local lastVelocity = AimPart:GetAttribute("LastVelocity")
+    
+    if lastPosition and lastVelocity then
+        local acceleration = (Velocity - Vector3.new(lastVelocity.X, lastVelocity.Y, lastVelocity.Z))
+        predictedPosition = predictedPosition + acceleration * (_G.PredictionAmount * 0.5)
+    end
+    
+    -- Store current values for next frame
+    AimPart:SetAttribute("LastPosition", AimPart.Position)
+    AimPart:SetAttribute("LastVelocity", Vector3.new(Velocity.X, Velocity.Y, Velocity.Z))
+
     return predictedPosition
 end
+
+-- Rest of the code remains the same
 
 local function ResolveTargetPosition(Target)
     local humanoid = Target.Character:FindFirstChild("Humanoid")
