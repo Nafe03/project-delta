@@ -146,46 +146,91 @@ local function PredictTargetPosition(Target)
     local Position = AimPart.Position
     local Speed = Velocity.Magnitude
     
-    -- Base prediction calculation
+    -- Detect potential exploiters/flyers
+    local function DetectAbnormalMovement()
+        local isFlying = false
+        local isExploiting = false
+        
+        -- Check for abnormal height
+        local groundHeight = workspace:Raycast(Position, Vector3.new(0, -1000, 0))
+        local heightFromGround = groundHeight and (Position.Y - groundHeight.Position.Y) or 0
+        
+        -- Check for consistent air time
+        local timeInAir = 0
+        if Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+            timeInAir = timeInAir + 1
+        else
+            timeInAir = 0
+        end
+        
+        -- Detect flying
+        if heightFromGround > 20 and timeInAir > 50 then
+            isFlying = true
+        end
+        
+        -- Detect speed exploits
+        if Speed > 100 then
+            isExploiting = true
+        end
+        
+        return isFlying, isExploiting
+    end
+
+    local isFlying, isExploiting = DetectAbnormalMovement()
+    
+    -- Enhanced prediction for flying/exploiting players
+    if isFlying or isExploiting then
+        local flyPredictionMultiplier = 2.5
+        local verticalOffset = Vector3.new(
+            Velocity.X * _G.PredictionAmount * flyPredictionMultiplier,
+            Velocity.Y * _G.PredictionAmount * flyPredictionMultiplier,
+            Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
+        )
+        
+        -- Add extra vertical prediction for flying players
+        if isFlying then
+            verticalOffset = verticalOffset + Vector3.new(
+                0,
+                Velocity.Y * _G.AirPredictionAmount * 3,
+                0
+            )
+        end
+        
+        return Position + verticalOffset
+    end
+    
+    -- Regular prediction for normal players (rest of the original code)
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2) -- Adjust multiplier based on speed
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
         
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5, -- Reduced vertical prediction
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
             Velocity.Z * baseMultiplier * speedBasedMultiplier
         )
     end
     
-    -- Movement pattern recognition
     local function AnalyzeMovementPattern()
-        local pattern = {
+        return {
             isZigZagging = math.abs(Velocity.X) > 15 and math.abs(Velocity.Z) > 15,
             isJumping = Humanoid:GetState() == Enum.HumanoidStateType.Jumping,
             isFalling = Humanoid:GetState() == Enum.HumanoidStateType.Freefall,
             isRunning = Speed > 15
         }
-        return pattern
     end
     
-    -- Adaptive prediction based on movement patterns
     local function CalculateAdaptivePrediction()
         local baseOffset = CalculateBaseOffset()
         local pattern = AnalyzeMovementPattern()
         local finalOffset = baseOffset
         
-        -- Adjust for zig-zagging
         if pattern.isZigZagging then
-            finalOffset = finalOffset * 1.2 -- Increase prediction for erratic movement
+            finalOffset = finalOffset * 1.2
         end
         
-        -- Adjust for vertical movement
         if pattern.isJumping or pattern.isFalling then
-            -- Switch to air aim part if configured
             AimPart = Character:FindFirstChild(_G.AirAimPart) or AimPart
-            
-            -- Enhanced vertical prediction
             local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
             finalOffset = finalOffset + Vector3.new(
                 0,
@@ -194,7 +239,6 @@ local function PredictTargetPosition(Target)
             )
         end
         
-        -- Distance-based adjustment
         local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
         local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
         finalOffset = finalOffset * distanceMultiplier
@@ -202,11 +246,9 @@ local function PredictTargetPosition(Target)
         return finalOffset
     end
     
-    -- Calculate final predicted position
     local predictedOffset = CalculateAdaptivePrediction()
     local predictedPosition = Position + predictedOffset
     
-    -- Apply bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
