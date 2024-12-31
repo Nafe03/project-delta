@@ -133,83 +133,157 @@ end
 
 -- Previous code remains the same until PredictTargetPosition function
 
+-- Add these variables at the top with the other global settings
+_G.MaxPositionHistory = 10  -- How many previous positions to store
+_G.FlyingSpeedMultiplier = 3.5  -- Increased prediction for flying
+_G.PatternRecognitionEnabled = true
+
+-- Add this new table to store position history
+local TargetHistory = {}
+
+local function CalculateTrajectory(positionHistory)
+    if #positionHistory < 3 then return Vector3.new(0, 0, 0) end
+    
+    local velocities = {}
+    local accelerations = {}
+    
+    -- Calculate velocities between positions
+    for i = 2, #positionHistory do
+        local velocity = (positionHistory[i] - positionHistory[i-1])
+        table.insert(velocities, velocity)
+    end
+    
+    -- Calculate accelerations between velocities
+    for i = 2, #velocities do
+        local acceleration = (velocities[i] - velocities[i-1])
+        table.insert(accelerations, acceleration)
+    end
+    
+    -- Average acceleration
+    local avgAcceleration = Vector3.new(0, 0, 0)
+    for _, acc in ipairs(accelerations) do
+        avgAcceleration = avgAcceleration + acc
+    end
+    avgAcceleration = avgAcceleration / #accelerations
+    
+    return avgAcceleration
+end
+
+local function DetectMovementPattern(positionHistory)
+    if #positionHistory < 5 then return "unknown" end
+    
+    local verticalPattern = 0
+    local horizontalPattern = 0
+    
+    for i = 2, #positionHistory do
+        local movement = positionHistory[i] - positionHistory[i-1]
+        verticalPattern = verticalPattern + math.abs(movement.Y)
+        horizontalPattern = horizontalPattern + math.sqrt(movement.X^2 + movement.Z^2)
+    end
+    
+    if verticalPattern > horizontalPattern * 2 then
+        return "vertical_flying"
+    elseif horizontalPattern > verticalPattern * 2 then
+        return "horizontal_flying"
+    else
+        return "diagonal_flying"
+    end
+end
+
 local function PredictTargetPosition(Target)
     local AimPart = Target.Character:FindFirstChild(_G.AimPart)
     if not AimPart then return end
-
-    -- Calculate base velocity
+    
+    -- Store position history for this target
+    if not TargetHistory[Target] then
+        TargetHistory[Target] = {}
+    end
+    
+    table.insert(TargetHistory[Target], AimPart.Position)
+    if #TargetHistory[Target] > _G.MaxPositionHistory then
+        table.remove(TargetHistory[Target], 1)
+    end
+    
+    -- Get current velocity and position
     local Velocity = AimPart.Velocity
-    local predictedPosition = AimPart.Position
+    local CurrentPosition = AimPart.Position
     local speed = Velocity.Magnitude
-
-    -- Enhanced velocity detection
+    
+    -- Advanced movement detection
     local verticalSpeed = math.abs(Velocity.Y)
     local horizontalSpeed = math.sqrt(Velocity.X^2 + Velocity.Z^2)
+    local isFlying = verticalSpeed > 35 or horizontalSpeed > 65
     
-    -- Detect unusual movement patterns
-    local isFastMoving = speed >= _G.FastTargetSpeedThreshold
-    local isAbnormalVertical = verticalSpeed > 50 -- Threshold for detecting vertical cheats
-    local isAbnormalHorizontal = horizontalSpeed > 100 -- Threshold for detecting speed cheats
+    -- Initialize predicted position
+    local predictedPosition = CurrentPosition
     
-    -- Adjust prediction based on movement type
-    local predictionFactor = _G.PredictionMultiplier
-    
-    if isAbnormalVertical or isAbnormalHorizontal then
-        -- Enhanced prediction for cheated movement
-        predictionFactor = predictionFactor * 2.5 -- Increase prediction for cheated movement
+    if isFlying then
+        -- Get movement pattern
+        local pattern = DetectMovementPattern(TargetHistory[Target])
+        local trajectory = CalculateTrajectory(TargetHistory[Target])
         
-        -- Add additional vertical prediction for flying cheats
-        if isAbnormalVertical then
+        -- Calculate advanced prediction
+        local predictionMultiplier = _G.FlyingSpeedMultiplier
+        
+        -- Adjust prediction based on pattern
+        if pattern == "vertical_flying" then
+            predictionMultiplier = predictionMultiplier * 1.5
             predictedPosition = predictedPosition + Vector3.new(
-                0,
-                Velocity.Y * _G.PredictionAmount * predictionFactor * 1.5,
-                0
+                Velocity.X * _G.PredictionAmount * predictionMultiplier,
+                Velocity.Y * _G.PredictionAmount * predictionMultiplier * 2,
+                Velocity.Z * _G.PredictionAmount * predictionMultiplier
+            )
+        elseif pattern == "horizontal_flying" then
+            predictionMultiplier = predictionMultiplier * 1.3
+            predictedPosition = predictedPosition + Vector3.new(
+                Velocity.X * _G.PredictionAmount * predictionMultiplier * 1.5,
+                Velocity.Y * _G.PredictionAmount * predictionMultiplier,
+                Velocity.Z * _G.PredictionAmount * predictionMultiplier * 1.5
+            )
+        else -- diagonal_flying or unknown
+            predictedPosition = predictedPosition + Vector3.new(
+                Velocity.X * _G.PredictionAmount * predictionMultiplier,
+                Velocity.Y * _G.PredictionAmount * predictionMultiplier,
+                Velocity.Z * _G.PredictionAmount * predictionMultiplier
             )
         end
         
-        -- Add enhanced horizontal prediction for speed cheats
-        if isAbnormalHorizontal then
-            local horizontalDirection = Vector3.new(Velocity.X, 0, Velocity.Z).Unit
-            predictedPosition = predictedPosition + horizontalDirection * (horizontalSpeed * _G.PredictionAmount * predictionFactor)
+        -- Apply trajectory prediction
+        predictedPosition = predictedPosition + (trajectory * (_G.PredictionAmount * 0.5))
+        
+        -- Additional compensation for rapid direction changes
+        if #TargetHistory[Target] >= 3 then
+            local recentChange = (TargetHistory[Target][#TargetHistory[Target]] - TargetHistory[Target][#TargetHistory[Target]-1])
+            predictedPosition = predictedPosition + (recentChange * _G.PredictionAmount)
         end
     else
-        -- Normal prediction for regular movement
+        -- Normal prediction for non-flying players
         predictedPosition = predictedPosition + Vector3.new(
-            Velocity.X * _G.PredictionAmount * predictionFactor,
-            0,
-            Velocity.Z * _G.PredictionAmount * predictionFactor
+            Velocity.X * _G.PredictionAmount,
+            Velocity.Y * _G.PredictionAmount,
+            Velocity.Z * _G.PredictionAmount
         )
     end
-
-    -- Check for jumping/falling state
-    local humanoid = Target.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        local state = humanoid:GetState()
-        if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
-            -- Enhanced air prediction
-            predictedPosition = predictedPosition + Vector3.new(
-                0,
-                Velocity.Y * _G.AirPredictionAmount * predictionFactor * 1.2,
-                0
-            )
+    
+    -- Cleanup old history for players no longer nearby
+    for player, _ in pairs(TargetHistory) do
+        if not player or not player.Character or (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 1000 then
+            TargetHistory[player] = nil
         end
     end
-
-    -- Add acceleration-based prediction
-    local lastPosition = AimPart:GetAttribute("LastPosition")
-    local lastVelocity = AimPart:GetAttribute("LastVelocity")
     
-    if lastPosition and lastVelocity then
-        local acceleration = (Velocity - Vector3.new(lastVelocity.X, lastVelocity.Y, lastVelocity.Z))
-        predictedPosition = predictedPosition + acceleration * (_G.PredictionAmount * 0.5)
-    end
-    
-    -- Store current values for next frame
-    AimPart:SetAttribute("LastPosition", AimPart.Position)
-    AimPart:SetAttribute("LastVelocity", Vector3.new(Velocity.X, Velocity.Y, Velocity.Z))
-
     return predictedPosition
 end
+
+-- Add this cleanup when switching targets
+UserInputService.InputBegan:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+        -- Clear history when switching targets
+        if CurrentTarget then
+            TargetHistory[CurrentTarget] = nil
+        end
+    end
+end)
 
 -- Rest of the code remains the same
 
