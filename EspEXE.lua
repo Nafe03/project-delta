@@ -10,20 +10,33 @@ local Camera = Workspace.CurrentCamera
 -- ESP Settings
 _G.ESPEnabled = true
 _G.HealthESPEnabled = true
-_G.NameESPEnabled = false
+_G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.DistanceESPEnabled = false
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
+_G.NameColor = Color3.fromRGB(255, 255, 255)
 
 -- Active ESP Storage
 local activeESP = {}
+
+-- Function to Create Name ESP
+local function CreateNameESP(player)
+    local nameTag = Drawing.new("Text")
+    nameTag.Size = 20
+    nameTag.Center = true
+    nameTag.Outline = true
+    nameTag.Color = _G.NameColor
+    nameTag.Font = 3
+    nameTag.Visible = false
+    return nameTag
+end
 
 -- Function to Create Box ESP with Health Bar
 local function DrawESPBoxWithHealth(player)
     local character = player.Character or player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
-    if not rootPart then return end -- Avoid errors if HumanoidRootPart is missing
+    if not rootPart then return end
 
     -- Create Box
     local box = Drawing.new("Square")
@@ -39,30 +52,46 @@ local function DrawESPBoxWithHealth(player)
     healthBar.Color = Color3.fromRGB(0, 255, 0)
     healthBar.Visible = false
 
-    -- Update Box and Health Bar Position
+    -- Create Name Tag
+    local nameTag = CreateNameESP(player)
+
+    local healthBackground = Drawing.new("Square")
+    healthBackground.Thickness = 1
+    healthBackground.Filled = true
+    healthBackground.Color = Color3.fromRGB(0, 255, 0)
+    healthBackground.Visible = false
+
+    -- Update Box, Health Bar, and Name Position
     local connection
     connection = RunService.RenderStepped:Connect(function()
-        if character and character.Parent and rootPart and _G.BoxESPEnabled then
+        if character and character.Parent and rootPart then
             local rootPos = rootPart.Position
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
 
             if onScreen then
                 local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
-                local boxPosition = Vector2.new(screenPos.X - size.X / 8, screenPos.Y - size.Y / 2)
+                local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
 
                 -- Update Box
                 box.Size = size
                 box.Position = boxPosition
                 box.Color = _G.BoxColor
-                box.Visible = true
+                box.Visible = _G.BoxESPEnabled
+
+                -- Update Name Tag
+                nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
+                nameTag.Text = player.Name
+                nameTag.Color = _G.NameColor
+                nameTag.Visible = _G.NameESPEnabled
 
                 -- Update Health Bar
                 local humanoid = character:FindFirstChild("Humanoid")
                 if humanoid then
                     local healthFraction = humanoid.Health / humanoid.MaxHealth
                     healthBar.Size = Vector2.new(5, size.Y * healthFraction)
-                    healthBar.Position = Vector2.new(boxPosition.X - 3, boxPosition.Y + size.Y * (1 - healthFraction))
+                    healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
                     healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+                    healthBar.BorderSizePixel = 1
                     healthBar.Visible = _G.HealthESPEnabled
                 else
                     healthBar.Visible = false
@@ -70,10 +99,13 @@ local function DrawESPBoxWithHealth(player)
             else
                 box.Visible = false
                 healthBar.Visible = false
+                nameTag.Visible = false
             end
         else
             box.Visible = false
+
             healthBar.Visible = false
+            nameTag.Visible = false
         end
     end)
 
@@ -82,15 +114,19 @@ local function DrawESPBoxWithHealth(player)
         if not parent then
             box.Visible = false
             healthBar.Visible = false
+
+            nameTag.Visible = false
             if connection then
                 connection:Disconnect()
             end
             box:Remove()
+            healthBackground:Remove()
             healthBar:Remove()
+            nameTag:Remove()
         end
     end)
 
-    return box, healthBar, connection
+    return box, healthBar, healthBackground, nameTag, connection
 end
 
 -- Apply Box ESP with Health Bar to Player
@@ -99,13 +135,15 @@ local function applyBoxESPWithHealth(player)
     local character = player.Character or player.CharacterAdded:Wait()
     if not character then return end
 
-    -- Create Box and Health Bar
-    local box, healthBar, connection = DrawESPBoxWithHealth(player)
+    -- Create Box, Health Bar, and Name Tag
+    local box, healthBar, healthBackground, nameTag, connection = DrawESPBoxWithHealth(player)
 
     -- Store ESP objects for cleanup later
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
+        healthBackground = healthBackground,
+        nameTag = nameTag,
         updateConnection = connection,
     }
 end
@@ -119,6 +157,12 @@ local function removeESP(player)
         end
         if espData.healthBar then
             espData.healthBar:Remove()
+        end
+        if espData.healthBackground then
+            espData.healthBackground:Remove()
+        end
+        if espData.nameTag then
+            espData.nameTag:Remove()
         end
         if espData.updateConnection then
             espData.updateConnection:Disconnect()
@@ -144,48 +188,45 @@ end
 
 -- Apply ESP to all players in-game and new ones joining
 for _, player in ipairs(Players:GetPlayers()) do
-    initializeESP(player)
+    if player ~= Player then  -- Don't apply ESP to local player
+        initializeESP(player)
+    end
 end
-Players.PlayerAdded:Connect(initializeESP)
+Players.PlayerAdded:Connect(function(player)
+    if player ~= Player then  -- Don't apply ESP to local player
+        initializeESP(player)
+    end
+end)
 Players.PlayerRemoving:Connect(removeESP)
-
 
 -- Toggle ESP Features
 local function toggleESPFeature(feature, state)
-	_G[feature] = state
+    _G[feature] = state
 end
 
 local function onHealthESPToggle(newState)
-	toggleESPFeature("HealthESPEnabled", newState)
+    toggleESPFeature("HealthESPEnabled", newState)
 end
 
 local function onNameESPToggle(newState)
-	toggleESPFeature("NameESPEnabled", newState)
+    toggleESPFeature("NameESPEnabled", newState)
 end
 
 local function onBoxESPToggle(newState)
-	toggleESPFeature("BoxESPEnabled", newState)
+    toggleESPFeature("BoxESPEnabled", newState)
 end
 
 local function onDistanceESPToggle(newState)
-	toggleESPFeature("DistanceESPEnabled", newState)
+    toggleESPFeature("DistanceESPEnabled", newState)
 end
 
-local function onHighlightToggle(newState)
-	toggleESPFeature("HighlightEnabled", newState)
-end
-
--- Example color change usage
-local function setHighlightColor(newColor)
-	_G.HighlightColor = newColor
-end
-
+-- Color Settings
 local function setBoxColor(newColor)
-	_G.BoxColor = newColor
+    _G.BoxColor = newColor
 end
 
-local function setHealthTextColor(newColor)
-	_G.HealthTextColor = newColor
+local function setNameColor(newColor)
+    _G.NameColor = newColor
 end
 
 setHighlightColor(Color3.fromRGB(255, 255, 255)) -- Changes highlight to red
