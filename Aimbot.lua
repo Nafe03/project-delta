@@ -149,6 +149,7 @@ local function IsPlayerAirborne(player)
 end
 
 -- Enhanced prediction function with more accurate calculations
+-- Enhanced prediction function for better CFrame exploit detection and compensation
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -175,21 +176,21 @@ local function PredictTargetPosition(Target)
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Detect fly hack or CFrame manipulation
+    -- Detect CFrame exploitation or unusual movements
     local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
 
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local isCFrameExploiting = movementDelta > (Speed + 15) * RunService.Heartbeat:Wait() * 2 -- Adjust threshold as needed
+    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
 
     if isCFrameExploiting then
         -- Fly hack/CFrame exploit detected; adjust prediction
-        local flyPredictionMultiplier = 2.4 -- Adjust based on observed behavior
+        local cframeMultiplier = 3.0 -- Multiplier for heavy CFrame manipulation
         local verticalOffset = Vector3.new(
-            Velocity.X * _G.PredictionAmount * flyPredictionMultiplier,
-            Velocity.Y * _G.AirPredictionAmount * flyPredictionMultiplier,
-            Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
+            Velocity.X * _G.PredictionAmount * cframeMultiplier,
+            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
+            Velocity.Z * _G.PredictionAmount * cframeMultiplier
         )
 
         return Position + verticalOffset
@@ -219,6 +220,7 @@ local function PredictTargetPosition(Target)
     local predictedOffset = CalculateAdaptivePrediction()
     local predictedPosition = Position + predictedOffset
 
+    -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
@@ -231,8 +233,6 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
-
-
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
