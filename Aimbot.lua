@@ -175,54 +175,27 @@ local function PredictTargetPosition(Target)
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- [Rest of the prediction logic remains the same...]
+    -- Detect fly hack or CFrame manipulation
+    local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
+    local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
 
-    local function DetectAbnormalMovement()
-        local isFlying = false
-        local isExploiting = false
+    character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-        local groundHeight = workspace:Raycast(Position, Vector3.new(0, -1000, 0))
-        local heightFromGround = groundHeight and (Position.Y - groundHeight.Position.Y) or 0
+    local isCFrameExploiting = movementDelta > (Speed + 10) * RunService.Heartbeat:Wait() * 2 -- Adjust threshold as needed
 
-        local timeInAir = 0
-        if Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-            timeInAir = timeInAir + 1
-        else
-            timeInAir = 0
-        end
-
-        if heightFromGround > 20 and timeInAir > 50 then
-            isFlying = true
-        end
-
-        if Speed > 100 then
-            isExploiting = true
-        end
-
-        return isFlying, isExploiting
-    end
-
-    local isFlying, isExploiting = DetectAbnormalMovement()
-
-    if isFlying or isExploiting then
-        local flyPredictionMultiplier = 2.5
+    if isCFrameExploiting then
+        -- Fly hack/CFrame exploit detected; adjust prediction
+        local flyPredictionMultiplier = 3.0 -- Adjust based on observed behavior
         local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * flyPredictionMultiplier,
-            Velocity.Y * _G.PredictionAmount * flyPredictionMultiplier,
+            Velocity.Y * _G.AirPredictionAmount * flyPredictionMultiplier,
             Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
         )
-
-        if isFlying then
-            verticalOffset = verticalOffset + Vector3.new(
-                0,
-                Velocity.Y * _G.AirPredictionAmount * 3,
-                0
-            )
-        end
 
         return Position + verticalOffset
     end
 
+    -- Normal prediction logic
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
@@ -234,38 +207,13 @@ local function PredictTargetPosition(Target)
         )
     end
 
-    local function AnalyzeMovementPattern()
-        return {
-            isZigZagging = math.abs(Velocity.X) > 15 and math.abs(Velocity.Z) > 15,
-            isJumping = Humanoid:GetState() == Enum.HumanoidStateType.Jumping,
-            isFalling = Humanoid:GetState() == Enum.HumanoidStateType.Freefall,
-            isRunning = Speed > 15
-        }
-    end
-
     local function CalculateAdaptivePrediction()
         local baseOffset = CalculateBaseOffset()
-        local pattern = AnalyzeMovementPattern()
-        local finalOffset = baseOffset
-
-        if pattern.isZigZagging then
-            finalOffset = finalOffset * 1.2
-        end
-
-        if pattern.isJumping or pattern.isFalling then
-            local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
-            finalOffset = finalOffset + Vector3.new(
-                0,
-                Velocity.Y * _G.AirPredictionAmount * verticalMultiplier,
-                0
-            )
-        end
-
         local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
         local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
-        finalOffset = finalOffset * distanceMultiplier
+        baseOffset = baseOffset * distanceMultiplier
 
-        return finalOffset
+        return baseOffset
     end
 
     local predictedOffset = CalculateAdaptivePrediction()
@@ -283,6 +231,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 
 -- Update the ResolveTargetPosition function to use the new prediction
