@@ -292,7 +292,6 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
-
 RunService.RenderStepped:Connect(function()
     if _G.UseCircle then
         FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
@@ -309,12 +308,8 @@ RunService.RenderStepped:Connect(function()
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 
                 if aimPosition then
-                    local currentCFrame = Camera.CFrame
-                    local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
-                    
-                    -- Use appropriate smoothness based on mode
-                    local lerpAmount = _G.LegitAimbot and _G.LegitSensitivity or _G.Sensitivity
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpAmount)
+                    -- Instantly lock the camera to the predicted position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
@@ -322,3 +317,4 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
