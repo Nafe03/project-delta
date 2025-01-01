@@ -186,7 +186,7 @@ local function PredictTargetPosition(Target)
 
     if isCFrameExploiting then
         -- Fly hack/CFrame exploit detected; adjust prediction
-        local cframeMultiplier = 3.0 -- Multiplier for heavy CFrame manipulation
+        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
         local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * cframeMultiplier,
             Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
