@@ -149,73 +149,139 @@ local function IsPlayerAirborne(player)
 end
 
 -- Enhanced prediction function with more accurate calculations
--- Enhanced prediction function with improved handling for CFrame speed and flight hacks
 local function PredictTargetPosition(Target)
-    if not Target or not Target.Character then return end
-
     local character = Target.Character
+    if not character then return end
+
+    local AimPart = character:FindFirstChild(_G.AimPart)
+    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
     local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     local Humanoid = character:FindFirstChild("Humanoid")
-    
-    if not (HumanoidRootPart and Humanoid) then return end
 
-    local Position = HumanoidRootPart.Position
+    if not (AimPart and HumanoidRootPart and Humanoid) then return end
+
+    -- Apply head offset if enabled and aiming at head
+    local Position = AimPart.Position
+    if _G.UseHeadOffset and _G.AimPart == "Head" then
+        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+    end
+
+    -- Use AirAimPart if the target is airborne
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+        Position = AirAimPart.Position
+    end
+
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Detect abnormal movement (CFrame or fly hacks)
+    -- [Rest of the prediction logic remains the same...]
+
     local function DetectAbnormalMovement()
         local isFlying = false
-        local isCFrameHacking = false
+        local isExploiting = false
 
-        local groundHeight = Workspace:Raycast(Position, Vector3.new(0, -1000, 0))
+        local groundHeight = workspace:Raycast(Position, Vector3.new(0, -1000, 0))
         local heightFromGround = groundHeight and (Position.Y - groundHeight.Position.Y) or 0
 
-        -- Track position over time to detect CFrame teleportation/speed
-        if not character.LastKnownPosition then
-            character.LastKnownPosition = Position
+        local timeInAir = 0
+        if Humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+            timeInAir = timeInAir + 1
+        else
+            timeInAir = 0
         end
-        
-        local positionDelta = (Position - character.LastKnownPosition).Magnitude
-        character.LastKnownPosition = Position
 
-        if heightFromGround > 20 then
+        if heightFromGround > 20 and timeInAir > 50 then
             isFlying = true
         end
 
-        if positionDelta > 20 then -- Adjust threshold for teleportation/speed hacks
-            isCFrameHacking = true
+        if Speed > 100 then
+            isExploiting = true
         end
 
-        return isFlying, isCFrameHacking
+        return isFlying, isExploiting
     end
 
-    local isFlying, isCFrameHacking = DetectAbnormalMovement()
+    local isFlying, isExploiting = DetectAbnormalMovement()
 
-    -- Apply higher multipliers for abnormal movement
-    local predictionMultiplier = _G.PredictionAmount
-    if isFlying or isCFrameHacking then
-        predictionMultiplier = _G.PredictionAmount * 2.5
+    if isFlying or isExploiting then
+        local flyPredictionMultiplier = 2.5
+        local verticalOffset = Vector3.new(
+            Velocity.X * _G.PredictionAmount * flyPredictionMultiplier,
+            Velocity.Y * _G.PredictionAmount * flyPredictionMultiplier,
+            Velocity.Z * _G.PredictionAmount * flyPredictionMultiplier
+        )
+
+        if isFlying then
+            verticalOffset = verticalOffset + Vector3.new(
+                0,
+                Velocity.Y * _G.AirPredictionAmount * 3,
+                0
+            )
+        end
+
+        return Position + verticalOffset
     end
 
-    local predictedOffset = Vector3.new(
-        Velocity.X * predictionMultiplier,
-        Velocity.Y * predictionMultiplier,
-        Velocity.Z * predictionMultiplier
-    )
+    local function CalculateBaseOffset()
+        local baseMultiplier = _G.PredictionAmount
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
 
-    -- Add bullet drop compensation
+        return Vector3.new(
+            Velocity.X * baseMultiplier * speedBasedMultiplier,
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
+            Velocity.Z * baseMultiplier * speedBasedMultiplier
+        )
+    end
+
+    local function AnalyzeMovementPattern()
+        return {
+            isZigZagging = math.abs(Velocity.X) > 15 and math.abs(Velocity.Z) > 15,
+            isJumping = Humanoid:GetState() == Enum.HumanoidStateType.Jumping,
+            isFalling = Humanoid:GetState() == Enum.HumanoidStateType.Freefall,
+            isRunning = Speed > 15
+        }
+    end
+
+    local function CalculateAdaptivePrediction()
+        local baseOffset = CalculateBaseOffset()
+        local pattern = AnalyzeMovementPattern()
+        local finalOffset = baseOffset
+
+        if pattern.isZigZagging then
+            finalOffset = finalOffset * 1.2
+        end
+
+        if pattern.isJumping or pattern.isFalling then
+            local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
+            finalOffset = finalOffset + Vector3.new(
+                0,
+                Velocity.Y * _G.AirPredictionAmount * verticalMultiplier,
+                0
+            )
+        end
+
+        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
+        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
+        finalOffset = finalOffset * distanceMultiplier
+
+        return finalOffset
+    end
+
+    local predictedOffset = CalculateAdaptivePrediction()
+    local predictedPosition = Position + predictedOffset
+
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        local distance = (Camera.CFrame.Position - Position).Magnitude
+        local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
             0,
-            -distance * _G.BulletDropCompensation,
+            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
             0
         )
-        predictedOffset = predictedOffset + dropCompensation
+        predictedPosition = predictedPosition + dropCompensation
     end
 
-    return Position + predictedOffset
+    return predictedPosition
 end
 
 
