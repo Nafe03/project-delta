@@ -306,9 +306,9 @@ RunService.RenderStepped:Connect(function()
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
-
+                
                 if aimPosition then
-                    -- Snap directly to the predicted target position
+                    -- Instantly set camera CFrame to look at the predicted position
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
@@ -317,5 +317,3 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
-
