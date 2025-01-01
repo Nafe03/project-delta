@@ -181,11 +181,11 @@ local function PredictTargetPosition(Target)
 
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local isCFrameExploiting = movementDelta > (Speed + 10) * RunService.Heartbeat:Wait() * 2 -- Adjust threshold as needed
+    local isCFrameExploiting = movementDelta > (Speed + 15) * RunService.Heartbeat:Wait() * 2 -- Adjust threshold as needed
 
     if isCFrameExploiting then
         -- Fly hack/CFrame exploit detected; adjust prediction
-        local flyPredictionMultiplier = 3.0 -- Adjust based on observed behavior
+        local flyPredictionMultiplier = 2.4 -- Adjust based on observed behavior
         local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * flyPredictionMultiplier,
             Velocity.Y * _G.AirPredictionAmount * flyPredictionMultiplier,
