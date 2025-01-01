@@ -28,6 +28,8 @@ _G.PredictionMultiplier = 1.5
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
+_G.HeadVerticalOffset = 0.5 -- Adjust this value to change how much above the head it aims
+_G.UseHeadOffset = true -- Toggle for head offset feature
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -158,16 +160,23 @@ local function PredictTargetPosition(Target)
 
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
+    -- Apply head offset if enabled and aiming at head
+    local Position = AimPart.Position
+    if _G.UseHeadOffset and _G.AimPart == "Head" then
+        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+    end
+
     -- Use AirAimPart if the target is airborne
     if IsPlayerAirborne(Target) and AirAimPart then
         AimPart = AirAimPart
+        Position = AirAimPart.Position
     end
 
     local Velocity = HumanoidRootPart.Velocity
-    local Position = AimPart.Position
     local Speed = Velocity.Magnitude
 
-    -- Detect potential exploiters/flyers
+    -- [Rest of the prediction logic remains the same...]
+
     local function DetectAbnormalMovement()
         local isFlying = false
         local isExploiting = false
@@ -244,7 +253,6 @@ local function PredictTargetPosition(Target)
         end
 
         if pattern.isJumping or pattern.isFalling then
-            AimPart = character:FindFirstChild(_G.AirAimPart) or AimPart
             local verticalMultiplier = pattern.isJumping and 1.3 or 0.7
             finalOffset = finalOffset + Vector3.new(
                 0,
@@ -263,7 +271,6 @@ local function PredictTargetPosition(Target)
     local predictedOffset = CalculateAdaptivePrediction()
     local predictedPosition = Position + predictedOffset
 
-    -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
