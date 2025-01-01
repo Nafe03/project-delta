@@ -287,6 +287,40 @@ end
 
 
 -- screen gui 
+local uiScreen = Instance.new('ScreenGui') do 
+    uiScreen.OnTopOfCoreBlur = true
+    uiScreen.DisplayOrder = 9e9
+    uiScreen.ZIndexBehavior = 'Global'
+    
+    
+    local str = ''
+    for i = 1, 8 do
+        str = str .. utf8.char(math.random(97, 2500))
+    end
+    uiScreen.Name = str
+    str = nil 
+    
+    if (typeof(syn) == 'table' and typeof(syn.protect_gui) == 'function') then
+        --syn.protect_gui(uiScreen)
+    end
+    if (gethui) then
+        uiScreen.Parent = gethui()
+    else
+        uiScreen.Parent = game:GetService('CoreGui')
+    end
+    
+    local notifContainer = Instance.new('Frame') do 
+        notifContainer.Active = false 
+        notifContainer.BackgroundTransparency = 1
+        notifContainer.Name = '#notif-container'
+        notifContainer.Position = UDim2.new(1, -250, 0, -50)
+        notifContainer.Size = UDim2.new(0, 200, 1, 0)
+        notifContainer.ZIndex = 0
+        
+        notifContainer.Parent = uiScreen
+    end
+end
+
 -- tooltip
 local tooltip = {} do 
     do
@@ -297,7 +331,7 @@ local tooltip = {} do
         main.BorderColor3 = theme.Inset2
         main.BorderMode = 'Inset'
         main.Name = '#main'
-        main.Size = UDim2.fromOffset(160, 70) -- Slightly larger for more content space
+        main.Size = UDim2.fromOffset(140, 60)
         main.Visible = false
         main.ZIndex = 3800
         
@@ -319,11 +353,11 @@ local tooltip = {} do
                 shadow.BackgroundTransparency = 1
                 shadow.BorderSizePixel = 0 
                 shadow.Image = 'rbxassetid://7331400934'
-                shadow.ImageColor3 = Color3.fromRGB(10, 10, 20) -- Subtler shadow for modern effect
+                shadow.ImageColor3 = Color3.fromRGB(0, 0, 5)
                 shadow.Name = '#shadow'
                 shadow.Position = UDim2.fromScale(0.5, 0.5)
                 shadow.ScaleType = 'Slice'
-                shadow.Size = UDim2.new(1, 60, 1, 60) -- Increased size for smoother shadow spread
+                shadow.Size = UDim2.new(1, 50, 1, 50)
                 shadow.SliceCenter = Rect.new(40, 40, 260, 260)
                 shadow.SliceScale = 1
                 shadow.ZIndex = 3799
@@ -333,7 +367,7 @@ local tooltip = {} do
             
             local trim = Instance.new('Frame') do 
                 trim.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                trim.BackgroundTransparency = 0.5 -- Subtle transparency for softer effect
+                trim.BackgroundTransparency = 0
                 trim.BorderSizePixel = 0 
                 trim.Name = '#trim'
                 trim.Position = UDim2.fromOffset(0, -2)
@@ -357,7 +391,7 @@ local tooltip = {} do
             
             local titleBar = Instance.new('Frame') do 
                 titleBar.BackgroundColor3 = theme.Window3
-                titleBar.BackgroundTransparency = 0.1 -- Slightly translucent for depth
+                titleBar.BackgroundTransparency = 0 
                 titleBar.BorderColor3 = theme.Inset3
                 titleBar.BorderSizePixel = 1
                 titleBar.BorderMode = 'Inset'
@@ -457,6 +491,7 @@ local tooltip = {} do
             end
         end
         
+        
         instances.main = main
         tooltip.instances = instances
     end
@@ -465,7 +500,6 @@ local tooltip = {} do
     tooltip.showing = false
     tooltip.update = nil
 end
-
 
 -- hint 
 local hint = {} do 
