@@ -24,11 +24,11 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = true
 _G.WallCheck = false
-_G.PredictionMultiplier = 1.5
+_G.PredictionMultiplier = 1.35
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
-_G.HeadVerticalOffset = 0.5 -- Adjust this value to change how much above the head it aims
+_G.HeadVerticalOffset = 0.6 -- Adjust this value to change how much above the head it aims
 _G.UseHeadOffset = true -- Toggle for head offset feature
 
 -- FOV Circle Settings
