@@ -30,7 +30,6 @@ _G.DynamicSensitivity = true
 _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0.3 -- Adjust this value to change how much above the head it aims
 _G.UseHeadOffset = true -- Toggle for head offset feature
-_G.LinePredic = true -- Toggle for the prediction line
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -40,6 +39,8 @@ _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
+
+-- Damage Indicator Function
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -51,13 +52,6 @@ FOVCircle.Visible = _G.CircleVisible
 FOVCircle.Transparency = _G.CircleTransparency
 FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
-
--- Define the line object for visualizing the prediction
-local PredictionLine = Drawing.new("Line")
-PredictionLine.Thickness = 2
-PredictionLine.Color = Color3.fromRGB(255, 0, 0) -- Red line for visualization
-PredictionLine.Transparency = 1
-PredictionLine.Visible = false
 
 -- Current Target Variables
 local CurrentTarget = nil
@@ -154,27 +148,113 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Enhanced prediction function
+-- Enhanced prediction function with more accurate calculations
+-- Enhanced prediction function for better CFrame exploit detection and compensation
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
 
     local AimPart = character:FindFirstChild(_G.AimPart)
-    local Position = AimPart and AimPart.Position
-    if not Position then return end
-
-    -- Prediction logic
+    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
     local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    local Velocity = HumanoidRootPart and HumanoidRootPart.Velocity
-    if not Velocity then return Position end
+    local Humanoid = character:FindFirstChild("Humanoid")
 
-    local Prediction = Position + (Velocity * _G.PredictionMultiplier)
-    return Prediction
+    if not (AimPart and HumanoidRootPart and Humanoid) then return end
+
+    -- Apply head offset if enabled and aiming at head
+    local Position = AimPart.Position
+    if _G.UseHeadOffset and _G.AimPart == "Head" then
+        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+    end
+
+    -- Use AirAimPart if the target is airborne
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+        Position = AirAimPart.Position
+    end
+
+    local Velocity = HumanoidRootPart.Velocity
+    local Speed = Velocity.Magnitude
+
+    -- Detect CFrame exploitation or unusual movements
+    local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
+    local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
+
+    character:SetAttribute("LastPosition", HumanoidRootPart.Position)
+
+    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
+
+    if isCFrameExploiting then
+        -- Fly hack/CFrame exploit detected; adjust prediction
+        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
+        local verticalOffset = Vector3.new(
+            Velocity.X * _G.PredictionAmount * cframeMultiplier,
+            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
+            Velocity.Z * _G.PredictionAmount * cframeMultiplier
+        )
+
+        return Position + verticalOffset
+    end
+
+    -- Normal prediction logic
+    local function CalculateBaseOffset()
+        local baseMultiplier = _G.PredictionAmount
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
+
+        return Vector3.new(
+            Velocity.X * baseMultiplier * speedBasedMultiplier,
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
+            Velocity.Z * baseMultiplier * speedBasedMultiplier
+        )
+    end
+
+    local function CalculateAdaptivePrediction()
+        local baseOffset = CalculateBaseOffset()
+        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
+        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
+        baseOffset = baseOffset * distanceMultiplier
+
+        return baseOffset
+    end
+
+    local predictedOffset = CalculateAdaptivePrediction()
+    local predictedPosition = Position + predictedOffset
+
+    -- Bullet drop compensation if enabled
+    if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
+        local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
+        local dropCompensation = Vector3.new(
+            0,
+            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
+            0
+        )
+        predictedPosition = predictedPosition + dropCompensation
+    end
+
+    return predictedPosition
 end
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
-    return PredictTargetPosition(Target)
+    if not Target or not Target.Character then return end
+    
+    local predictedPosition = PredictTargetPosition(Target)
+    if not predictedPosition then return end
+    
+    local character = Target.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoid and rootPart then
+        local speed = rootPart.Velocity.Magnitude
+        if speed > _G.FastTargetSpeedThreshold then
+            local currentPos = rootPart.Position
+            local smoothFactor = math.clamp(1 - (speed / 200), 0.3, 0.8)
+            predictedPosition = currentPos:Lerp(predictedPosition, smoothFactor)
+        end
+    end
+    
+    return predictedPosition
 end
 
 -- Input handling
@@ -186,7 +266,17 @@ UserInputService.InputBegan:Connect(function(Input)
             if CurrentTarget then
                 local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
                 Notify(mode, "Locked onto " .. CurrentTarget.Name)
+                if _G.VisibleHighlight then
+                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                end
             end
+        end
+    elseif Input.KeyCode == _G.ToggleAimbotKey then
+        _G.AimbotEnabled = not _G.AimbotEnabled
+        if _G.AimbotEnabled then
+            _G.LegitAimbot = false
         end
     end
 end)
@@ -195,7 +285,10 @@ UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
-        PredictionLine.Visible = false
+        if CurrentHighlight then
+            CurrentHighlight:Destroy()
+            CurrentHighlight = nil
+        end
     end
 end)
 
@@ -208,23 +301,19 @@ RunService.RenderStepped:Connect(function()
     end
 
     if Holding and ((_G.AimbotEnabled or _G.LegitAimbot) and CurrentTarget) then
-        local aimPosition = ResolveTargetPosition(CurrentTarget)
-        if aimPosition then
-            -- Set line visibility and position
-            if _G.LinePredic then
-                PredictionLine.Visible = true
-                PredictionLine.From = UserInputService:GetMouseLocation()
-                PredictionLine.To = Camera:WorldToScreenPoint(aimPosition)
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
+                local aimPosition = ResolveTargetPosition(CurrentTarget)
+                
+                if aimPosition then
+                    -- Instantly set camera CFrame to look at the predicted position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                end
             else
-                PredictionLine.Visible = false
+                CurrentTarget = nil
             end
-
-            -- Instantly set camera CFrame to look at the predicted position
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-        else
-            PredictionLine.Visible = false
         end
-    else
-        PredictionLine.Visible = false
     end
 end)
