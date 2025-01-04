@@ -64,7 +64,6 @@ screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 -- Lock Label Setup
 local LockLabel = Instance.new("TextLabel")
 LockLabel.Name = "LockLabel"
-LockLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 LockLabel.BackgroundTransparency = 1
 LockLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 LockLabel.BorderSizePixel = 0
