@@ -28,8 +28,9 @@ _G.PredictionMultiplier = 1.45
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
-_G.HeadVerticalOffset = 0.3 -- Adjust this value to change how much above the head it aims
-_G.UseHeadOffset = true -- Toggle for head offset feature
+_G.HeadVerticalOffset = 0.3
+_G.UseHeadOffset = true
+_G.LockOnTextLabel = true -- New setting for toggle
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -39,8 +40,6 @@ _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
-
--- Damage Indicator Function
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -57,20 +56,13 @@ FOVCircle.Thickness = _G.CircleThickness
 local CurrentTarget = nil
 local CurrentHighlight = nil
 
--- Function to send notifications
-local function Notify(title, text)
-    StarterGui:SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = 2;
-    })
-end
+-- Create ScreenGui if it doesn't exist
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AimbotGui"
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Add these variables at the top with other variables
+-- Lock Label Setup
 local LockLabel = Instance.new("TextLabel")
-local TweenService = game:GetService("TweenService")
-
--- Set up the lock label
 LockLabel.Name = "LockLabel"
 LockLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 LockLabel.BackgroundTransparency = 1
@@ -83,24 +75,26 @@ LockLabel.Text = ""
 LockLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 LockLabel.TextSize = 14
 LockLabel.TextXAlignment = Enum.TextXAlignment.Left
-LockLabel.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
+LockLabel.Parent = screenGui
 LockLabel.Visible = false
 
 -- Animation settings
 local fadeInInfo = TweenInfo.new(
-    0.3, -- Duration
+    0.3,
     Enum.EasingStyle.Quad,
     Enum.EasingDirection.Out
 )
 
 local fadeOutInfo = TweenInfo.new(
-    0.5, -- Duration
+    0.5,
     Enum.EasingStyle.Quad,
     Enum.EasingDirection.Out
 )
 
 -- Function to show label with animation
 local function ShowLockLabel(playerName)
+    if not _G.LockOnTextLabel then return end
+    
     LockLabel.Text = '[ Zest ] Locked onto Player["' .. playerName .. '"]'
     LockLabel.TextTransparency = 1
     LockLabel.Visible = true
@@ -113,6 +107,8 @@ end
 
 -- Function to hide label with animation
 local function HideLockLabel()
+    if not LockLabel.Visible then return end
+    
     local fadeOut = TweenService:Create(LockLabel, fadeOutInfo, {
         TextTransparency = 1
     })
@@ -123,6 +119,14 @@ local function HideLockLabel()
     end)
 end
 
+-- Function to send notifications
+local function Notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
 
 -- Function to check if a player is knocked in Da Hood
 local function IsPlayerKnocked(player)
