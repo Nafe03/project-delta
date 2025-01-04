@@ -148,14 +148,13 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Enhanced prediction function with more accurate calculations
--- Enhanced prediction function for better CFrame exploit detection and compensation
--- Enhanced prediction function with future position calculation
+-- Enhanced prediction function for air and CFrame exploit handling
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
 
     local AimPart = character:FindFirstChild(_G.AimPart)
+    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
     local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     local Humanoid = character:FindFirstChild("Humanoid")
 
@@ -164,6 +163,12 @@ local function PredictTargetPosition(Target)
     local currentPosition = AimPart.Position
     local velocity = HumanoidRootPart.Velocity
     local speed = velocity.Magnitude
+
+    -- Use AirAimPart if the target is airborne
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+        currentPosition = AirAimPart.Position
+    end
 
     -- Time factor for future position prediction
     local timeFactor = 0.2 -- Adjust based on average ping/delay
@@ -185,6 +190,12 @@ local function PredictTargetPosition(Target)
         futurePosition = currentPosition + (velocity * timeFactor * cframeMultiplier)
     end
 
+    -- Air prediction adjustment
+    if IsPlayerAirborne(Target) then
+        local airMultiplier = _G.AirPredictionAmount > 0 and _G.AirPredictionAmount or _G.PredictionMultiplier
+        futurePosition = futurePosition + Vector3.new(0, velocity.Y * airMultiplier * timeFactor, 0)
+    end
+
     -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - futurePosition).Magnitude
@@ -198,6 +209,7 @@ local function PredictTargetPosition(Target)
 
     return futurePosition
 end
+
 
 
 
