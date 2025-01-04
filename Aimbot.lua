@@ -64,15 +64,16 @@ screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 -- Lock Label Setup
 local LockLabel = Instance.new("TextLabel")
 LockLabel.Name = "LockLabel"
+LockLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 LockLabel.BackgroundTransparency = 1
 LockLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 LockLabel.BorderSizePixel = 0
 LockLabel.Position = UDim2.new(0.386, 0, 0.845, 0)
-TextLabel.Size = UDim2.new(0, 316, 0, 42)
+LockLabel.Size = UDim2.new(0, 224, 0, 20)
 LockLabel.Font = Enum.Font.DenkOne
 LockLabel.Text = ""
 LockLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
-LockLabel.TextSize = 20
+LockLabel.TextSize = 14
 LockLabel.TextXAlignment = Enum.TextXAlignment.Left
 LockLabel.Parent = screenGui
 LockLabel.Visible = false
@@ -94,7 +95,7 @@ local fadeOutInfo = TweenInfo.new(
 local function ShowLockLabel(playerName)
     if not _G.LockOnTextLabel then return end
     
-    LockLabel.Text = '[ Zest ] Locked onto Player[' .. playerName .. ']'
+    LockLabel.Text = '[ Zest ] Locked onto Player["' .. playerName .. '"]'
     LockLabel.TextTransparency = 1
     LockLabel.Visible = true
     
@@ -126,6 +127,7 @@ local function Notify(title, text)
         Duration = 2;
     })
 end
+
 
 -- Function to check if a player is knocked in Da Hood
 local function IsPlayerKnocked(player)
