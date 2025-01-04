@@ -13,7 +13,6 @@ local Holding = false
 -- Global Settings
 _G.AimbotEnabled = false
 _G.LegitAimbot = false
-_G.SuperLegitMode = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
@@ -31,9 +30,6 @@ _G.DynamicSensitivity = true
 _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0.3 -- Adjust this value to change how much above the head it aims
 _G.UseHeadOffset = true -- Toggle for head offset feature
-_G.Smoothness = 0.85 -- Smoothness factor for aiming
-_G.ReactionTime = 0.25 -- Reaction time delay for legit bot
-_G.JitterCompensation = true -- Toggle jitter compensation for erratic movement
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -153,6 +149,7 @@ local function IsPlayerAirborne(player)
 end
 
 -- Enhanced prediction function with more accurate calculations
+-- Enhanced prediction function for better CFrame exploit detection and compensation
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -178,6 +175,26 @@ local function PredictTargetPosition(Target)
 
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
+
+    -- Detect CFrame exploitation or unusual movements
+    local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
+    local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
+
+    character:SetAttribute("LastPosition", HumanoidRootPart.Position)
+
+    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
+
+    if isCFrameExploiting then
+        -- Fly hack/CFrame exploit detected; adjust prediction
+        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
+        local verticalOffset = Vector3.new(
+            Velocity.X * _G.PredictionAmount * cframeMultiplier,
+            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
+            Velocity.Z * _G.PredictionAmount * cframeMultiplier
+        )
+
+        return Position + verticalOffset
+    end
 
     -- Normal prediction logic
     local function CalculateBaseOffset()
@@ -261,9 +278,6 @@ UserInputService.InputBegan:Connect(function(Input)
         if _G.AimbotEnabled then
             _G.LegitAimbot = false
         end
-    elseif Input.KeyCode == Enum.KeyCode.L then -- Toggle Super Legit Mode
-        _G.SuperLegitMode = not _G.SuperLegitMode
-        Notify("Super Legit Mode", _G.SuperLegitMode and "Enabled" or "Disabled")
     end
 end)
 
@@ -294,16 +308,8 @@ RunService.RenderStepped:Connect(function()
                 local aimPosition = ResolveTargetPosition(CurrentTarget)
                 
                 if aimPosition then
-                    if _G.SuperLegitMode then
-                        -- Apply smooth aiming with reaction time for super legit mode
-                        local currentCameraPosition = Camera.CFrame.Position
-                        local smoothAim = CFrame.new(currentCameraPosition, aimPosition):Lerp(Camera.CFrame, _G.Smoothness)
-                        Camera.CFrame = smoothAim
-                        wait(_G.ReactionTime)
-                    else
-                        -- Instantly set camera CFrame to look at the predicted position
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-                    end
+                    -- Instantly set camera CFrame to look at the predicted position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
