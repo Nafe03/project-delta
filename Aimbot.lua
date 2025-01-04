@@ -95,7 +95,7 @@ local fadeOutInfo = TweenInfo.new(
 local function ShowLockLabel(playerName)
     if not _G.LockOnTextLabel then return end
     
-    LockLabel.Text = '[ Zest ] Locked onto Player["' .. playerName .. '"]'
+    LockLabel.Text = '[ Zest ] Locked onto Player[' .. playerName .. ']'
     LockLabel.TextTransparency = 1
     LockLabel.Visible = true
     
