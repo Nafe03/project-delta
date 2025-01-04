@@ -179,14 +179,16 @@ local function PredictTargetPosition(Target)
     -- Detect CFrame exploitation or unusual movements
     local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
+    local deltaTime = RunService.Heartbeat:Wait()
 
+    local calculatedSpeed = movementDelta / deltaTime
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
+    local isCFrameExploiting = calculatedSpeed > (Speed + 50) -- Adjust threshold for detection
 
     if isCFrameExploiting then
         -- Fly hack/CFrame exploit detected; adjust prediction
-        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
+        local cframeMultiplier = 3.0 -- Multiplier for heavy CFrame manipulation
         local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * cframeMultiplier,
             Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
@@ -233,6 +235,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
