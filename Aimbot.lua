@@ -66,6 +66,64 @@ local function Notify(title, text)
     })
 end
 
+-- Add these variables at the top with other variables
+local LockLabel = Instance.new("TextLabel")
+local TweenService = game:GetService("TweenService")
+
+-- Set up the lock label
+LockLabel.Name = "LockLabel"
+LockLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+LockLabel.BackgroundTransparency = 1
+LockLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+LockLabel.BorderSizePixel = 0
+LockLabel.Position = UDim2.new(0.386, 0, 0.845, 0)
+LockLabel.Size = UDim2.new(0, 224, 0, 20)
+LockLabel.Font = Enum.Font.DenkOne
+LockLabel.Text = ""
+LockLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+LockLabel.TextSize = 14
+LockLabel.TextXAlignment = Enum.TextXAlignment.Left
+LockLabel.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
+LockLabel.Visible = false
+
+-- Animation settings
+local fadeInInfo = TweenInfo.new(
+    0.3, -- Duration
+    Enum.EasingStyle.Quad,
+    Enum.EasingDirection.Out
+)
+
+local fadeOutInfo = TweenInfo.new(
+    0.5, -- Duration
+    Enum.EasingStyle.Quad,
+    Enum.EasingDirection.Out
+)
+
+-- Function to show label with animation
+local function ShowLockLabel(playerName)
+    LockLabel.Text = '[ Zest ] Locked onto Player["' .. playerName .. '"]'
+    LockLabel.TextTransparency = 1
+    LockLabel.Visible = true
+    
+    local fadeIn = TweenService:Create(LockLabel, fadeInInfo, {
+        TextTransparency = 0
+    })
+    fadeIn:Play()
+end
+
+-- Function to hide label with animation
+local function HideLockLabel()
+    local fadeOut = TweenService:Create(LockLabel, fadeOutInfo, {
+        TextTransparency = 1
+    })
+    
+    fadeOut:Play()
+    fadeOut.Completed:Connect(function()
+        LockLabel.Visible = false
+    end)
+end
+
+
 -- Function to check if a player is knocked in Da Hood
 local function IsPlayerKnocked(player)
     local character = player.Character
@@ -266,6 +324,7 @@ UserInputService.InputBegan:Connect(function(Input)
             if CurrentTarget then
                 local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
                 Notify(mode, "Locked onto " .. CurrentTarget.Name)
+                ShowLockLabel(CurrentTarget.Name)
                 if _G.VisibleHighlight then
                     CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
                     CurrentHighlight.FillColor = Color3.new(1, 0, 0)
@@ -285,6 +344,7 @@ UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
+        HideLockLabel()
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
