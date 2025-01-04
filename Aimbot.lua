@@ -161,13 +161,11 @@ local function PredictTargetPosition(Target)
 
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
-    -- Apply head offset if enabled and aiming at head
     local Position = AimPart.Position
     if _G.UseHeadOffset and _G.AimPart == "Head" then
         Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
     end
 
-    -- Use AirAimPart if the target is airborne
     if IsPlayerAirborne(Target) and AirAimPart then
         AimPart = AirAimPart
         Position = AirAimPart.Position
@@ -179,28 +177,28 @@ local function PredictTargetPosition(Target)
     -- Detect CFrame exploitation or unusual movements
     local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
-
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
+    local expectedMovement = Speed * 0.1 + 2 -- Base expected movement threshold
+    local isCFrameExploiting = movementDelta > expectedMovement * 1.5
 
     if isCFrameExploiting then
-        -- Fly hack/CFrame exploit detected; adjust prediction
-        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
+        -- Apply heavy prediction for CFrame exploit
+        local cframeMultiplier = 3.0
+        local verticalCompensation = HumanoidRootPart.Position.Y > lastPosition.Y and 1 or -1
         local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * cframeMultiplier,
-            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
+            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier * verticalCompensation,
             Velocity.Z * _G.PredictionAmount * cframeMultiplier
         )
 
         return Position + verticalOffset
     end
 
-    -- Normal prediction logic
+    -- Normal prediction logic for non-exploit movement
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
-
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
             Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
@@ -212,15 +210,13 @@ local function PredictTargetPosition(Target)
         local baseOffset = CalculateBaseOffset()
         local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
         local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
-        baseOffset = baseOffset * distanceMultiplier
-
-        return baseOffset
+        return baseOffset * distanceMultiplier
     end
 
     local predictedOffset = CalculateAdaptivePrediction()
     local predictedPosition = Position + predictedOffset
 
-    -- Bullet drop compensation if enabled
+    -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
@@ -233,6 +229,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
