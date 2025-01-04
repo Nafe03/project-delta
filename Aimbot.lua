@@ -150,85 +150,55 @@ end
 
 -- Enhanced prediction function with more accurate calculations
 -- Enhanced prediction function for better CFrame exploit detection and compensation
+-- Enhanced prediction function with future position calculation
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
 
     local AimPart = character:FindFirstChild(_G.AimPart)
-    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
     local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     local Humanoid = character:FindFirstChild("Humanoid")
 
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
-    local Position = AimPart.Position
-    if _G.UseHeadOffset and _G.AimPart == "Head" then
-        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
-    end
+    local currentPosition = AimPart.Position
+    local velocity = HumanoidRootPart.Velocity
+    local speed = velocity.Magnitude
 
-    if IsPlayerAirborne(Target) and AirAimPart then
-        AimPart = AirAimPart
-        Position = AirAimPart.Position
-    end
+    -- Time factor for future position prediction
+    local timeFactor = 0.2 -- Adjust based on average ping/delay
 
-    local Velocity = HumanoidRootPart.Velocity
-    local Speed = Velocity.Magnitude
+    -- Calculate future position based on velocity and time factor
+    local futurePosition = currentPosition + (velocity * timeFactor)
 
-    -- Detect CFrame exploitation or unusual movements
+    -- Detect unusual movement (CFrame speed hack/fly hack)
     local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local expectedMovement = Speed * 0.1 + 2 -- Base expected movement threshold
+    local expectedMovement = speed * timeFactor + 2
     local isCFrameExploiting = movementDelta > expectedMovement * 1.5
 
     if isCFrameExploiting then
-        -- Apply heavy prediction for CFrame exploit
+        -- Apply stronger prediction for CFrame exploit
         local cframeMultiplier = 3.0
-        local verticalCompensation = HumanoidRootPart.Position.Y > lastPosition.Y and 1 or -1
-        local verticalOffset = Vector3.new(
-            Velocity.X * _G.PredictionAmount * cframeMultiplier,
-            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier * verticalCompensation,
-            Velocity.Z * _G.PredictionAmount * cframeMultiplier
-        )
-
-        return Position + verticalOffset
+        futurePosition = currentPosition + (velocity * timeFactor * cframeMultiplier)
     end
-
-    -- Normal prediction logic for non-exploit movement
-    local function CalculateBaseOffset()
-        local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
-        return Vector3.new(
-            Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            Velocity.Z * baseMultiplier * speedBasedMultiplier
-        )
-    end
-
-    local function CalculateAdaptivePrediction()
-        local baseOffset = CalculateBaseOffset()
-        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
-        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
-        return baseOffset * distanceMultiplier
-    end
-
-    local predictedOffset = CalculateAdaptivePrediction()
-    local predictedPosition = Position + predictedOffset
 
     -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
-        local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
+        local distance = (Camera.CFrame.Position - futurePosition).Magnitude
         local dropCompensation = Vector3.new(
             0,
-            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
+            -distance * _G.BulletDropCompensation * math.clamp(speed / 30, 0.5, 1.5),
             0
         )
-        predictedPosition = predictedPosition + dropCompensation
+        futurePosition = futurePosition + dropCompensation
     end
 
-    return predictedPosition
+    return futurePosition
 end
+
 
 
 -- Update the ResolveTargetPosition function to use the new prediction
