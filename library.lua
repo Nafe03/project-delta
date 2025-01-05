@@ -287,11 +287,11 @@ end
 
 
 -- screen gui 
-local uiScreen = Instance.new('ScreenGui') do 
+-- Screen GUI Setup
+local uiScreen = Instance.new('ScreenGui') do
     uiScreen.OnTopOfCoreBlur = true
     uiScreen.DisplayOrder = 9e9
     uiScreen.ZIndexBehavior = 'Global'
-    
     
     local str = ''
     for i = 1, 8 do
@@ -301,7 +301,7 @@ local uiScreen = Instance.new('ScreenGui') do
     str = nil 
     
     if (typeof(syn) == 'table' and typeof(syn.protect_gui) == 'function') then
-        --syn.protect_gui(uiScreen)
+        -- syn.protect_gui(uiScreen)
     end
     if (gethui) then
         uiScreen.Parent = gethui()
@@ -309,8 +309,8 @@ local uiScreen = Instance.new('ScreenGui') do
         uiScreen.Parent = game:GetService('CoreGui')
     end
     
-    local notifContainer = Instance.new('Frame') do 
-        notifContainer.Active = false 
+    local notifContainer = Instance.new('Frame') do
+        notifContainer.Active = false
         notifContainer.BackgroundTransparency = 1
         notifContainer.Name = '#notif-container'
         notifContainer.Position = UDim2.new(1, -250, 0, -50)
@@ -320,6 +320,27 @@ local uiScreen = Instance.new('ScreenGui') do
         notifContainer.Parent = uiScreen
     end
 end
+
+-- Toggle functionality
+local UIS = game:GetService('UserInputService')
+local isVisible = true  -- To track visibility state
+local screenHiddenPosition = UDim2.new(1, 0, 0, 0)  -- Off-screen position
+local screenVisiblePosition = UDim2.new(0.5, -100, 0.5, -100)  -- Center of screen
+
+uiScreen.Position = screenVisiblePosition  -- Start in the middle of the screen
+
+-- Bind toggle to RightShift key
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+        if isVisible then
+            uiScreen.Position = screenHiddenPosition
+        else
+            uiScreen.Position = screenVisiblePosition
+        end
+        isVisible = not isVisible
+    end
+end)
+
 
 -- tooltip
 local tooltip = {} do 
