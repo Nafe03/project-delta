@@ -173,7 +173,7 @@ local function PredictTargetPosition(Target)
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local timeDelta = math.clamp(workspace.DistributedGameTime - (character:GetAttribute("LastUpdateTime") or 0), 0.02, 0.15)
+    local timeDelta = math.clamp(workspace.DistributedGameTime - (character:GetAttribute("LastUpdateTime") or 0.02), 0.017, 0.12)
     character:SetAttribute("LastUpdateTime", workspace.DistributedGameTime)
 
     local maxAllowedDelta = Speed * timeDelta + 20 -- Threshold based on speed and time delta
