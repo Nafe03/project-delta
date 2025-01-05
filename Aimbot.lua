@@ -149,78 +149,110 @@ local function IsPlayerAirborne(player)
 end
 
 -- Enhanced prediction function for air and CFrame exploit handling
+-- Enhanced prediction function for CFrame movement detection
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
 
     local AimPart = character:FindFirstChild(_G.AimPart)
-    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
     local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     local Humanoid = character:FindFirstChild("Humanoid")
 
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
-    local Position = AimPart.Position
-    if _G.UseHeadOffset and _G.AimPart == "Head" then
-        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+    -- Store the last known positions and timestamps for CFrame detection
+    if not _G.LastPositions then
+        _G.LastPositions = {}
+    end
+    if not _G.LastTimestamps then
+        _G.LastTimestamps = {}
     end
 
-    local Velocity = HumanoidRootPart.Velocity
-    local Speed = Velocity.Magnitude
+    local currentTime = tick()
+    local playerId = Target.UserId
 
-    -- CFrame exploit detection
-    local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
-    local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
-    character:SetAttribute("LastPosition", HumanoidRootPart.Position)
-
-    local timeDelta = math.clamp(workspace.DistributedGameTime - (character:GetAttribute("LastUpdateTime") or 0), 0.01, 0.1)
-    character:SetAttribute("LastUpdateTime", workspace.DistributedGameTime)
-
-    local maxAllowedDelta = Speed * timeDelta + 20 -- Threshold based on speed and time delta
-    local isCFrameExploiting = movementDelta > maxAllowedDelta
-
-    if isCFrameExploiting then
-        -- Apply aggressive prediction when CFrame hack is detected
-        local cframeMultiplier = 3.0 -- Increase multiplier for stronger CFrame adjustments
-        local predictedOffset = Vector3.new(
-            Velocity.X * _G.PredictionAmount * cframeMultiplier,
-            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
-            Velocity.Z * _G.PredictionAmount * cframeMultiplier
-        )
-
-        return Position + predictedOffset
+    -- Initialize player tracking if not exists
+    if not _G.LastPositions[playerId] then
+        _G.LastPositions[playerId] = {
+            pos = HumanoidRootPart.Position,
+            time = currentTime,
+            velocity = Vector3.new(0, 0, 0),
+            acceleration = Vector3.new(0, 0, 0)
+        }
     end
 
-    -- Normal prediction logic for non-exploit movements
-    local function CalculateBaseOffset()
-        local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
+    local lastData = _G.LastPositions[playerId]
+    local timeDelta = currentTime - lastData.time
+    
+    -- Calculate real position and velocity
+    local currentPosition = HumanoidRootPart.Position
+    local rawVelocity = (currentPosition - lastData.pos) / timeDelta
+    local realVelocity = HumanoidRootPart.Velocity
+    
+    -- Detect CFrame movement by comparing raw position change to expected velocity-based movement
+    local expectedPosition = lastData.pos + (realVelocity * timeDelta)
+    local positionDifference = (currentPosition - expectedPosition).Magnitude
+    local isCFrameMovement = positionDifference > 5 -- Threshold for CFrame detection
 
-        return Vector3.new(
-            Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            Velocity.Z * baseMultiplier * speedBasedMultiplier
-        )
+    -- Calculate acceleration
+    local velocityDelta = rawVelocity - lastData.velocity
+    local acceleration = velocityDelta / timeDelta
+
+    -- Update tracking data
+    _G.LastPositions[playerId] = {
+        pos = currentPosition,
+        time = currentTime,
+        velocity = rawVelocity,
+        acceleration = acceleration
+    }
+
+    -- Enhanced prediction calculation
+    local function CalculatePrediction()
+        local predictionTime = _G.PredictionAmount * 0.1 -- Convert to seconds
+        
+        -- Base position with head offset if enabled
+        local basePosition = AimPart.Position
+        if _G.UseHeadOffset and _G.AimPart == "Head" then
+            basePosition = basePosition + Vector3.new(0, _G.HeadVerticalOffset, 0)
+        end
+
+        -- If CFrame movement detected, use enhanced prediction
+        if isCFrameMovement then
+            -- Calculate pattern-based prediction
+            local patternMultiplier = _G.PredictionMultiplier * 2 -- Increase multiplier for CFrame movements
+            local predictedOffset = rawVelocity * predictionTime * patternMultiplier
+            
+            -- Add acceleration component for more accurate prediction
+            predictedOffset = predictedOffset + (acceleration * predictionTime * predictionTime * 0.5)
+            
+            -- Add extra vertical prediction for anti-aim handling
+            local verticalComponent = Vector3.new(0, math.abs(rawVelocity.Y) * 1.5, 0)
+            predictedOffset = predictedOffset + verticalComponent
+            
+            return basePosition + predictedOffset
+        else
+            -- Standard prediction for normal movement
+            local predictedOffset = realVelocity * predictionTime * _G.PredictionMultiplier
+            return basePosition + predictedOffset
+        end
     end
 
-    local function CalculateAdaptivePrediction()
-        local baseOffset = CalculateBaseOffset()
-        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
-        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
-        baseOffset = baseOffset * distanceMultiplier
+    local predictedPosition = CalculatePrediction()
 
-        return baseOffset
+    -- Apply additional compensation for fast movements
+    local speed = rawVelocity.Magnitude
+    if speed > _G.FastTargetSpeedThreshold then
+        local speedMultiplier = math.clamp(speed / 50, 1, 3)
+        local extraPrediction = rawVelocity.Unit * (speed * 0.1) * speedMultiplier
+        predictedPosition = predictedPosition + extraPrediction
     end
 
-    local predictedOffset = CalculateAdaptivePrediction()
-    local predictedPosition = Position + predictedOffset
-
-    -- Bullet drop compensation if enabled
+    -- Bullet drop compensation
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
             0,
-            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
+            -distance * _G.BulletDropCompensation * math.clamp(speed / 30, 0.5, 1.5),
             0
         )
         predictedPosition = predictedPosition + dropCompensation
@@ -228,10 +260,6 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
-
-
-
-
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
