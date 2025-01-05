@@ -321,26 +321,6 @@ local uiScreen = Instance.new('ScreenGui') do
     end
 end
 
--- Toggle functionality
-local UIS = game:GetService('UserInputService')
-local isVisible = true  -- To track visibility state
-local screenHiddenPosition = UDim2.new(1, 0, 0, 0)  -- Off-screen position
-local screenVisiblePosition = UDim2.new(0.5, -100, 0.5, -100)  -- Center of screen
-
-uiScreen.Position = screenVisiblePosition  -- Start in the middle of the screen
-
--- Bind toggle to RightShift key
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
-        if isVisible then
-            uiScreen.Position = screenHiddenPosition
-        else
-            uiScreen.Position = screenVisiblePosition
-        end
-        isVisible = not isVisible
-    end
-end)
-
 
 -- tooltip
 local tooltip = {} do 
