@@ -199,7 +199,7 @@ local function PredictTargetPosition(Target)
     -- Normal prediction logic
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.15, 2)
 
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
