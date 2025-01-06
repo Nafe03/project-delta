@@ -24,7 +24,7 @@ _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = false
 _G.WallCheck = false
-_G.PredictionMultiplier = 1.40
+_G.PredictionMultiplier = 1.45
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
@@ -148,7 +148,8 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Enhanced prediction function for air and CFrame exploit handling
+-- Enhanced prediction function with more accurate calculations
+-- Enhanced prediction function for better CFrame exploit detection and compensation
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -160,38 +161,42 @@ local function PredictTargetPosition(Target)
 
     if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
+    -- Apply head offset if enabled and aiming at head
     local Position = AimPart.Position
     if _G.UseHeadOffset and _G.AimPart == "Head" then
         Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
     end
 
+    -- Use AirAimPart if the target is airborne
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+        Position = AirAimPart.Position
+    end
+
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- CFrame exploit detection
+    -- Detect CFrame exploitation or unusual movements
     local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
     local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
+
     character:SetAttribute("LastPosition", HumanoidRootPart.Position)
 
-    local timeDelta = math.clamp(workspace.DistributedGameTime - (character:GetAttribute("LastUpdateTime") or 0.02), 0.017, 0.12)
-    character:SetAttribute("LastUpdateTime", workspace.DistributedGameTime)
-
-    local maxAllowedDelta = Speed * timeDelta + 20 -- Threshold based on speed and time delta
-    local isCFrameExploiting = movementDelta > maxAllowedDelta
+    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
 
     if isCFrameExploiting then
-        -- Apply aggressive prediction when CFrame hack is detected
-        local cframeMultiplier = 3.0 -- Increase multiplier for stronger CFrame adjustments
-        local predictedOffset = Vector3.new(
+        -- Fly hack/CFrame exploit detected; adjust prediction
+        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
+        local verticalOffset = Vector3.new(
             Velocity.X * _G.PredictionAmount * cframeMultiplier,
             Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
             Velocity.Z * _G.PredictionAmount * cframeMultiplier
         )
 
-        return Position + predictedOffset
+        return Position + verticalOffset
     end
 
-    -- Normal prediction logic for non-exploit movements
+    -- Normal prediction logic
     local function CalculateBaseOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.1, 2)
@@ -228,10 +233,6 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
-
-
-
-
 
 -- Update the ResolveTargetPosition function to use the new prediction
 local function ResolveTargetPosition(Target)
