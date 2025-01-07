@@ -40,7 +40,7 @@ local function DrawESPBoxWithHealth(player)
 
     -- Create Box
     local box = Drawing.new("Square")
-    box.Thickness = 2
+    box.Thickness = 1
     box.Filled = false
     box.Color = _G.BoxColor
     box.Visible = false
