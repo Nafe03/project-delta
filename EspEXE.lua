@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local PlayerArmor = workspace.Players."Players".BodyEffects.Armor
 
 -- Local Player Info
 local Player = Players.LocalPlayer
@@ -32,8 +33,8 @@ local function CreateNameESP(player)
     return nameTag
 end
 
--- Function to Create Box ESP with Health Bar
-local function DrawESPBoxWithHealth(player)
+-- Function to Create Box ESP with Health and Armor Bars
+local function DrawESPBoxWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
     if not rootPart then return end
@@ -52,16 +53,16 @@ local function DrawESPBoxWithHealth(player)
     healthBar.Color = Color3.fromRGB(0, 255, 0)
     healthBar.Visible = false
 
+    -- Create Armor Bar
+    local armorBar = Drawing.new("Square")
+    armorBar.Thickness = 1
+    armorBar.Filled = true
+    armorBar.Color = Color3.fromRGB(0, 0, 255) -- Blue color for armor
+    armorBar.Visible = false
+
     -- Create Name Tag
     local nameTag = CreateNameESP(player)
 
-    local healthBackground = Drawing.new("Square")
-    healthBackground.Thickness = 1
-    healthBackground.Filled = true
-    healthBackground.Color = Color3.fromRGB(0, 255, 0)
-    healthBackground.Visible = false
-
-    -- Update Box, Health Bar, and Name Position
     local connection
     connection = RunService.RenderStepped:Connect(function()
         if character and character.Parent and rootPart then
@@ -95,15 +96,29 @@ local function DrawESPBoxWithHealth(player)
                 else
                     healthBar.Visible = false
                 end
+
+                -- Update Armor Bar
+                local armorValue = workspace.Players:FindFirstChild(player.Name)
+                if armorValue and armorValue:FindFirstChild("BodyEffects") and armorValue.BodyEffects:FindFirstChild("Armor") then
+                    local currentArmor = armorValue.BodyEffects.Armor.Value
+                    local maxArmor = 100 -- Assuming max armor is 100
+                    local armorFraction = currentArmor / maxArmor
+                    armorBar.Size = Vector2.new(5, size.Y * armorFraction)
+                    armorBar.Position = Vector2.new(boxPosition.X - 15, boxPosition.Y + size.Y * (1 - armorFraction))
+                    armorBar.Visible = _G.HealthESPEnabled
+                else
+                    armorBar.Visible = false
+                end
             else
                 box.Visible = false
                 healthBar.Visible = false
+                armorBar.Visible = false
                 nameTag.Visible = false
             end
         else
             box.Visible = false
-
             healthBar.Visible = false
+            armorBar.Visible = false
             nameTag.Visible = false
         end
     end)
@@ -113,67 +128,44 @@ local function DrawESPBoxWithHealth(player)
         if not parent then
             box.Visible = false
             healthBar.Visible = false
-
+            armorBar.Visible = false
             nameTag.Visible = false
             if connection then
                 connection:Disconnect()
             end
             box:Remove()
-            healthBackground:Remove()
             healthBar:Remove()
+            armorBar:Remove()
             nameTag:Remove()
         end
     end)
 
-    return box, healthBar, healthBackground, nameTag, connection
+    return box, healthBar, armorBar, nameTag, connection
 end
 
--- Apply Box ESP with Health Bar to Player
-local function applyBoxESPWithHealth(player)
+-- Apply Box ESP with Health and Armor Bars to Player
+local function applyBoxESPWithHealthAndArmor(player)
     if not player then return end
     local character = player.Character or player.CharacterAdded:Wait()
     if not character then return end
 
-    -- Create Box, Health Bar, and Name Tag
-    local box, healthBar, healthBackground, nameTag, connection = DrawESPBoxWithHealth(player)
+    -- Create Box, Health Bar, Armor Bar, and Name Tag
+    local box, healthBar, armorBar, nameTag, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup later
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
-        healthBackground = healthBackground,
+        armorBar = armorBar,
         nameTag = nameTag,
         updateConnection = connection,
     }
 end
 
--- Remove ESP for a player
-local function removeESP(player)
-    local espData = activeESP[player]
-    if espData then
-        if espData.box then
-            espData.box:Remove()
-        end
-        if espData.healthBar then
-            espData.healthBar:Remove()
-        end
-        if espData.healthBackground then
-            espData.healthBackground:Remove()
-        end
-        if espData.nameTag then
-            espData.nameTag:Remove()
-        end
-        if espData.updateConnection then
-            espData.updateConnection:Disconnect()
-        end
-        activeESP[player] = nil
-    end
-end
-
 -- Initialize ESP for all players
 local function initializeESP(player)
     player.CharacterAdded:Connect(function()
-        applyBoxESPWithHealth(player)
+        applyBoxESPWithHealthAndArmor(player)
     end)
     player.AncestryChanged:Connect(function(_, parent)
         if not parent then
@@ -181,7 +173,7 @@ local function initializeESP(player)
         end
     end)
     if player.Character then
-        applyBoxESPWithHealth(player)
+        applyBoxESPWithHealthAndArmor(player)
     end
 end
 
@@ -197,6 +189,7 @@ Players.PlayerAdded:Connect(function(player)
     end
 end)
 Players.PlayerRemoving:Connect(removeESP)
+
 
 -- Toggle ESP Features
 local function toggleESPFeature(feature, state)
