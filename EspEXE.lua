@@ -2,7 +2,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local PlayerArmor = workspace.Players."Players".BodyEffects.Armor
 
 -- Local Player Info
 local Player = Players.LocalPlayer
