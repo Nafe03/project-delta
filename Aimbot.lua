@@ -17,8 +17,8 @@ _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0      
 _G.LegitSensitivity = 0.1 
-_G.PredictionAmount = 0.165
-_G.AirPredictionAmount = 0.2
+_G.PredictionAmount = 0
+_G.AirPredictionAmount = 0
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = false
@@ -232,7 +232,7 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- Heartbeat-based resolver
+-- Heartbeat-based resolver with instant aimlock
 RunService.Heartbeat:Connect(function()
     if Holding and ((_G.AimbotEnabled or _G.LegitAimbot) and CurrentTarget) then
         local character = CurrentTarget.Character
@@ -242,10 +242,8 @@ RunService.Heartbeat:Connect(function()
                 local aimPosition = PredictTargetPosition(CurrentTarget)
                 
                 if aimPosition then
-                    -- Smoothly adjust camera CFrame to look at the predicted position
-                    local currentCFrame = Camera.CFrame
-                    local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, 0.5)
+                    -- Instantly set camera CFrame to look at the predicted position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
                 end
             else
                 CurrentTarget = nil
@@ -260,22 +258,5 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Radius = _G.CircleRadius
     else
         FOVCircle.Visible = false
-    end
-
-    if Holding and ((_G.AimbotEnabled or _G.LegitAimbot) and CurrentTarget) then
-        local character = CurrentTarget.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
-                local aimPosition = ResolveTargetPosition(CurrentTarget)
-                
-                if aimPosition then
-                    -- Instantly set camera CFrame to look at the predicted position
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
-                end
-            else
-                CurrentTarget = nil
-            end
-        end
     end
 end)
