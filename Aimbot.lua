@@ -2,7 +2,6 @@ local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local StarterGui = game:GetService("StarterGui")
 
@@ -16,10 +15,10 @@ _G.LegitAimbot = false
 _G.TeamCheck = false
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
-_G.Sensitivity = 1      
+_G.Sensitivity = 0      
 _G.LegitSensitivity = 0.1 
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0
+_G.PredictionAmount = 0.165
+_G.AirPredictionAmount = 0.2
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
 _G.UseCircle = false
@@ -28,8 +27,8 @@ _G.PredictionMultiplier = 1.45
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
-_G.HeadVerticalOffset = 0.3 -- Adjust this value to change how much above the head it aims
-_G.UseHeadOffset = true -- Toggle for head offset feature
+_G.HeadVerticalOffset = 0.3
+_G.UseHeadOffset = true
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -39,8 +38,6 @@ _G.CircleRadius = 120
 _G.CircleFilled = false
 _G.CircleVisible = true
 _G.CircleThickness = 1
-
--- Damage Indicator Function
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -66,7 +63,7 @@ local function Notify(title, text)
     })
 end
 
--- Function to check if a player is knocked in Da Hood
+-- Function to check if a player is knocked
 local function IsPlayerKnocked(player)
     local character = player.Character
     if not character then return true end
@@ -148,8 +145,7 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Enhanced prediction function with more accurate calculations
--- Enhanced prediction function for better CFrame exploit detection and compensation
+-- Heartbeat-based prediction function
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -173,31 +169,12 @@ local function PredictTargetPosition(Target)
         Position = AirAimPart.Position
     end
 
+    -- Get velocity and speed
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Detect CFrame exploitation or unusual movements
-    local lastPosition = character:GetAttribute("LastPosition") or HumanoidRootPart.Position
-    local movementDelta = (HumanoidRootPart.Position - lastPosition).Magnitude
-
-    character:SetAttribute("LastPosition", HumanoidRootPart.Position)
-
-    local isCFrameExploiting = movementDelta > (Speed + 20) -- Adjust threshold for CFrame exploitation detection
-
-    if isCFrameExploiting then
-        -- Fly hack/CFrame exploit detected; adjust prediction
-        local cframeMultiplier = 2.5 -- Multiplier for heavy CFrame manipulation
-        local verticalOffset = Vector3.new(
-            Velocity.X * _G.PredictionAmount * cframeMultiplier,
-            Velocity.Y * _G.AirPredictionAmount * cframeMultiplier,
-            Velocity.Z * _G.PredictionAmount * cframeMultiplier
-        )
-
-        return Position + verticalOffset
-    end
-
-    -- Normal prediction logic
-    local function CalculateBaseOffset()
+    -- Calculate prediction offset
+    local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.15, 2)
 
@@ -208,16 +185,7 @@ local function PredictTargetPosition(Target)
         )
     end
 
-    local function CalculateAdaptivePrediction()
-        local baseOffset = CalculateBaseOffset()
-        local distanceToTarget = (Camera.CFrame.Position - Position).Magnitude
-        local distanceMultiplier = math.clamp(distanceToTarget / 100, 0.5, 2)
-        baseOffset = baseOffset * distanceMultiplier
-
-        return baseOffset
-    end
-
-    local predictedOffset = CalculateAdaptivePrediction()
+    local predictedOffset = CalculatePredictionOffset()
     local predictedPosition = Position + predictedOffset
 
     -- Bullet drop compensation if enabled
@@ -231,29 +199,6 @@ local function PredictTargetPosition(Target)
         predictedPosition = predictedPosition + dropCompensation
     end
 
-    return predictedPosition
-end
-
--- Update the ResolveTargetPosition function to use the new prediction
-local function ResolveTargetPosition(Target)
-    if not Target or not Target.Character then return end
-    
-    local predictedPosition = PredictTargetPosition(Target)
-    if not predictedPosition then return end
-    
-    local character = Target.Character
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    
-    if humanoid and rootPart then
-        local speed = rootPart.Velocity.Magnitude
-        if speed > _G.FastTargetSpeedThreshold then
-            local currentPos = rootPart.Position
-            local smoothFactor = math.clamp(1 - (speed / 200), 0.3, 0.8)
-            predictedPosition = currentPos:Lerp(predictedPosition, smoothFactor)
-        end
-    end
-    
     return predictedPosition
 end
 
@@ -273,11 +218,6 @@ UserInputService.InputBegan:Connect(function(Input)
                 end
             end
         end
-    elseif Input.KeyCode == _G.ToggleAimbotKey then
-        _G.AimbotEnabled = not _G.AimbotEnabled
-        if _G.AimbotEnabled then
-            _G.LegitAimbot = false
-        end
     end
 end)
 
@@ -288,6 +228,28 @@ UserInputService.InputEnded:Connect(function(Input)
         if CurrentHighlight then
             CurrentHighlight:Destroy()
             CurrentHighlight = nil
+        end
+    end
+end)
+
+-- Heartbeat-based resolver
+RunService.Heartbeat:Connect(function()
+    if Holding and ((_G.AimbotEnabled or _G.LegitAimbot) and CurrentTarget) then
+        local character = CurrentTarget.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
+                local aimPosition = PredictTargetPosition(CurrentTarget)
+                
+                if aimPosition then
+                    -- Smoothly adjust camera CFrame to look at the predicted position
+                    local currentCFrame = Camera.CFrame
+                    local targetCFrame = CFrame.new(currentCFrame.Position, aimPosition)
+                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, 0.5)
+                end
+            else
+                CurrentTarget = nil
+            end
         end
     end
 end)
