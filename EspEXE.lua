@@ -12,8 +12,8 @@ _G.ESPEnabled = true
 _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
-_G.DistanceESPEnabled = false
 _G.SkeletonESP = true
+_G.DistanceESPEnabled = false
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
@@ -35,7 +35,7 @@ local function CreateNameESP(player)
 end
 
 -- Function to Create Skeleton ESP
-local function CreateSkeletonESP(player)
+local function CreateSkeletonESP()
     local skeletonLines = {}
     for i = 1, 14 do
         local line = Drawing.new("Line")
@@ -52,140 +52,115 @@ local function UpdateSkeletonESP(skeletonLines, character)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
 
+    -- Get all necessary body parts
     local head = character:FindFirstChild("Head")
-    local torso = character:FindFirstChild("UpperTorso")
-    local leftArm = character:FindFirstChild("LeftUpperArm")
-    local rightArm = character:FindFirstChild("RightUpperArm")
-    local leftLeg = character:FindFirstChild("LeftUpperLeg")
-    local rightLeg = character:FindFirstChild("RightUpperLeg")
+    local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    local leftArm = character:FindFirstChild("LeftUpperArm") or character:FindFirstChild("Left Arm")
+    local rightArm = character:FindFirstChild("RightUpperArm") or character:FindFirstChild("Right Arm")
+    local leftLeg = character:FindFirstChild("LeftUpperLeg") or character:FindFirstChild("Left Leg")
+    local rightLeg = character:FindFirstChild("RightUpperLeg") or character:FindFirstChild("Right Leg")
 
     if not (head and torso and leftArm and rightArm and leftLeg and rightLeg) then return end
 
-    local points = {
-        head.Position,
-        torso.Position,
-        leftArm.Position,
-        rightArm.Position,
-        leftLeg.Position,
-        rightLeg.Position
+    -- Convert world positions to screen positions
+    local function getScreenPoint(part)
+        if part then
+            local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if onScreen then
+                return Vector2.new(screenPoint.X, screenPoint.Y)
+            end
+        end
+        return nil
+    end
+
+    local screenPoints = {
+        head = getScreenPoint(head),
+        torso = getScreenPoint(torso),
+        leftArm = getScreenPoint(leftArm),
+        rightArm = getScreenPoint(rightArm),
+        leftLeg = getScreenPoint(leftLeg),
+        rightLeg = getScreenPoint(rightLeg)
     }
 
-    local screenPoints = {}
-    for _, point in ipairs(points) do
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(point)
-        if onScreen then
-            table.insert(screenPoints, Vector2.new(screenPoint.X, screenPoint.Y))
-        else
-            return
+    -- Draw skeleton lines
+    if screenPoints.head and screenPoints.torso then
+        -- Head to Torso
+        skeletonLines[1].From = screenPoints.head
+        skeletonLines[1].To = screenPoints.torso
+
+        -- Torso to Left Arm
+        if screenPoints.leftArm then
+            skeletonLines[2].From = screenPoints.torso
+            skeletonLines[2].To = screenPoints.leftArm
         end
-    end
 
-    -- Head to Torso
-    skeletonLines[1].From = screenPoints[1]
-    skeletonLines[1].To = screenPoints[2]
-
-    -- Torso to Left Arm
-    skeletonLines[2].From = screenPoints[2]
-    skeletonLines[2].To = screenPoints[3]
-
-    -- Torso to Right Arm
-    skeletonLines[3].From = screenPoints[2]
-    skeletonLines[3].To = screenPoints[4]
-
-    -- Torso to Left Leg
-    skeletonLines[4].From = screenPoints[2]
-    skeletonLines[4].To = screenPoints[5]
-
-    -- Torso to Right Leg
-    skeletonLines[5].From = screenPoints[2]
-    skeletonLines[5].To = screenPoints[6]
-
-    -- Left Arm to Left Lower Arm
-    local leftLowerArm = character:FindFirstChild("LeftLowerArm")
-    if leftLowerArm then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftLowerArm.Position)
-        if onScreen then
-            skeletonLines[6].From = screenPoints[3]
-            skeletonLines[6].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Torso to Right Arm
+        if screenPoints.rightArm then
+            skeletonLines[3].From = screenPoints.torso
+            skeletonLines[3].To = screenPoints.rightArm
         end
-    end
 
-    -- Right Arm to Right Lower Arm
-    local rightLowerArm = character:FindFirstChild("RightLowerArm")
-    if rightLowerArm then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightLowerArm.Position)
-        if onScreen then
-            skeletonLines[7].From = screenPoints[4]
-            skeletonLines[7].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Torso to Left Leg
+        if screenPoints.leftLeg then
+            skeletonLines[4].From = screenPoints.torso
+            skeletonLines[4].To = screenPoints.leftLeg
         end
-    end
 
-    -- Left Leg to Left Lower Leg
-    local leftLowerLeg = character:FindFirstChild("LeftLowerLeg")
-    if leftLowerLeg then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftLowerLeg.Position)
-        if onScreen then
-            skeletonLines[8].From = screenPoints[5]
-            skeletonLines[8].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Torso to Right Leg
+        if screenPoints.rightLeg then
+            skeletonLines[5].From = screenPoints.torso
+            skeletonLines[5].To = screenPoints.rightLeg
         end
-    end
 
-    -- Right Leg to Right Lower Leg
-    local rightLowerLeg = character:FindFirstChild("RightLowerLeg")
-    if rightLowerLeg then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightLowerLeg.Position)
-        if onScreen then
-            skeletonLines[9].From = screenPoints[6]
-            skeletonLines[9].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Left Arm to Left Hand (if available)
+        local leftHand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
+        if leftHand then
+            local leftHandPoint = getScreenPoint(leftHand)
+            if leftHandPoint then
+                skeletonLines[6].From = screenPoints.leftArm
+                skeletonLines[6].To = leftHandPoint
+            end
         end
-    end
 
-    -- Left Lower Arm to Left Hand
-    local leftHand = character:FindFirstChild("LeftHand")
-    if leftHand then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftHand.Position)
-        if onScreen then
-            skeletonLines[10].From = skeletonLines[6].To
-            skeletonLines[10].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Right Arm to Right Hand (if available)
+        local rightHand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
+        if rightHand then
+            local rightHandPoint = getScreenPoint(rightHand)
+            if rightHandPoint then
+                skeletonLines[7].From = screenPoints.rightArm
+                skeletonLines[7].To = rightHandPoint
+            end
         end
-    end
 
-    -- Right Lower Arm to Right Hand
-    local rightHand = character:FindFirstChild("RightHand")
-    if rightHand then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightHand.Position)
-        if onScreen then
-            skeletonLines[11].From = skeletonLines[7].To
-            skeletonLines[11].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Left Leg to Left Foot (if available)
+        local leftFoot = character:FindFirstChild("LeftFoot") or character:FindFirstChild("Left Leg")
+        if leftFoot then
+            local leftFootPoint = getScreenPoint(leftFoot)
+            if leftFootPoint then
+                skeletonLines[8].From = screenPoints.leftLeg
+                skeletonLines[8].To = leftFootPoint
+            end
         end
-    end
 
-    -- Left Lower Leg to Left Foot
-    local leftFoot = character:FindFirstChild("LeftFoot")
-    if leftFoot then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftFoot.Position)
-        if onScreen then
-            skeletonLines[12].From = skeletonLines[8].To
-            skeletonLines[12].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Right Leg to Right Foot (if available)
+        local rightFoot = character:FindFirstChild("RightFoot") or character:FindFirstChild("Right Leg")
+        if rightFoot then
+            local rightFootPoint = getScreenPoint(rightFoot)
+            if rightFootPoint then
+                skeletonLines[9].From = screenPoints.rightLeg
+                skeletonLines[9].To = rightFootPoint
+            end
         end
-    end
 
-    -- Right Lower Leg to Right Foot
-    local rightFoot = character:FindFirstChild("RightFoot")
-    if rightFoot then
-        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightFoot.Position)
-        if onScreen then
-            skeletonLines[13].From = skeletonLines[9].To
-            skeletonLines[13].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        -- Make all lines visible
+        for _, line in ipairs(skeletonLines) do
+            line.Visible = _G.SkeletonESP
         end
-    end
-
-    -- Torso to Head
-    skeletonLines[14].From = screenPoints[2]
-    skeletonLines[14].To = screenPoints[1]
-
-    for _, line in ipairs(skeletonLines) do
-        line.Visible = _G.SkeletonESP
+    else
+        -- Hide all lines if not on screen
+        for _, line in ipairs(skeletonLines) do
+            line.Visible = false
+        end
     end
 end
 
@@ -209,18 +184,11 @@ local function DrawESPBoxWithHealthAndArmor(player)
     healthBar.Color = Color3.fromRGB(0, 255, 0)
     healthBar.Visible = false
 
-    -- Create Armor Bar
-    local armorBar = Drawing.new("Square")
-    armorBar.Thickness = 1
-    armorBar.Filled = true
-    armorBar.Color = Color3.fromRGB(0, 0, 255) -- Blue color for armor
-    armorBar.Visible = false
-
     -- Create Name Tag
     local nameTag = CreateNameESP(player)
 
     -- Create Skeleton ESP
-    local skeletonLines = CreateSkeletonESP(player)
+    local skeletonLines = CreateSkeletonESP()
 
     local connection
     connection = RunService.RenderStepped:Connect(function()
@@ -256,25 +224,11 @@ local function DrawESPBoxWithHealthAndArmor(player)
                     healthBar.Visible = false
                 end
 
-                -- Update Armor Bar
-                local armorValue = workspace.Players:FindFirstChild(player.Name)
-                if armorValue and armorValue:FindFirstChild("BodyEffects") and armorValue.BodyEffects:FindFirstChild("Armor") then
-                    local currentArmor = armorValue.BodyEffects.Armor.Value
-                    local maxArmor = 100 -- Assuming max armor is 100
-                    local armorFraction = currentArmor / maxArmor
-                    armorBar.Size = Vector2.new(5, size.Y * armorFraction)
-                    armorBar.Position = Vector2.new(boxPosition.X - 15, boxPosition.Y + size.Y * (1 - armorFraction))
-                    armorBar.Visible = _G.HealthESPEnabled
-                else
-                    armorBar.Visible = false
-                end
-
                 -- Update Skeleton ESP
                 UpdateSkeletonESP(skeletonLines, character)
             else
                 box.Visible = false
                 healthBar.Visible = false
-                armorBar.Visible = false
                 nameTag.Visible = false
                 for _, line in ipairs(skeletonLines) do
                     line.Visible = false
@@ -283,7 +237,6 @@ local function DrawESPBoxWithHealthAndArmor(player)
         else
             box.Visible = false
             healthBar.Visible = false
-            armorBar.Visible = false
             nameTag.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
@@ -296,7 +249,6 @@ local function DrawESPBoxWithHealthAndArmor(player)
         if not parent then
             box.Visible = false
             healthBar.Visible = false
-            armorBar.Visible = false
             nameTag.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
@@ -307,28 +259,26 @@ local function DrawESPBoxWithHealthAndArmor(player)
             end
             box:Remove()
             healthBar:Remove()
-            armorBar:Remove()
             nameTag:Remove()
         end
     end)
 
-    return box, healthBar, armorBar, nameTag, skeletonLines, connection
+    return box, healthBar, nameTag, skeletonLines, connection
 end
 
--- Apply Box ESP with Health and Armor Bars to Player
-local function applyBoxESPWithHealthAndArmor(player)
+-- Apply ESP to Player
+local function applyESP(player)
     if not player then return end
     local character = player.Character or player.CharacterAdded:Wait()
     if not character then return end
 
-    -- Create Box, Health Bar, Armor Bar, Name Tag, and Skeleton ESP
-    local box, healthBar, armorBar, nameTag, skeletonLines, connection = DrawESPBoxWithHealthAndArmor(player)
+    -- Create ESP elements
+    local box, healthBar, nameTag, skeletonLines, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup later
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
-        armorBar = armorBar,
         nameTag = nameTag,
         skeletonLines = skeletonLines,
         updateConnection = connection,
@@ -338,15 +288,20 @@ end
 -- Initialize ESP for all players
 local function initializeESP(player)
     player.CharacterAdded:Connect(function()
-        applyBoxESPWithHealthAndArmor(player)
+        applyESP(player)
     end)
     player.AncestryChanged:Connect(function(_, parent)
         if not parent then
-            removeESP(player)
+            if activeESP[player] then
+                for _, line in ipairs(activeESP[player].skeletonLines) do
+                    line:Remove()
+                end
+                activeESP[player] = nil
+            end
         end
     end)
     if player.Character then
-        applyBoxESPWithHealthAndArmor(player)
+        applyESP(player)
     end
 end
 
@@ -361,42 +316,24 @@ Players.PlayerAdded:Connect(function(player)
         initializeESP(player)
     end
 end)
-Players.PlayerRemoving:Connect(removeESP)
+Players.PlayerRemoving:Connect(function(player)
+    if activeESP[player] then
+        for _, line in ipairs(activeESP[player].skeletonLines) do
+            line:Remove()
+        end
+        activeESP[player] = nil
+    end
+end)
 
 -- Toggle ESP Features
 local function toggleESPFeature(feature, state)
     _G[feature] = state
 end
 
-local function onHealthESPToggle(newState)
-    toggleESPFeature("HealthESPEnabled", newState)
-end
-
-local function onNameESPToggle(newState)
-    toggleESPFeature("NameESPEnabled", newState)
-end
-
-local function onBoxESPToggle(newState)
-    toggleESPFeature("BoxESPEnabled", newState)
-end
-
-local function onDistanceESPToggle(newState)
-    toggleESPFeature("DistanceESPEnabled", newState)
-end
-
 local function onSkeletonESPToggle(newState)
     toggleESPFeature("SkeletonESP", newState)
 end
 
--- Color Settings
-local function setBoxColor(newColor)
-    _G.BoxColor = newColor
-end
-
-local function setNameColor(newColor)
-    _G.NameColor = newColor
-end
-
-local function setSkeletonColor(newColor)
-    _G.SkeletonColor = newColor
-end
+-- Example usage:
+-- onSkeletonESPToggle(true)  -- Enable Skeleton ESP
+-- onSkeletonESPToggle(false) -- Disable Skeleton ESP
