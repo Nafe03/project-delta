@@ -13,9 +13,11 @@ _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.DistanceESPEnabled = false
+_G.SkeletonESP = true
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
+_G.SkeletonColor = Color3.fromRGB(255, 0, 0)
 
 -- Active ESP Storage
 local activeESP = {}
@@ -30,6 +32,161 @@ local function CreateNameESP(player)
     nameTag.Font = 3
     nameTag.Visible = false
     return nameTag
+end
+
+-- Function to Create Skeleton ESP
+local function CreateSkeletonESP(player)
+    local skeletonLines = {}
+    for i = 1, 14 do
+        local line = Drawing.new("Line")
+        line.Thickness = 1
+        line.Color = _G.SkeletonColor
+        line.Visible = false
+        table.insert(skeletonLines, line)
+    end
+    return skeletonLines
+end
+
+-- Function to Update Skeleton ESP
+local function UpdateSkeletonESP(skeletonLines, character)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local head = character:FindFirstChild("Head")
+    local torso = character:FindFirstChild("UpperTorso")
+    local leftArm = character:FindFirstChild("LeftUpperArm")
+    local rightArm = character:FindFirstChild("RightUpperArm")
+    local leftLeg = character:FindFirstChild("LeftUpperLeg")
+    local rightLeg = character:FindFirstChild("RightUpperLeg")
+
+    if not (head and torso and leftArm and rightArm and leftLeg and rightLeg) then return end
+
+    local points = {
+        head.Position,
+        torso.Position,
+        leftArm.Position,
+        rightArm.Position,
+        leftLeg.Position,
+        rightLeg.Position
+    }
+
+    local screenPoints = {}
+    for _, point in ipairs(points) do
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(point)
+        if onScreen then
+            table.insert(screenPoints, Vector2.new(screenPoint.X, screenPoint.Y))
+        else
+            return
+        end
+    end
+
+    -- Head to Torso
+    skeletonLines[1].From = screenPoints[1]
+    skeletonLines[1].To = screenPoints[2]
+
+    -- Torso to Left Arm
+    skeletonLines[2].From = screenPoints[2]
+    skeletonLines[2].To = screenPoints[3]
+
+    -- Torso to Right Arm
+    skeletonLines[3].From = screenPoints[2]
+    skeletonLines[3].To = screenPoints[4]
+
+    -- Torso to Left Leg
+    skeletonLines[4].From = screenPoints[2]
+    skeletonLines[4].To = screenPoints[5]
+
+    -- Torso to Right Leg
+    skeletonLines[5].From = screenPoints[2]
+    skeletonLines[5].To = screenPoints[6]
+
+    -- Left Arm to Left Lower Arm
+    local leftLowerArm = character:FindFirstChild("LeftLowerArm")
+    if leftLowerArm then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftLowerArm.Position)
+        if onScreen then
+            skeletonLines[6].From = screenPoints[3]
+            skeletonLines[6].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Right Arm to Right Lower Arm
+    local rightLowerArm = character:FindFirstChild("RightLowerArm")
+    if rightLowerArm then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightLowerArm.Position)
+        if onScreen then
+            skeletonLines[7].From = screenPoints[4]
+            skeletonLines[7].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Left Leg to Left Lower Leg
+    local leftLowerLeg = character:FindFirstChild("LeftLowerLeg")
+    if leftLowerLeg then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftLowerLeg.Position)
+        if onScreen then
+            skeletonLines[8].From = screenPoints[5]
+            skeletonLines[8].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Right Leg to Right Lower Leg
+    local rightLowerLeg = character:FindFirstChild("RightLowerLeg")
+    if rightLowerLeg then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightLowerLeg.Position)
+        if onScreen then
+            skeletonLines[9].From = screenPoints[6]
+            skeletonLines[9].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Left Lower Arm to Left Hand
+    local leftHand = character:FindFirstChild("LeftHand")
+    if leftHand then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftHand.Position)
+        if onScreen then
+            skeletonLines[10].From = skeletonLines[6].To
+            skeletonLines[10].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Right Lower Arm to Right Hand
+    local rightHand = character:FindFirstChild("RightHand")
+    if rightHand then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightHand.Position)
+        if onScreen then
+            skeletonLines[11].From = skeletonLines[7].To
+            skeletonLines[11].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Left Lower Leg to Left Foot
+    local leftFoot = character:FindFirstChild("LeftFoot")
+    if leftFoot then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(leftFoot.Position)
+        if onScreen then
+            skeletonLines[12].From = skeletonLines[8].To
+            skeletonLines[12].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Right Lower Leg to Right Foot
+    local rightFoot = character:FindFirstChild("RightFoot")
+    if rightFoot then
+        local screenPoint, onScreen = Camera:WorldToViewportPoint(rightFoot.Position)
+        if onScreen then
+            skeletonLines[13].From = skeletonLines[9].To
+            skeletonLines[13].To = Vector2.new(screenPoint.X, screenPoint.Y)
+        end
+    end
+
+    -- Torso to Head
+    skeletonLines[14].From = screenPoints[2]
+    skeletonLines[14].To = screenPoints[1]
+
+    for _, line in ipairs(skeletonLines) do
+        line.Visible = _G.SkeletonESP
+    end
 end
 
 -- Function to Create Box ESP with Health and Armor Bars
@@ -61,6 +218,9 @@ local function DrawESPBoxWithHealthAndArmor(player)
 
     -- Create Name Tag
     local nameTag = CreateNameESP(player)
+
+    -- Create Skeleton ESP
+    local skeletonLines = CreateSkeletonESP(player)
 
     local connection
     connection = RunService.RenderStepped:Connect(function()
@@ -108,17 +268,26 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 else
                     armorBar.Visible = false
                 end
+
+                -- Update Skeleton ESP
+                UpdateSkeletonESP(skeletonLines, character)
             else
                 box.Visible = false
                 healthBar.Visible = false
                 armorBar.Visible = false
                 nameTag.Visible = false
+                for _, line in ipairs(skeletonLines) do
+                    line.Visible = false
+                end
             end
         else
             box.Visible = false
             healthBar.Visible = false
             armorBar.Visible = false
             nameTag.Visible = false
+            for _, line in ipairs(skeletonLines) do
+                line.Visible = false
+            end
         end
     end)
 
@@ -129,6 +298,10 @@ local function DrawESPBoxWithHealthAndArmor(player)
             healthBar.Visible = false
             armorBar.Visible = false
             nameTag.Visible = false
+            for _, line in ipairs(skeletonLines) do
+                line.Visible = false
+                line:Remove()
+            end
             if connection then
                 connection:Disconnect()
             end
@@ -139,7 +312,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
         end
     end)
 
-    return box, healthBar, armorBar, nameTag, connection
+    return box, healthBar, armorBar, nameTag, skeletonLines, connection
 end
 
 -- Apply Box ESP with Health and Armor Bars to Player
@@ -148,8 +321,8 @@ local function applyBoxESPWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
     if not character then return end
 
-    -- Create Box, Health Bar, Armor Bar, and Name Tag
-    local box, healthBar, armorBar, nameTag, connection = DrawESPBoxWithHealthAndArmor(player)
+    -- Create Box, Health Bar, Armor Bar, Name Tag, and Skeleton ESP
+    local box, healthBar, armorBar, nameTag, skeletonLines, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup later
     activeESP[player] = {
@@ -157,6 +330,7 @@ local function applyBoxESPWithHealthAndArmor(player)
         healthBar = healthBar,
         armorBar = armorBar,
         nameTag = nameTag,
+        skeletonLines = skeletonLines,
         updateConnection = connection,
     }
 end
@@ -189,7 +363,6 @@ Players.PlayerAdded:Connect(function(player)
 end)
 Players.PlayerRemoving:Connect(removeESP)
 
-
 -- Toggle ESP Features
 local function toggleESPFeature(feature, state)
     _G[feature] = state
@@ -211,6 +384,10 @@ local function onDistanceESPToggle(newState)
     toggleESPFeature("DistanceESPEnabled", newState)
 end
 
+local function onSkeletonESPToggle(newState)
+    toggleESPFeature("SkeletonESP", newState)
+end
+
 -- Color Settings
 local function setBoxColor(newColor)
     _G.BoxColor = newColor
@@ -218,4 +395,8 @@ end
 
 local function setNameColor(newColor)
     _G.NameColor = newColor
+end
+
+local function setSkeletonColor(newColor)
+    _G.SkeletonColor = newColor
 end
