@@ -150,7 +150,7 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Heartbeat-based prediction function
+-- Enhanced prediction function to handle anti-aim
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -178,10 +178,18 @@ local function PredictTargetPosition(Target)
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Calculate prediction offset
+    -- Enhanced prediction to handle anti-aim
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.15, 2)
+
+        -- Adjust prediction based on target's movement patterns
+        local movementPattern = Humanoid:GetState()
+        if movementPattern == Enum.HumanoidStateType.Running then
+            baseMultiplier = baseMultiplier * 1.2
+        elseif movementPattern == Enum.HumanoidStateType.Jumping then
+            baseMultiplier = baseMultiplier * 1.5
+        end
 
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
