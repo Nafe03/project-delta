@@ -30,6 +30,11 @@ _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
 
+-- Silent Aim Settings
+_G.SilentAim = false
+_G.SilentAimHitChance = 100 -- Percentage chance to hit the target
+_G.SilentAimRadius = 120 -- Radius for silent aim
+
 -- FOV Circle Settings
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -100,7 +105,7 @@ end
 -- Function to get the closest player to the mouse
 local function GetClosestPlayerToMouse()
     local Target = nil
-    local ShortestDistance = _G.CircleRadius
+    local ShortestDistance = _G.SilentAim and _G.SilentAimRadius or _G.CircleRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -120,7 +125,7 @@ local function GetClosestPlayerToMouse()
                     local mousePos = UserInputService:GetMouseLocation()
                     local vectorDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
 
-                    if vectorDistance < ShortestDistance and vectorDistance <= _G.CircleRadius and IsTargetVisible(part) then
+                    if vectorDistance < ShortestDistance and vectorDistance <= (_G.SilentAim and _G.SilentAimRadius or _G.CircleRadius) and IsTargetVisible(part) then
                         ShortestDistance = vectorDistance
                         Target = player
                     end
@@ -201,6 +206,35 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
+-- Silent Aim Function
+local function SilentAim()
+    if _G.SilentAim then
+        local closestPlayer = GetClosestPlayerToMouse()
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild(_G.AimPart) then
+            local hitChance = math.random(1, 100)
+            if hitChance <= _G.SilentAimHitChance then
+                local predictedPosition = PredictTargetPosition(closestPlayer)
+                if predictedPosition then
+                    return predictedPosition
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Hook into the mouse's Hit property for silent aim
+local oldMouseHit
+oldMouseHit = hookmetamethod(game, "__index", function(self, key)
+    if self == UserInputService and key == "GetMouseLocation" and _G.SilentAim then
+        local silentAimPosition = SilentAim()
+        if silentAimPosition then
+            return silentAimPosition
+        end
+    end
+    return oldMouseHit(self, key)
+end)
 
 -- Input handling
 UserInputService.InputBegan:Connect(function(Input)
