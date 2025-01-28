@@ -38,6 +38,7 @@ _G.SilentAimRadius = 120 -- Radius for silent aim
 -- Resolver Settings
 _G.ResolverEnabled = true
 _G.ResolverPrediction = 0.1 -- Adjust this value based on testing
+_G.AntiLockDetectionThreshold = 50
 
 -- FOV Circle Settings
 _G.CircleSides = 64
@@ -154,7 +155,25 @@ local function IsPlayerAirborne(player)
     return false
 end
 
-local function ResolveAntiAim(target)
+local function IsUsingAntiLock(player)
+    if not player or not player.Character then
+        return false
+    end
+
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return false
+    end
+
+    -- Check if the player's velocity exceeds the threshold
+    local velocity = humanoidRootPart.Velocity
+    local speed = velocity.Magnitude
+
+    return speed > _G.AntiLockDetectionThreshold
+end
+
+-- Function to resolve anti-lock
+local function ResolveAntiLock(target)
     if not _G.ResolverEnabled or not target or not target.Character then
         return nil
     end
@@ -171,22 +190,17 @@ local function ResolveAntiAim(target)
     local velocity = humanoidRootPart.Velocity
     local speed = velocity.Magnitude
 
-    -- Predict the target's real rotation based on their movement
-    local function PredictRealRotation()
-        local baseRotation = humanoidRootPart.CFrame - humanoidRootPart.Position
+    -- If the player is using anti-lock, predict their real position
+    if IsUsingAntiLock(target) then
+        -- Predict the real position based on their movement direction
         local movementDirection = velocity.Unit
+        local resolvedPosition = humanoidRootPart.Position + (movementDirection * _G.ResolverPrediction)
 
-        -- Adjust the rotation based on the movement direction
-        local resolvedRotation = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + movementDirection) * CFrame.Angles(0, math.rad(90), 0)
-
-        return resolvedRotation
+        return resolvedPosition
     end
 
-    -- Apply resolver prediction
-    local resolvedRotation = PredictRealRotation()
-    local resolvedPosition = humanoidRootPart.Position + (resolvedRotation.LookVector * _G.ResolverPrediction)
-
-    return resolvedPosition
+    -- If not using anti-lock, return the current position
+    return humanoidRootPart.Position
 end
 
 -- Modify the PredictTargetPosition function to include the resolver
@@ -213,9 +227,9 @@ local function PredictTargetPosition(target)
         position = airAimPart.Position
     end
 
-    -- Resolve anti-aim if enabled
+    -- Resolve anti-lock if enabled
     if _G.ResolverEnabled then
-        local resolvedPosition = ResolveAntiAim(target)
+        local resolvedPosition = ResolveAntiLock(target)
         if resolvedPosition then
             position = resolvedPosition
         end
