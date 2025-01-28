@@ -204,62 +204,54 @@ local function ResolveAntiLock(target)
 end
 
 -- Modify the PredictTargetPosition function to include the resolver
-local function PredictTargetPosition(target)
-    local character = target.Character
+local function PredictTargetPosition(Target)
+    local character = Target.Character
     if not character then return end
 
-    local aimPart = character:FindFirstChild(_G.AimPart)
-    local airAimPart = character:FindFirstChild(_G.AirAimPart)
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChild("Humanoid")
+    local AimPart = character:FindFirstChild(_G.AimPart)
+    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
+    local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = character:FindFirstChild("Humanoid")
 
-    if not (aimPart and humanoidRootPart and humanoid) then return end
+    if not (AimPart and HumanoidRootPart and Humanoid) then return end
 
     -- Apply head offset if enabled and aiming at head
-    local position = aimPart.Position
+    local Position = AimPart.Position
     if _G.UseHeadOffset and _G.AimPart == "Head" then
-        position = position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
     end
 
     -- Use AirAimPart if the target is airborne
-    if IsPlayerAirborne(target) and airAimPart then
-        aimPart = airAimPart
-        position = airAimPart.Position
-    end
-
-    -- Resolve anti-lock if enabled
-    if _G.ResolverEnabled then
-        local resolvedPosition = ResolveAntiLock(target)
-        if resolvedPosition then
-            position = resolvedPosition
-        end
+    if IsPlayerAirborne(Target) and AirAimPart then
+        AimPart = AirAimPart
+        Position = AirAimPart.Position
     end
 
     -- Get velocity and speed
-    local velocity = humanoidRootPart.Velocity
-    local speed = velocity.Magnitude
+    local Velocity = HumanoidRootPart.Velocity
+    local Speed = Velocity.Magnitude
 
     -- Calculate prediction offset
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(speed / 50, 0.15, 2)
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.15, 2)
 
         return Vector3.new(
-            velocity.X * baseMultiplier * speedBasedMultiplier,
-            velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            velocity.Z * baseMultiplier * speedBasedMultiplier
+            Velocity.X * baseMultiplier * speedBasedMultiplier,
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
+            Velocity.Z * baseMultiplier * speedBasedMultiplier
         )
     end
 
     local predictedOffset = CalculatePredictionOffset()
-    local predictedPosition = position + predictedOffset
+    local predictedPosition = Position + predictedOffset
 
     -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
             0,
-            -distance * _G.BulletDropCompensation * math.clamp(speed / 30, 0.5, 1.5),
+            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
             0
         )
         predictedPosition = predictedPosition + dropCompensation
@@ -267,6 +259,7 @@ local function PredictTargetPosition(target)
 
     return predictedPosition
 end
+
 
 -- Silent Aim Function
 local function SilentAim()
