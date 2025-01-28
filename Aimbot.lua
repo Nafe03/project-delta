@@ -27,8 +27,8 @@ _G.PredictionMultiplier = 1.45
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
-_G.HeadVerticalOffset = 0.3
-_G.UseHeadOffset = true
+_G.HeadVerticalOffset = 0
+_G.UseHeadOffset = false
 
 -- FOV Circle Settings
 _G.CircleSides = 64
