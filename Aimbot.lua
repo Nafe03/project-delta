@@ -35,6 +35,10 @@ _G.SilentAim = false
 _G.SilentAimHitChance = 100 -- Percentage chance to hit the target
 _G.SilentAimRadius = 120 -- Radius for silent aim
 
+-- Resolver Settings
+_G.ResolverEnabled = true
+_G.ResolverPrediction = 0.1 -- Adjust this value based on testing
+
 -- FOV Circle Settings
 _G.CircleSides = 64
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
@@ -150,63 +154,98 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Enhanced prediction function to handle anti-aim
-local function PredictTargetPosition(Target)
-    local character = Target.Character
+local function ResolveAntiAim(target)
+    if not _G.ResolverEnabled or not target or not target.Character then
+        return nil
+    end
+
+    local character = target.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+
+    if not (humanoidRootPart and humanoid) then
+        return nil
+    end
+
+    -- Get the target's velocity and speed
+    local velocity = humanoidRootPart.Velocity
+    local speed = velocity.Magnitude
+
+    -- Predict the target's real rotation based on their movement
+    local function PredictRealRotation()
+        local baseRotation = humanoidRootPart.CFrame - humanoidRootPart.Position
+        local movementDirection = velocity.Unit
+
+        -- Adjust the rotation based on the movement direction
+        local resolvedRotation = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + movementDirection) * CFrame.Angles(0, math.rad(90), 0)
+
+        return resolvedRotation
+    end
+
+    -- Apply resolver prediction
+    local resolvedRotation = PredictRealRotation()
+    local resolvedPosition = humanoidRootPart.Position + (resolvedRotation.LookVector * _G.ResolverPrediction)
+
+    return resolvedPosition
+end
+
+-- Modify the PredictTargetPosition function to include the resolver
+local function PredictTargetPosition(target)
+    local character = target.Character
     if not character then return end
 
-    local AimPart = character:FindFirstChild(_G.AimPart)
-    local AirAimPart = character:FindFirstChild(_G.AirAimPart)
-    local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = character:FindFirstChild("Humanoid")
+    local aimPart = character:FindFirstChild(_G.AimPart)
+    local airAimPart = character:FindFirstChild(_G.AirAimPart)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
 
-    if not (AimPart and HumanoidRootPart and Humanoid) then return end
+    if not (aimPart and humanoidRootPart and humanoid) then return end
 
     -- Apply head offset if enabled and aiming at head
-    local Position = AimPart.Position
+    local position = aimPart.Position
     if _G.UseHeadOffset and _G.AimPart == "Head" then
-        Position = Position + Vector3.new(0, _G.HeadVerticalOffset, 0)
+        position = position + Vector3.new(0, _G.HeadVerticalOffset, 0)
     end
 
     -- Use AirAimPart if the target is airborne
-    if IsPlayerAirborne(Target) and AirAimPart then
-        AimPart = AirAimPart
-        Position = AirAimPart.Position
+    if IsPlayerAirborne(target) and airAimPart then
+        aimPart = airAimPart
+        position = airAimPart.Position
+    end
+
+    -- Resolve anti-aim if enabled
+    if _G.ResolverEnabled then
+        local resolvedPosition = ResolveAntiAim(target)
+        if resolvedPosition then
+            position = resolvedPosition
+        end
     end
 
     -- Get velocity and speed
-    local Velocity = HumanoidRootPart.Velocity
-    local Speed = Velocity.Magnitude
+    local velocity = humanoidRootPart.Velocity
+    local speed = velocity.Magnitude
 
-    -- Enhanced prediction to handle anti-aim
+    -- Calculate prediction offset
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.15, 2)
-
-        -- Adjust prediction based on target's movement patterns
-        local movementPattern = Humanoid:GetState()
-        if movementPattern == Enum.HumanoidStateType.Running then
-            baseMultiplier = baseMultiplier * 1.2
-        elseif movementPattern == Enum.HumanoidStateType.Jumping then
-            baseMultiplier = baseMultiplier * 1.5
-        end
+        local speedBasedMultiplier = math.clamp(speed / 50, 0.15, 2)
 
         return Vector3.new(
-            Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            Velocity.Z * baseMultiplier * speedBasedMultiplier
+            velocity.X * baseMultiplier * speedBasedMultiplier,
+            velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
+            velocity.Z * baseMultiplier * speedBasedMultiplier
         )
     end
 
     local predictedOffset = CalculatePredictionOffset()
-    local predictedPosition = Position + predictedOffset
+    local predictedPosition = position + predictedOffset
 
     -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
         local distance = (Camera.CFrame.Position - predictedPosition).Magnitude
         local dropCompensation = Vector3.new(
             0,
-            -distance * _G.BulletDropCompensation * math.clamp(Speed / 30, 0.5, 1.5),
+            -distance * _G.BulletDropCompensation * math.clamp(speed / 30, 0.5, 1.5),
             0
         )
         predictedPosition = predictedPosition + dropCompensation
