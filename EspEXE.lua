@@ -328,14 +328,36 @@ end
 
 -- Apply ESP to Player
 local function applyESP(player)
-    if not player then return end
-    local character = player.Character or player.CharacterAdded:Wait()
-    if not character then return end
+    if not player or player == Player then return end -- Don't apply to nil or local player
+    
+    -- Clean up existing ESP if any
+    if activeESP[player] then
+        if activeESP[player].box then activeESP[player].box:Remove() end
+        if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
+        if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
+        if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+        if activeESP[player].skeletonLines then
+            for _, line in ipairs(activeESP[player].skeletonLines) do
+                line:Remove()
+            end
+        end
+        if activeESP[player].updateConnection then
+            activeESP[player].updateConnection:Disconnect()
+        end
+        activeESP[player] = nil
+    end
+
+    -- Wait for character
+    local character = player.Character
+    if not character then
+        player.CharacterAdded:Wait()
+        character = player.Character
+    end
 
     -- Create ESP elements
     local box, healthBar, nameTag, skeletonLines, ammoTag, connection = DrawESPBoxWithHealthAndArmor(player)
 
-    -- Store ESP objects for cleanup later
+    -- Store ESP objects for cleanup
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
@@ -343,7 +365,80 @@ local function applyESP(player)
         skeletonLines = skeletonLines,
         ammoTag = ammoTag,
         updateConnection = connection,
+        characterConnection = nil
     }
+
+    -- Handle character changes
+    activeESP[player].characterConnection = player.CharacterAdded:Connect(function()
+        -- Remove old ESP
+        if activeESP[player] then
+            if activeESP[player].box then activeESP[player].box:Remove() end
+            if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
+            if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
+            if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+            if activeESP[player].skeletonLines then
+                for _, line in ipairs(activeESP[player].skeletonLines) do
+                    line:Remove()
+                end
+            end
+            if activeESP[player].updateConnection then
+                activeESP[player].updateConnection:Disconnect()
+            end
+        end
+        
+        -- Create new ESP
+        local newBox, newHealthBar, newNameTag, newSkeletonLines, newAmmoTag, newConnection = DrawESPBoxWithHealthAndArmor(player)
+        
+        activeESP[player] = {
+            box = newBox,
+            healthBar = newHealthBar,
+            nameTag = newNameTag,
+            skeletonLines = newSkeletonLines,
+            ammoTag = newAmmoTag,
+            updateConnection = newConnection,
+            characterConnection = activeESP[player].characterConnection
+        }
+    end)
+end
+
+local function cleanupESP(player)
+    if activeESP[player] then
+        if activeESP[player].box then activeESP[player].box:Remove() end
+        if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
+        if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
+        if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+        if activeESP[player].skeletonLines then
+            for _, line in ipairs(activeESP[player].skeletonLines) do
+                line:Remove()
+            end
+        end
+        if activeESP[player].updateConnection then
+            activeESP[player].updateConnection:Disconnect()
+        end
+        if activeESP[player].characterConnection then
+            activeESP[player].characterConnection:Disconnect()
+        end
+        activeESP[player] = nil
+    end
+end
+
+local function initializeESP(player)
+    player.CharacterAdded:Connect(function()
+        applyESP(player)
+    end)
+    player.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            if activeESP[player] then
+                for _, line in ipairs(activeESP[player].skeletonLines) do
+                    line:Remove()
+                end
+                activeESP[player] = nil
+            end
+        end
+    end)
+    if player.Character then
+        applyESP(player)
+    end
 end
 
 -- Initialize ESP for all players
@@ -381,24 +476,22 @@ end)
 
 -- Function to toggle ESP features
 
--- Apply ESP to all players in-game and new ones joining
 for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= Player then  -- Don't apply ESP to local player
+    if player ~= Player then
         applyESP(player)
     end
 end
+
+-- Handle new players joining
 Players.PlayerAdded:Connect(function(player)
-    if player ~= Player then  -- Don't apply ESP to local player
+    if player ~= Player then
         applyESP(player)
     end
 end)
+
+-- Handle players leaving
 Players.PlayerRemoving:Connect(function(player)
-    if activeESP[player] then
-        for _, line in ipairs(activeESP[player].skeletonLines) do
-            line:Remove()
-        end
-        activeESP[player] = nil
-    end
+    cleanupESP(player)
 end)
 
 -- Toggle ESP Features
