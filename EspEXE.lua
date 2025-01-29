@@ -14,10 +14,12 @@ _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.SkeletonESP = true
 _G.DistanceESPEnabled = false
+_G.ShowAmmo = true
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
-_G.SkeletonColor = Color3.fromRGB(255, 0, 0)
+_G.AmmoColor = Color3.fromRGB(255, 255, 0)
+_G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 
 -- Active ESP Storage
 local activeESP = {}
@@ -45,6 +47,42 @@ local function CreateSkeletonESP()
         table.insert(skeletonLines, line)
     end
     return skeletonLines
+end
+
+-- Function to Get Current Ammo of a Player
+local function GetPlayerAmmo(player)
+    local backpack = player:FindFirstChild("Backpack")
+    local character = player.Character
+    
+    -- Check equipped tool first
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool and tool:FindFirstChild("Script") and tool.Script:FindFirstChild("Ammo") then
+            return tool.Script.Ammo.Value
+        end
+    end
+    
+    -- Then check backpack
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool:FindFirstChild("Script") and tool.Script:FindFirstChild("Ammo") then
+                return tool.Script.Ammo.Value
+            end
+        end
+    end
+    return "N/A"
+end
+
+-- Function to Create Ammo ESP
+local function CreateAmmoESP()
+    local ammoTag = Drawing.new("Text")
+    ammoTag.Size = 18
+    ammoTag.Center = true
+    ammoTag.Outline = true
+    ammoTag.Color = _G.AmmoColor
+    ammoTag.Font = 3
+    ammoTag.Visible = false
+    return ammoTag
 end
 
 -- Function to Update Skeleton ESP
@@ -87,38 +125,44 @@ local function UpdateSkeletonESP(skeletonLines, character)
         -- Head to Torso
         skeletonLines[1].From = screenPoints.head
         skeletonLines[1].To = screenPoints.torso
+        skeletonLines[1].Color = _G.SkeletonColor
 
         -- Torso to Left Arm
         if screenPoints.leftArm then
             skeletonLines[2].From = screenPoints.torso
             skeletonLines[2].To = screenPoints.leftArm
+            skeletonLines[2].Color = _G.SkeletonColor
         end
 
         -- Torso to Right Arm
         if screenPoints.rightArm then
             skeletonLines[3].From = screenPoints.torso
             skeletonLines[3].To = screenPoints.rightArm
+            skeletonLines[3].Color = _G.SkeletonColor
         end
 
         -- Torso to Left Leg
         if screenPoints.leftLeg then
             skeletonLines[4].From = screenPoints.torso
             skeletonLines[4].To = screenPoints.leftLeg
+            skeletonLines[4].Color = _G.SkeletonColor
         end
 
         -- Torso to Right Leg
         if screenPoints.rightLeg then
             skeletonLines[5].From = screenPoints.torso
             skeletonLines[5].To = screenPoints.rightLeg
+            skeletonLines[5].Color = _G.SkeletonColor
         end
 
         -- Left Arm to Left Hand (if available)
         local leftHand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
         if leftHand then
             local leftHandPoint = getScreenPoint(leftHand)
-            if leftHandPoint then
+            if leftHandPoint and screenPoints.leftArm then
                 skeletonLines[6].From = screenPoints.leftArm
                 skeletonLines[6].To = leftHandPoint
+                skeletonLines[6].Color = _G.SkeletonColor
             end
         end
 
@@ -126,9 +170,10 @@ local function UpdateSkeletonESP(skeletonLines, character)
         local rightHand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
         if rightHand then
             local rightHandPoint = getScreenPoint(rightHand)
-            if rightHandPoint then
+            if rightHandPoint and screenPoints.rightArm then
                 skeletonLines[7].From = screenPoints.rightArm
                 skeletonLines[7].To = rightHandPoint
+                skeletonLines[7].Color = _G.SkeletonColor
             end
         end
 
@@ -136,9 +181,10 @@ local function UpdateSkeletonESP(skeletonLines, character)
         local leftFoot = character:FindFirstChild("LeftFoot") or character:FindFirstChild("Left Leg")
         if leftFoot then
             local leftFootPoint = getScreenPoint(leftFoot)
-            if leftFootPoint then
+            if leftFootPoint and screenPoints.leftLeg then
                 skeletonLines[8].From = screenPoints.leftLeg
                 skeletonLines[8].To = leftFootPoint
+                skeletonLines[8].Color = _G.SkeletonColor
             end
         end
 
@@ -146,9 +192,10 @@ local function UpdateSkeletonESP(skeletonLines, character)
         local rightFoot = character:FindFirstChild("RightFoot") or character:FindFirstChild("Right Leg")
         if rightFoot then
             local rightFootPoint = getScreenPoint(rightFoot)
-            if rightFootPoint then
+            if rightFootPoint and screenPoints.rightLeg then
                 skeletonLines[9].From = screenPoints.rightLeg
                 skeletonLines[9].To = rightFootPoint
+                skeletonLines[9].Color = _G.SkeletonColor
             end
         end
 
@@ -164,7 +211,7 @@ local function UpdateSkeletonESP(skeletonLines, character)
     end
 end
 
--- Function to Create Box ESP with Health and Armor Bars
+-- Function to Draw ESP Box with Health, Armor, and Ammo
 local function DrawESPBoxWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -186,6 +233,9 @@ local function DrawESPBoxWithHealthAndArmor(player)
 
     -- Create Name Tag
     local nameTag = CreateNameESP(player)
+    
+    -- Create Ammo Tag
+    local ammoTag = CreateAmmoESP()
 
     -- Create Skeleton ESP
     local skeletonLines = CreateSkeletonESP()
@@ -211,6 +261,12 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 nameTag.Text = player.Name
                 nameTag.Color = _G.NameColor
                 nameTag.Visible = _G.NameESPEnabled
+                
+                -- Update Ammo Tag
+                ammoTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 5)
+                ammoTag.Text = "Ammo: " .. tostring(GetPlayerAmmo(player))
+                ammoTag.Color = _G.AmmoColor
+                ammoTag.Visible = _G.ShowAmmo
 
                 -- Update Health Bar
                 local humanoid = character:FindFirstChild("Humanoid")
@@ -230,6 +286,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 box.Visible = false
                 healthBar.Visible = false
                 nameTag.Visible = false
+                ammoTag.Visible = false
                 for _, line in ipairs(skeletonLines) do
                     line.Visible = false
                 end
@@ -238,6 +295,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
             box.Visible = false
             healthBar.Visible = false
             nameTag.Visible = false
+            ammoTag.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
             end
@@ -250,6 +308,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
             box.Visible = false
             healthBar.Visible = false
             nameTag.Visible = false
+            ammoTag.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
                 line:Remove()
@@ -260,10 +319,11 @@ local function DrawESPBoxWithHealthAndArmor(player)
             box:Remove()
             healthBar:Remove()
             nameTag:Remove()
+            ammoTag:Remove()
         end
     end)
 
-    return box, healthBar, nameTag, skeletonLines, connection
+    return box, healthBar, nameTag, skeletonLines, ammoTag, connection
 end
 
 -- Apply ESP to Player
@@ -273,7 +333,7 @@ local function applyESP(player)
     if not character then return end
 
     -- Create ESP elements
-    local box, healthBar, nameTag, skeletonLines, connection = DrawESPBoxWithHealthAndArmor(player)
+    local box, healthBar, nameTag, skeletonLines, ammoTag, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup later
     activeESP[player] = {
@@ -281,59 +341,55 @@ local function applyESP(player)
         healthBar = healthBar,
         nameTag = nameTag,
         skeletonLines = skeletonLines,
+        ammoTag = ammoTag,
         updateConnection = connection,
     }
 end
 
 -- Initialize ESP for all players
-local function initializeESP(player)
-    player.CharacterAdded:Connect(function()
-        applyESP(player)
-    end)
-    player.AncestryChanged:Connect(function(_, parent)
-        if not parent then
-            if activeESP[player] then
-                for _, line in ipairs(activeESP[player].skeletonLines) do
-                    line:Remove()
-                end
-                activeESP[player] = nil
-            end
-        end
-    end)
-    if player.Character then
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Player then  -- Don't apply ESP to local player
         applyESP(player)
     end
 end
 
--- Apply ESP to all players in-game and new ones joining
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= Player then  -- Don't apply ESP to local player
-        initializeESP(player)
-    end
-end
+-- Handle new players joining
 Players.PlayerAdded:Connect(function(player)
     if player ~= Player then  -- Don't apply ESP to local player
-        initializeESP(player)
+        applyESP(player)
     end
 end)
+
+-- Handle players leaving
 Players.PlayerRemoving:Connect(function(player)
     if activeESP[player] then
-        for _, line in ipairs(activeESP[player].skeletonLines) do
-            line:Remove()
+        if activeESP[player].box then activeESP[player].box:Remove() end
+        if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
+        if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
+        if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+        if activeESP[player].skeletonLines then
+            for _, line in ipairs(activeESP[player].skeletonLines) do
+                line:Remove()
+            end
+        end
+        if activeESP[player].updateConnection then
+            activeESP[player].updateConnection:Disconnect()
         end
         activeESP[player] = nil
     end
 end)
 
--- Toggle ESP Features
+-- Function to toggle ESP features
 local function toggleESPFeature(feature, state)
     _G[feature] = state
 end
 
-local function onSkeletonESPToggle(newState)
-    toggleESPFeature("SkeletonESP", newState)
-end
-
--- Example usage:
--- onSkeletonESPToggle(true)  -- Enable Skeleton ESP
--- onSkeletonESPToggle(false) -- Disable Skeleton ESP
+-- Usage examples:
+-- Toggle all ESP features
+-- toggleESPFeature("ESPEnabled", true/false)
+-- Toggle specific features
+-- toggleESPFeature("BoxESPEnabled", true/false)
+-- toggleESPFeature("HealthESPEnabled", true/false)
+-- toggleESPFeature("NameESPEnabled", true/false)
+-- toggleESPFeature("SkeletonESP", true/false)
+-- toggleESPFeature("ShowAmmo", true/false)
