@@ -127,3 +127,40 @@ end
 
 Players.PlayerAdded:Connect(initializeESP)
 Players.PlayerRemoving:Connect(cleanupESP)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Player then
+        applyESP(player)
+    end
+end
+
+-- Handle new players joining
+Players.PlayerAdded:Connect(function(player)
+    if player ~= Player then
+        applyESP(player)
+    end
+end)
+
+-- Handle players leaving
+Players.PlayerRemoving:Connect(function(player)
+    cleanupESP(player)
+end)
+
+-- Toggle ESP Features
+local function toggleESPFeature(feature, state)
+    _G[feature] = state
+end
+
+local function onSkeletonESPToggle(newState)
+    toggleESPFeature("SkeletonESP", newState)
+end
+
+-- Usage examples:
+-- Toggle all ESP features
+-- toggleESPFeature("ESPEnabled", true/false)
+-- Toggle specific features
+-- toggleESPFeature("BoxESPEnabled", true/false)
+-- toggleESPFeature("HealthESPEnabled", true/false)
+-- toggleESPFeature("NameESPEnabled", true/false)
+-- toggleESPFeature("SkeletonESP", true/false)
+-- toggleESPFeature("ShowAmmo", true/false)
