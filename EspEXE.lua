@@ -18,7 +18,7 @@ _G.ShowAmmo = true
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
-_G.AmmoColor = Color3.fromRGB(255, 255, 0)
+_G.AmmoColor = Color3.fromRGB(255, 255, 255)
 _G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 
 -- Active ESP Storage
