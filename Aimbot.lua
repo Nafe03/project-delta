@@ -205,6 +205,7 @@ end
 
 -- Modify the PredictTargetPosition function to include the resolver
 -- Function to predict target position based on MoveDirection and Velocity
+-- Function to predict target position based on MoveDirection and Velocity
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -233,8 +234,20 @@ local function PredictTargetPosition(Target)
     local MoveDirection = Humanoid.MoveDirection
     local Speed = Velocity.Magnitude
 
-    -- Calculate prediction offset
-    local function CalculatePredictionOffset()
+    -- Calculate prediction offset using the old method (Velocity-based)
+    local function CalculateOldPredictionOffset()
+        local baseMultiplier = _G.PredictionAmount
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.11, 2)
+
+        return Vector3.new(
+            Velocity.X * baseMultiplier * speedBasedMultiplier,
+            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
+            Velocity.Z * baseMultiplier * speedBasedMultiplier
+        )
+    end
+
+    -- Calculate prediction offset using the new method (MoveDirection-based)
+    local function CalculateNewPredictionOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.11, 2)
 
@@ -245,8 +258,12 @@ local function PredictTargetPosition(Target)
         )
     end
 
-    local predictedOffset = CalculatePredictionOffset()
-    local predictedPosition = Position + predictedOffset
+    -- Combine both prediction methods
+    local oldPredictedOffset = CalculateOldPredictionOffset()
+    local newPredictedOffset = CalculateNewPredictionOffset()
+    local combinedPredictedOffset = (oldPredictedOffset + newPredictedOffset) / 2
+
+    local predictedPosition = Position + combinedPredictedOffset
 
     -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
@@ -261,6 +278,7 @@ local function PredictTargetPosition(Target)
 
     return predictedPosition
 end
+
 
 
 -- Silent Aim Function
