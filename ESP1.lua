@@ -24,9 +24,17 @@ _G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 -- Active ESP Storage
 local activeESP = {}
 
--- Function to check if a model is a player
+-- Function to check if a model represents a player
 local function isPlayerModel(model)
-    return model:FindFirstChild("LeftFoot") ~= nil
+    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    
+    -- If the model has no Humanoid, add one
+    if not model:FindFirstChild("Humanoid") then
+        local humanoid = Instance.new("Humanoid")
+        humanoid.Parent = model
+    end
+    
+    return rootPart ~= nil
 end
 
 -- Function to Create Name ESP
