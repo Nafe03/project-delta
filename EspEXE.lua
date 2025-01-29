@@ -380,8 +380,34 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 -- Function to toggle ESP features
+
+-- Apply ESP to all players in-game and new ones joining
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Player then  -- Don't apply ESP to local player
+        applyESP(player)
+    end
+end
+Players.PlayerAdded:Connect(function(player)
+    if player ~= Player then  -- Don't apply ESP to local player
+        applyESP(player)
+    end
+end)
+Players.PlayerRemoving:Connect(function(player)
+    if activeESP[player] then
+        for _, line in ipairs(activeESP[player].skeletonLines) do
+            line:Remove()
+        end
+        activeESP[player] = nil
+    end
+end)
+
+-- Toggle ESP Features
 local function toggleESPFeature(feature, state)
     _G[feature] = state
+end
+
+local function onSkeletonESPToggle(newState)
+    toggleESPFeature("SkeletonESP", newState)
 end
 
 -- Usage examples:
