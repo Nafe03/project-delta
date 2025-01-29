@@ -204,6 +204,7 @@ local function ResolveAntiLock(target)
 end
 
 -- Modify the PredictTargetPosition function to include the resolver
+-- Function to predict target position based on MoveDirection and Velocity
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -229,6 +230,7 @@ local function PredictTargetPosition(Target)
 
     -- Get velocity and speed
     local Velocity = HumanoidRootPart.Velocity
+    local MoveDirection = Humanoid.MoveDirection
     local Speed = Velocity.Magnitude
 
     -- Calculate prediction offset
@@ -237,9 +239,9 @@ local function PredictTargetPosition(Target)
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.11, 2)
 
         return Vector3.new(
-            Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            Velocity.Z * baseMultiplier * speedBasedMultiplier
+            (Velocity.X + MoveDirection.X * Speed) * baseMultiplier * speedBasedMultiplier,
+            (Velocity.Y + MoveDirection.Y * Speed) * baseMultiplier * speedBasedMultiplier * 0.5,
+            (Velocity.Z + MoveDirection.Z * Speed) * baseMultiplier * speedBasedMultiplier
         )
     end
 
