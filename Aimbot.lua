@@ -13,7 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.LegitAimbot = false
 _G.TeamCheck = false
-_G.HotKeyAimbot = Enum.KeyCode.Q -- Set your desired hotkey here (e.g., Enum.KeyCode.Q)
+_G.HotKeyAimbot = "Q"
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0      
@@ -261,6 +261,7 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
+
 -- Silent Aim Function
 local function SilentAim()
     if _G.SilentAim then
@@ -310,7 +311,7 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    if Input.KeyCode == Enum.UserInputType.MouseButton2 then
+    if Input.UserInputType == _G.HotKeyAimbot then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
