@@ -292,7 +292,7 @@ end)
 
 -- Input handling
 UserInputService.InputBegan:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+    if Input.UserInputType == _G.HotKeyAimbot then
         Holding = true
         if _G.AimbotEnabled or _G.LegitAimbot then
             CurrentTarget = GetClosestPlayerToMouse()
