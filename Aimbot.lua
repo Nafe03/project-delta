@@ -30,6 +30,7 @@ _G.DynamicSensitivity = true
 _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
+_G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
 
 -- Silent Aim Settings
 _G.SilentAim = false
@@ -294,16 +295,40 @@ end)
 UserInputService.InputBegan:Connect(function(Input)
     -- Activate Aimbot when HotKey is pressed
     if Input.KeyCode == _G.HotKeyAimbot then
-        Holding = true
-        if _G.AimbotEnabled or _G.LegitAimbot then
-            CurrentTarget = GetClosestPlayerToMouse()
-            if CurrentTarget then
-                local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
-                Notify(mode, "Locked onto " .. CurrentTarget.Name)
-                if _G.VisibleHighlight then
-                    CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
-                    CurrentHighlight.FillColor = Color3.new(1, 0, 0)
-                    CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+        if _G.ToggleAimbot then
+            -- Toggle mode
+            Holding = not Holding
+            if Holding then
+                CurrentTarget = GetClosestPlayerToMouse()
+                if CurrentTarget then
+                    local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
+                    Notify(mode, "Locked onto " .. CurrentTarget.Name)
+                    if _G.VisibleHighlight then
+                        CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                        CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                        CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                    end
+                end
+            else
+                CurrentTarget = nil
+                if CurrentHighlight then
+                    CurrentHighlight:Destroy()
+                    CurrentHighlight = nil
+                end
+            end
+        else
+            -- Hold mode
+            Holding = true
+            if _G.AimbotEnabled or _G.LegitAimbot then
+                CurrentTarget = GetClosestPlayerToMouse()
+                if CurrentTarget then
+                    local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
+                    Notify(mode, "Locked onto " .. CurrentTarget.Name)
+                    if _G.VisibleHighlight then
+                        CurrentHighlight = Instance.new("Highlight", CurrentTarget.Character)
+                        CurrentHighlight.FillColor = Color3.new(1, 0, 0)
+                        CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
+                    end
                 end
             end
         end
@@ -311,8 +336,8 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    -- Deactivate Aimbot when HotKey is released
-    if Input.KeyCode == _G.HotKeyAimbot then
+    -- Deactivate Aimbot when HotKey is released (only in hold mode)
+    if Input.KeyCode == _G.HotKeyAimbot and not _G.ToggleAimbot then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
