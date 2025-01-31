@@ -292,7 +292,7 @@ end)
 
 -- Input handling
 UserInputService.InputBegan:Connect(function(Input)
-    if Input.UserInputType == _G.HotKeyAimbot then
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = true
         if _G.AimbotEnabled or _G.LegitAimbot then
             CurrentTarget = GetClosestPlayerToMouse()
@@ -310,7 +310,7 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    if Input.KeyCode == _G.HotKeyAimbot then
+    if Input.KeyCode == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
