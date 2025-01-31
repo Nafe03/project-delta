@@ -10,10 +10,10 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
-_G.AimbotEnabled = false
+_G.AimbotEnabled = true
 _G.LegitAimbot = false
 _G.TeamCheck = false
-_G.HotKeyAimbot = "Q"
+_G.HotKeyAimbot = Enum.KeyCode.Q -- Set your desired hotkey here (e.g., Enum.KeyCode.Q)
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0      
@@ -232,18 +232,10 @@ local function PredictTargetPosition(Target)
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Detect if the target is using a speed hack
-    local IsUsingSpeedHack = Speed > _G.FastTargetSpeedThreshold
-
-    -- Adjust prediction multiplier for speed hacks
+    -- Calculate prediction offset
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.07, 2)
-
-        -- Increase prediction multiplier if using speed hack
-        if IsUsingSpeedHack then
-            baseMultiplier = baseMultiplier * 1.5 -- Adjust this value based on testing
-        end
 
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
@@ -266,17 +258,8 @@ local function PredictTargetPosition(Target)
         predictedPosition = predictedPosition + dropCompensation
     end
 
-    -- If the target is using a CFrame-based speed hack, adjust prediction
-    if IsUsingSpeedHack then
-        -- Estimate movement direction based on CFrame
-        local movementDirection = HumanoidRootPart.CFrame.LookVector
-        local speedHackMultiplier = Speed / 50 -- Adjust this value based on testing
-        predictedPosition = predictedPosition + (movementDirection * speedHackMultiplier)
-    end
-
     return predictedPosition
 end
-
 
 -- Silent Aim Function
 local function SilentAim()
@@ -327,7 +310,7 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == _G.HotKeyAimbot then
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
