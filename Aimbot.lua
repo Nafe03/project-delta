@@ -232,10 +232,18 @@ local function PredictTargetPosition(Target)
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
 
-    -- Calculate prediction offset
+    -- Detect if the target is using a speed hack
+    local IsUsingSpeedHack = Speed > _G.FastTargetSpeedThreshold
+
+    -- Adjust prediction multiplier for speed hacks
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
         local speedBasedMultiplier = math.clamp(Speed / 50, 0.07, 2)
+
+        -- Increase prediction multiplier if using speed hack
+        if IsUsingSpeedHack then
+            baseMultiplier = baseMultiplier * 1.5 -- Adjust this value based on testing
+        end
 
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
@@ -256,6 +264,14 @@ local function PredictTargetPosition(Target)
             0
         )
         predictedPosition = predictedPosition + dropCompensation
+    end
+
+    -- If the target is using a CFrame-based speed hack, adjust prediction
+    if IsUsingSpeedHack then
+        -- Estimate movement direction based on CFrame
+        local movementDirection = HumanoidRootPart.CFrame.LookVector
+        local speedHackMultiplier = Speed / 50 -- Adjust this value based on testing
+        predictedPosition = predictedPosition + (movementDirection * speedHackMultiplier)
     end
 
     return predictedPosition
