@@ -12,7 +12,7 @@ _G.ESPEnabled = true
 _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
-_G.SkeletonESP = true
+_G.SkeletonESP = false
 _G.DistanceESPEnabled = false
 _G.ShowAmmo = true
 
@@ -241,7 +241,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
     local skeletonLines = CreateSkeletonESP()
 
     local connection
-    connection = RunService.RenderStepped:Connect(function()
+    connection = RunService.Heartbeat:Connect(function()
         if character and character.Parent and rootPart then
             local rootPos = rootPart.Position
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
@@ -428,7 +428,7 @@ local function initializeESP(player)
     end)
     player.AncestryChanged:Connect(function(_, parent)
         if not parent then
-            if activeESP[player] then
+                        if activeESP[player] then
                 for _, line in ipairs(activeESP[player].skeletonLines) do
                     line:Remove()
                 end
@@ -444,48 +444,14 @@ end
 -- Initialize ESP for all players
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= Player then  -- Don't apply ESP to local player
-        applyESP(player)
+        initializeESP(player)
     end
 end
 
 -- Handle new players joining
 Players.PlayerAdded:Connect(function(player)
     if player ~= Player then  -- Don't apply ESP to local player
-        applyESP(player)
-    end
-end)
-
--- Handle players leaving
-Players.PlayerRemoving:Connect(function(player)
-    if activeESP[player] then
-        if activeESP[player].box then activeESP[player].box:Remove() end
-        if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
-        if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
-        if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
-        if activeESP[player].skeletonLines then
-            for _, line in ipairs(activeESP[player].skeletonLines) do
-                line:Remove()
-            end
-        end
-        if activeESP[player].updateConnection then
-            activeESP[player].updateConnection:Disconnect()
-        end
-        activeESP[player] = nil
-    end
-end)
-
--- Function to toggle ESP features
-
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= Player then
-        applyESP(player)
-    end
-end
-
--- Handle new players joining
-Players.PlayerAdded:Connect(function(player)
-    if player ~= Player then
-        applyESP(player)
+        initializeESP(player)
     end
 end)
 
@@ -499,16 +465,6 @@ local function toggleESPFeature(feature, state)
     _G[feature] = state
 end
 
-local function onSkeletonESPToggle(newState)
-    toggleESPFeature("SkeletonESP", newState)
-end
-
--- Usage examples:
--- Toggle all ESP features
--- toggleESPFeature("ESPEnabled", true/false)
--- Toggle specific features
--- toggleESPFeature("BoxESPEnabled", true/false)
--- toggleESPFeature("HealthESPEnabled", true/false)
--- toggleESPFeature("NameESPEnabled", true/false)
--- toggleESPFeature("SkeletonESP", true/false)
--- toggleESPFeature("ShowAmmo", true/false)
+-- Example usage:
+-- toggleESPFeature("BoxESPEnabled", true)  -- Enable Box ESP
+-- toggleESPFeature("HealthESPEnabled", false)  -- Disable Health ESP
