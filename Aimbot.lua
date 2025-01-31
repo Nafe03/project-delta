@@ -13,6 +13,7 @@ local Holding = false
 _G.AimbotEnabled = false
 _G.LegitAimbot = false
 _G.TeamCheck = false
+_G.HotKeyAimbot = "Q"
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0      
@@ -310,7 +311,7 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+    if Input.UserInputType == _G.HotKeyAimbot then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
