@@ -291,8 +291,10 @@ oldMouseHit = hookmetamethod(game, "__index", function(self, key)
 end)
 
 -- Input handling
+-- Input handling
 UserInputService.InputBegan:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+    -- Activate Aimbot when HotKey is pressed
+    if Input.KeyCode == _G.HotKeyAimbot then
         Holding = true
         if _G.AimbotEnabled or _G.LegitAimbot then
             CurrentTarget = GetClosestPlayerToMouse()
@@ -310,7 +312,8 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+    -- Deactivate Aimbot when HotKey is released
+    if Input.KeyCode == _G.HotKeyAimbot then
         Holding = false
         CurrentTarget = nil
         if CurrentHighlight then
