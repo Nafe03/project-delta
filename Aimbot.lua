@@ -291,7 +291,6 @@ oldMouseHit = hookmetamethod(game, "__index", function(self, key)
 end)
 
 -- Input handling
--- Input handling
 UserInputService.InputBegan:Connect(function(Input)
     -- Activate Aimbot when HotKey is pressed
     if Input.KeyCode == _G.HotKeyAimbot then
