@@ -43,13 +43,12 @@ _G.ResolverPrediction = 0.1 -- Adjust this value based on testing
 _G.AntiLockDetectionThreshold = 50
 
 -- FOV Circle Settings
-_G.CircleSides = 64
-_G.CircleColor = Color3.fromRGB(255, 255, 255)
-_G.CircleTransparency = 1
+_G.UseCircle = true
 _G.CircleRadius = 120
-_G.CircleFilled = false
-_G.CircleVisible = true
+_G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleThickness = 1
+_G.CircleTransparency = 1
+_G.CircleFilled = false
 
 -- FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
@@ -57,9 +56,8 @@ FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.
 FOVCircle.Radius = _G.CircleRadius
 FOVCircle.Filled = _G.CircleFilled
 FOVCircle.Color = _G.CircleColor
-FOVCircle.Visible = _G.CircleVisible
+FOVCircle.Visible = _G.UseCircle
 FOVCircle.Transparency = _G.CircleTransparency
-FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
 
 -- Current Target Variables
