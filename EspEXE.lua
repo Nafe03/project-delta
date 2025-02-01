@@ -15,6 +15,7 @@ _G.BoxESPEnabled = true
 _G.SkeletonESP = false
 _G.DistanceESPEnabled = false
 _G.ShowAmmo = true
+_G.MaxDistance = 500 -- Maximum distance for ESP (in studs)
 
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
 _G.NameColor = Color3.fromRGB(255, 255, 255)
@@ -217,6 +218,12 @@ local function DrawESPBoxWithHealthAndArmor(player)
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
     if not rootPart then return end
 
+    -- Check if the player is within the maximum distance
+    local distance = (Player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+    if distance > _G.MaxDistance then
+        return
+    end
+
     -- Create Box
     local box = Drawing.new("Square")
     box.Thickness = 1
@@ -245,6 +252,19 @@ local function DrawESPBoxWithHealthAndArmor(player)
         if character and character.Parent and rootPart then
             local rootPos = rootPart.Position
             local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
+
+            -- Check distance again
+            local distance = (Player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+            if distance > _G.MaxDistance then
+                box.Visible = false
+                healthBar.Visible = false
+                nameTag.Visible = false
+                ammoTag.Visible = false
+                for _, line in ipairs(skeletonLines) do
+                    line.Visible = false
+                end
+                return
+            end
 
             if onScreen then
                 local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
