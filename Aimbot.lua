@@ -31,6 +31,7 @@ _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
 _G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
+_G.DamageDisplay = true -- Enable/disable damage display
 
 -- Silent Aim Settings
 _G.SilentAim = false
@@ -63,6 +64,54 @@ FOVCircle.Thickness = _G.CircleThickness
 -- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
+
+-- Damage Display Variables
+local DamageDisplay = nil
+local TotalDamage = 0
+
+-- Function to create the damage display GUI
+local function CreateDamageDisplay()
+    if not _G.DamageDisplay then return end
+
+    DamageDisplay = Instance.new("ScreenGui")
+    DamageDisplay.Name = "DamageDisplay"
+    DamageDisplay.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local DamageLabel = Instance.new("TextLabel")
+    DamageLabel.Name = "DamageLabel"
+    DamageLabel.Parent = DamageDisplay
+    DamageLabel.Size = UDim2.new(0, 200, 0, 50)
+    DamageLabel.Position = UDim2.new(0.8, 0, 0.1, 0)
+    DamageLabel.BackgroundTransparency = 1
+    DamageLabel.TextColor3 = Color3.new(1, 1, 1)
+    DamageLabel.TextStrokeTransparency = 0
+    DamageLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DamageLabel.TextSize = 20
+    DamageLabel.Text = "Damage: 0"
+    DamageLabel.Font = Enum.Font.SourceSansBold
+end
+
+-- Function to update the damage display
+local function UpdateDamageDisplay(damage)
+    if not _G.DamageDisplay or not DamageDisplay then return end
+
+    TotalDamage = TotalDamage + damage
+    local DamageLabel = DamageDisplay:FindFirstChild("DamageLabel")
+    if DamageLabel then
+        DamageLabel.Text = "Damage: " .. tostring(TotalDamage)
+    end
+end
+
+-- Function to reset the damage display
+local function ResetDamageDisplay()
+    if not _G.DamageDisplay or not DamageDisplay then return end
+
+    TotalDamage = 0
+    local DamageLabel = DamageDisplay:FindFirstChild("DamageLabel")
+    if DamageLabel then
+        DamageLabel.Text = "Damage: 0"
+    end
+end
 
 -- Function to send notifications
 local function Notify(title, text)
@@ -155,23 +204,6 @@ local function IsPlayerAirborne(player)
     return false
 end
 
-local function IsUsingAntiLock(player)
-    if not player or not player.Character then
-        return false
-    end
-
-    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then
-        return false
-    end
-
-    -- Check if the player's velocity exceeds the threshold
-    local velocity = humanoidRootPart.Velocity
-    local speed = velocity.Magnitude
-
-    return speed > _G.AntiLockDetectionThreshold
-end
-
 -- Function to resolve anti-lock
 local function ResolveAntiLock(target)
     if not _G.ResolverEnabled or not target or not target.Character then
@@ -191,7 +223,7 @@ local function ResolveAntiLock(target)
     local speed = velocity.Magnitude
 
     -- If the player is using anti-lock, predict their real position
-    if IsUsingAntiLock(target) then
+    if speed > _G.AntiLockDetectionThreshold then
         -- Predict the real position based on their movement direction
         local movementDirection = velocity.Unit
         local resolvedPosition = humanoidRootPart.Position + (movementDirection * _G.ResolverPrediction)
@@ -203,7 +235,7 @@ local function ResolveAntiLock(target)
     return humanoidRootPart.Position
 end
 
--- Modify the PredictTargetPosition function to include the resolver
+-- Function to predict target position
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return end
@@ -373,3 +405,21 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 end)
+
+-- Create the damage display GUI
+CreateDamageDisplay()
+
+-- Simulate damage tracking (replace this with actual damage detection if available)
+local function SimulateDamageTracking()
+    while true do
+        wait(1)
+        if _G.DamageDisplay and DamageDisplay then
+            -- Simulate damage (replace this with actual damage detection)
+            local damage = math.random(10, 30)
+            UpdateDamageDisplay(damage)
+        end
+    end
+end
+
+-- Start the damage tracking simulation
+coroutine.wrap(SimulateDamageTracking)()
