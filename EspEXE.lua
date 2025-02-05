@@ -13,11 +13,11 @@ _G.ESPEnabled = true
 _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
-_G.SkeletonESP = false
-_G.TracersEnabled = false
-_G.DistanceESPEnabled = false
-_G.ShowAmmo = false
-_G.ShowTeam = false -- Show ESP for teammates
+_G.SkeletonESP = true
+_G.TracersEnabled = true
+_G.DistanceESPEnabled = true
+_G.ShowAmmo = true
+_G.ShowTeam = true -- Show ESP for teammates
 _G.MaxDistance = 500 -- Maximum distance for ESP (in studs)
 _G.FadeDistance = 300 -- Distance at which ESP starts fading
 _G.TeamColor = Color3.fromRGB(0, 255, 0) -- Color for teammates
@@ -27,10 +27,10 @@ _G.NameColor = Color3.fromRGB(255, 255, 255)
 _G.AmmoColor = Color3.fromRGB(255, 255, 255)
 _G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 _G.TracerColor = Color3.fromRGB(255, 255, 255)
-_G.Charm = false -- Enable charm (glow) feature
+_G.Charm = true -- Enable charm (glow) feature
 _G.CharmVisibleColor = Color3.fromRGB(0, 255, 0) -- Color for visible parts
-_G.CharmHiddenColor = Color3.fromRGB(255, 0, 0) -- Color for hidden parts
-_G.ItemHold = false -- Enable item hold feature
+_G.CharmHiddenColor = Color3.fromRGB(255, 255, 255) -- Color for hidden parts
+_G.ItemHold = true -- Enable item hold feature
 
 -- Active ESP Storage
 local activeESP = {}
@@ -259,21 +259,40 @@ end
 local function UpdateCharmESP(character)
     if not _G.Charm then return end
 
-    for _, part in ipairs(character:GetChildren()) do
-        if part:IsA("BasePart") then
-            local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if onScreen then
-                local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * _G.MaxDistance)
-                local hit, position = Workspace:FindPartOnRay(ray, character)
-                if hit == part then
-                    part.BrickColor = BrickColor.new(_G.CharmVisibleColor)
-                else
-                    part.BrickColor = BrickColor.new(_G.CharmHiddenColor)
-                end
-            else
-                part.BrickColor = BrickColor.new(_G.CharmHiddenColor)
-            end
+    -- Check if the character already has a Highlight object
+    local highlight = character:FindFirstChild("Charm_Highlight")
+    if not highlight then
+        -- Create a new Highlight object if it doesn't exist
+        highlight = Instance.new("Highlight")
+        highlight.Name = "Charm_Highlight"
+        highlight.FillTransparency = 0.5 -- Adjust glow visibility
+        highlight.OutlineTransparency = 0 -- Solid outline
+        highlight.Parent = character
+    end
+
+    -- Check if the character is visible to the camera
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local screenPoint, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+    if onScreen then
+        -- Raycast from the camera to the character's root part
+        local ray = Ray.new(Camera.CFrame.Position, (rootPart.Position - Camera.CFrame.Position).Unit * _G.MaxDistance)
+        local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, {character, Player.Character})
+
+        if hit and hit:IsDescendantOf(character) then
+            -- Character is visible
+            highlight.FillColor = _G.CharmVisibleColor
+            highlight.OutlineColor = _G.CharmVisibleColor
+        else
+            -- Character is behind something
+            highlight.FillColor = _G.CharmHiddenColor
+            highlight.OutlineColor = _G.CharmHiddenColor
         end
+    else
+        -- Character is off-screen
+        highlight.FillColor = _G.CharmHiddenColor
+        highlight.OutlineColor = _G.CharmHiddenColor
     end
 end
 
