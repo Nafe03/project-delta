@@ -14,10 +14,10 @@ _G.HealthESPEnabled = true
 _G.NameESPEnabled = true
 _G.BoxESPEnabled = true
 _G.SkeletonESP = false
-_G.TracersEnabled = true
-_G.DistanceESPEnabled = true
-_G.ShowAmmo = true
-_G.ShowTeam = true -- Show ESP for teammates
+_G.TracersEnabled = false
+_G.DistanceESPEnabled = false
+_G.ShowAmmo = false
+_G.ShowTeam = false -- Show ESP for teammates
 _G.MaxDistance = 500 -- Maximum distance for ESP (in studs)
 _G.FadeDistance = 300 -- Distance at which ESP starts fading
 _G.TeamColor = Color3.fromRGB(0, 255, 0) -- Color for teammates
@@ -27,6 +27,10 @@ _G.NameColor = Color3.fromRGB(255, 255, 255)
 _G.AmmoColor = Color3.fromRGB(255, 255, 255)
 _G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 _G.TracerColor = Color3.fromRGB(255, 255, 255)
+_G.Charm = false -- Enable charm (glow) feature
+_G.CharmVisibleColor = Color3.fromRGB(0, 255, 0) -- Color for visible parts
+_G.CharmHiddenColor = Color3.fromRGB(255, 0, 0) -- Color for hidden parts
+_G.ItemHold = false -- Enable item hold feature
 
 -- Active ESP Storage
 local activeESP = {}
@@ -80,6 +84,18 @@ local function GetPlayerAmmo(player)
     return "N/A"
 end
 
+-- Function to Get Current Tool of a Player
+local function GetPlayerTool(player)
+    local character = player.Character
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            return tool.Name
+        end
+    end
+    return "None"
+end
+
 -- Function to Create Ammo ESP
 local function CreateAmmoESP()
     local ammoTag = Drawing.new("Text")
@@ -90,6 +106,18 @@ local function CreateAmmoESP()
     ammoTag.Font = 3
     ammoTag.Visible = false
     return ammoTag
+end
+
+-- Function to Create Item Hold ESP
+local function CreateItemHoldESP()
+    local itemTag = Drawing.new("Text")
+    itemTag.Size = 18
+    itemTag.Center = true
+    itemTag.Outline = true
+    itemTag.Color = _G.AmmoColor
+    itemTag.Font = 3
+    itemTag.Visible = false
+    return itemTag
 end
 
 -- Function to Create Tracer
@@ -227,6 +255,28 @@ local function UpdateSkeletonESP(skeletonLines, character)
     end
 end
 
+-- Function to Update Charm (Glow) ESP
+local function UpdateCharmESP(character)
+    if not _G.Charm then return end
+
+    for _, part in ipairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if onScreen then
+                local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * _G.MaxDistance)
+                local hit, position = Workspace:FindPartOnRay(ray, character)
+                if hit == part then
+                    part.BrickColor = BrickColor.new(_G.CharmVisibleColor)
+                else
+                    part.BrickColor = BrickColor.new(_G.CharmHiddenColor)
+                end
+            else
+                part.BrickColor = BrickColor.new(_G.CharmHiddenColor)
+            end
+        end
+    end
+end
+
 -- Function to Draw ESP Box with Health, Armor, and Ammo
 local function DrawESPBoxWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
@@ -259,6 +309,9 @@ local function DrawESPBoxWithHealthAndArmor(player)
     -- Create Ammo Tag
     local ammoTag = CreateAmmoESP()
 
+    -- Create Item Hold Tag
+    local itemTag = CreateItemHoldESP()
+
     -- Create Tracer
     local tracer = CreateTracer()
 
@@ -278,6 +331,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 healthBar.Visible = false
                 nameTag.Visible = false
                 ammoTag.Visible = false
+                itemTag.Visible = false
                 tracer.Visible = false
                 for _, line in ipairs(skeletonLines) do
                     line.Visible = false
@@ -307,6 +361,12 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 ammoTag.Color = _G.AmmoColor
                 ammoTag.Visible = _G.ShowAmmo
 
+                -- Update Item Hold Tag
+                itemTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 25)
+                itemTag.Text = "Holding: " .. tostring(GetPlayerTool(player))
+                itemTag.Color = _G.AmmoColor
+                itemTag.Visible = _G.ItemHold
+
                 -- Update Health Bar
                 local humanoid = character:FindFirstChild("Humanoid")
                 if humanoid then
@@ -327,11 +387,15 @@ local function DrawESPBoxWithHealthAndArmor(player)
 
                 -- Update Skeleton ESP
                 UpdateSkeletonESP(skeletonLines, character)
+
+                -- Update Charm (Glow) ESP
+                UpdateCharmESP(character)
             else
                 box.Visible = false
                 healthBar.Visible = false
                 nameTag.Visible = false
                 ammoTag.Visible = false
+                itemTag.Visible = false
                 tracer.Visible = false
                 for _, line in ipairs(skeletonLines) do
                     line.Visible = false
@@ -342,6 +406,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
             healthBar.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
+            itemTag.Visible = false
             tracer.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
@@ -356,6 +421,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
             healthBar.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
+            itemTag.Visible = false
             tracer.Visible = false
             for _, line in ipairs(skeletonLines) do
                 line.Visible = false
@@ -368,11 +434,12 @@ local function DrawESPBoxWithHealthAndArmor(player)
             healthBar:Remove()
             nameTag:Remove()
             ammoTag:Remove()
+            itemTag:Remove()
             tracer:Remove()
         end
     end)
 
-    return box, healthBar, nameTag, skeletonLines, ammoTag, tracer, connection
+    return box, healthBar, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection
 end
 
 -- Apply ESP to Player
@@ -385,6 +452,7 @@ local function applyESP(player)
         if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
         if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
         if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+        if activeESP[player].itemTag then activeESP[player].itemTag:Remove() end
         if activeESP[player].tracer then activeESP[player].tracer:Remove() end
         if activeESP[player].skeletonLines then
             for _, line in ipairs(activeESP[player].skeletonLines) do
@@ -405,7 +473,7 @@ local function applyESP(player)
     end
 
     -- Create ESP elements
-    local box, healthBar, nameTag, skeletonLines, ammoTag, tracer, connection = DrawESPBoxWithHealthAndArmor(player)
+    local box, healthBar, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup
     activeESP[player] = {
@@ -414,6 +482,7 @@ local function applyESP(player)
         nameTag = nameTag,
         skeletonLines = skeletonLines,
         ammoTag = ammoTag,
+        itemTag = itemTag,
         tracer = tracer,
         updateConnection = connection,
         characterConnection = nil
@@ -427,6 +496,7 @@ local function applyESP(player)
             if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
             if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
             if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+            if activeESP[player].itemTag then activeESP[player].itemTag:Remove() end
             if activeESP[player].tracer then activeESP[player].tracer:Remove() end
             if activeESP[player].skeletonLines then
                 for _, line in ipairs(activeESP[player].skeletonLines) do
@@ -439,7 +509,7 @@ local function applyESP(player)
         end
         
         -- Create new ESP
-        local newBox, newHealthBar, newNameTag, newSkeletonLines, newAmmoTag, newTracer, newConnection = DrawESPBoxWithHealthAndArmor(player)
+        local newBox, newHealthBar, newNameTag, newSkeletonLines, newAmmoTag, newItemTag, newTracer, newConnection = DrawESPBoxWithHealthAndArmor(player)
         
         activeESP[player] = {
             box = newBox,
@@ -447,6 +517,7 @@ local function applyESP(player)
             nameTag = newNameTag,
             skeletonLines = newSkeletonLines,
             ammoTag = newAmmoTag,
+            itemTag = newItemTag,
             tracer = newTracer,
             updateConnection = newConnection,
             characterConnection = activeESP[player].characterConnection
@@ -460,6 +531,7 @@ local function cleanupESP(player)
         if activeESP[player].healthBar then activeESP[player].healthBar:Remove() end
         if activeESP[player].nameTag then activeESP[player].nameTag:Remove() end
         if activeESP[player].ammoTag then activeESP[player].ammoTag:Remove() end
+        if activeESP[player].itemTag then activeESP[player].itemTag:Remove() end
         if activeESP[player].tracer then activeESP[player].tracer:Remove() end
         if activeESP[player].skeletonLines then
             for _, line in ipairs(activeESP[player].skeletonLines) do
