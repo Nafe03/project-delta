@@ -573,12 +573,7 @@ local function initializeESP(player)
     end)
     player.AncestryChanged:Connect(function(_, parent)
         if not parent then
-            if activeESP[player] then
-                for _, line in ipairs(activeESP[player].skeletonLines) do
-                    line:Remove()
-                end
-                activeESP[player] = nil
-            end
+            cleanupESP(player)
         end
     end)
     if player.Character then
