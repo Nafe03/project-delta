@@ -22,7 +22,6 @@ _G.PredictionAmount = 0
 _G.AirPredictionAmount = 0
 _G.BulletDropCompensation = 0
 _G.DistanceAdjustment = false
-_G.UseCircle = false
 _G.WallCheck = false
 _G.PredictionMultiplier = 0.55
 _G.FastTargetSpeedThreshold = 35
