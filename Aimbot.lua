@@ -31,7 +31,7 @@ _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
 _G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
-_G.DamageDisplay = true -- Enable/disable damage display
+_G.DamageDisplay = false -- Enable/disable damage display
 
 -- Silent Aim Settings
 _G.SilentAim = false
