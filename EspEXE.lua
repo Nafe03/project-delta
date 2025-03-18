@@ -296,130 +296,114 @@ local function UpdateCharmESP(character)
     end
 end
 
--- Function to Draw ESP Box with Health, Armor, and Ammo
 local function DrawESPBoxWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
     if not rootPart then return end
 
-    -- Check if the player is within the maximum distance
-    local distance = (Player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-    if distance > _G.MaxDistance then
-        return
-    end
-
-    -- Create Box
+    -- Create ESP elements
     local box = Drawing.new("Square")
     box.Thickness = 1
     box.Filled = false
     box.Color = _G.BoxColor
     box.Visible = false
 
-    -- Create Health Bar
     local healthBar = Drawing.new("Square")
     healthBar.Thickness = 1
     healthBar.Filled = true
     healthBar.Color = Color3.fromRGB(0, 255, 0)
     healthBar.Visible = false
 
-    -- Create Name Tag
     local nameTag = CreateNameESP(player)
-    
-    -- Create Ammo Tag
     local ammoTag = CreateAmmoESP()
-
-    -- Create Item Hold Tag
     local itemTag = CreateItemHoldESP()
-
-    -- Create Tracer
     local tracer = CreateTracer()
-
-    -- Create Skeleton ESP
     local skeletonLines = CreateSkeletonESP()
 
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        if character and character.Parent and rootPart then
-            local rootPos = rootPart.Position
-            local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
-
-            -- Check distance again
-            local distance = (Player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-            if distance > _G.MaxDistance then
-                box.Visible = false
-                healthBar.Visible = false
-                nameTag.Visible = false
-                ammoTag.Visible = false
-                itemTag.Visible = false
-                tracer.Visible = false
-                for _, line in ipairs(skeletonLines) do
-                    line.Visible = false
-                end
-                return
+    -- Function to update ESP elements
+    local function updateESP()
+        if not character or not character.Parent or not rootPart then
+            box.Visible = false
+            healthBar.Visible = false
+            nameTag.Visible = false
+            ammoTag.Visible = false
+            itemTag.Visible = false
+            tracer.Visible = false
+            for _, line in ipairs(skeletonLines) do
+                line.Visible = false
             end
+            return
+        end
 
-            if onScreen then
-                local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
-                local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+        local rootPos = rootPart.Position
+        local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
 
-                -- Update Box
-                box.Size = size
-                box.Position = boxPosition
-                box.Color = _G.BoxColor
-                box.Visible = _G.BoxESPEnabled
+        -- Check distance
+        local distance = (Player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+        if distance > _G.MaxDistance then
+            box.Visible = false
+            healthBar.Visible = false
+            nameTag.Visible = false
+            ammoTag.Visible = false
+            itemTag.Visible = false
+            tracer.Visible = false
+            for _, line in ipairs(skeletonLines) do
+                line.Visible = false
+            end
+            return
+        end
 
-                -- Update Name Tag
-                nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
-                nameTag.Text = player.Name
-                nameTag.Color = _G.NameColor
-                nameTag.Visible = _G.NameESPEnabled
-                
-                -- Update Ammo Tag
-                ammoTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 5)
-                ammoTag.Text = "Ammo: " .. tostring(GetPlayerAmmo(player))
-                ammoTag.Color = _G.AmmoColor
-                ammoTag.Visible = _G.ShowAmmo
+        if onScreen then
+            local size = Vector2.new(3700 / screenPos.Z, 4700 / screenPos.Z)
+            local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
 
-                -- Update Item Hold Tag
-                itemTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 25)
-                itemTag.Text = "Holding: " .. tostring(GetPlayerTool(player))
-                itemTag.Color = _G.AmmoColor
-                itemTag.Visible = _G.ItemHold
+            -- Update Box
+            box.Size = size
+            box.Position = boxPosition
+            box.Color = _G.BoxColor
+            box.Visible = _G.BoxESPEnabled
 
-                -- Update Health Bar
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    local healthFraction = humanoid.Health / humanoid.MaxHealth
-                    healthBar.Size = Vector2.new(5, size.Y * healthFraction)
-                    healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
-                    healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-                    healthBar.Visible = _G.HealthESPEnabled
-                else
-                    healthBar.Visible = false
-                end
+            -- Update Name Tag
+            nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
+            nameTag.Text = player.Name
+            nameTag.Color = _G.NameColor
+            nameTag.Visible = _G.NameESPEnabled
 
-                -- Update Tracer
-                tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                tracer.Color = _G.TracerColor
-                tracer.Visible = _G.TracersEnabled
+            -- Update Ammo Tag
+            ammoTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 5)
+            ammoTag.Text = "Ammo: " .. tostring(GetPlayerAmmo(player))
+            ammoTag.Color = _G.AmmoColor
+            ammoTag.Visible = _G.ShowAmmo
 
-                -- Update Skeleton ESP
-                UpdateSkeletonESP(skeletonLines, character)
+            -- Update Item Hold Tag
+            itemTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 25)
+            itemTag.Text = "Holding: " .. tostring(GetPlayerTool(player))
+            itemTag.Color = _G.AmmoColor
+            itemTag.Visible = _G.ItemHold
 
-                -- Update Charm (Glow) ESP
-                UpdateCharmESP(character)
+            -- Update Health Bar
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                local healthFraction = humanoid.Health / humanoid.MaxHealth
+                healthBar.Size = Vector2.new(5, size.Y * healthFraction)
+                healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
+                healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+                healthBar.Visible = _G.HealthESPEnabled
             else
-                box.Visible = false
                 healthBar.Visible = false
-                nameTag.Visible = false
-                ammoTag.Visible = false
-                itemTag.Visible = false
-                tracer.Visible = false
-                for _, line in ipairs(skeletonLines) do
-                    line.Visible = false
-                end
             end
+
+            -- Update Tracer
+            tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            tracer.Color = _G.TracerColor
+            tracer.Visible = _G.TracersEnabled
+
+            -- Update Skeleton ESP
+            UpdateSkeletonESP(skeletonLines, character)
+
+            -- Update Charm (Glow) ESP
+            UpdateCharmESP(character)
         else
             box.Visible = false
             healthBar.Visible = false
@@ -431,7 +415,10 @@ local function DrawESPBoxWithHealthAndArmor(player)
                 line.Visible = false
             end
         end
-    end)
+    end
+
+    -- Connect to Heartbeat to update ESP every frame
+    local connection = RunService.Heartbeat:Connect(updateESP)
 
     -- Handle Character Removal
     character.AncestryChanged:Connect(function(_, parent)
@@ -560,22 +547,23 @@ local function cleanupESP(player)
         if activeESP[player].updateConnection then
             activeESP[player].updateConnection:Disconnect()
         end
-        if activeESP[player].characterConnection then
-            activeESP[player].characterConnection:Disconnect()
-        end
         activeESP[player] = nil
     end
 end
 
 local function initializeESP(player)
+    if player == Player then return end -- Skip local player
+
     player.CharacterAdded:Connect(function()
         applyESP(player)
     end)
+
     player.AncestryChanged:Connect(function(_, parent)
         if not parent then
             cleanupESP(player)
         end
     end)
+
     if player.Character then
         applyESP(player)
     end
@@ -583,27 +571,18 @@ end
 
 -- Initialize ESP for all players
 for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= Player then  -- Don't apply ESP to local player
-        initializeESP(player)
-    end
+    initializeESP(player)
 end
 
 -- Handle new players joining
 Players.PlayerAdded:Connect(function(player)
-    if player ~= Player then  -- Don't apply ESP to local player
-        initializeESP(player)
-    end
+    initializeESP(player)
 end)
 
 -- Handle players leaving
 Players.PlayerRemoving:Connect(function(player)
     cleanupESP(player)
 end)
-
--- Toggle ESP Features
-local function toggleESPFeature(feature, state)
-    _G[feature] = state
-end
 
 -- Example usage:
 -- toggleESPFeature("BoxESPEnabled", true)  -- Enable Box ESP
