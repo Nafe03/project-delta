@@ -326,7 +326,7 @@ local function PredictTargetPosition(Target)
     -- Calculate prediction offset
     local function CalculatePredictionOffset()
         local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.07, 2)
+        local speedBasedMultiplier = math.clamp(Speed / 50, 0.04, 2)
 
         return Vector3.new(
             Velocity.X * baseMultiplier * speedBasedMultiplier,
