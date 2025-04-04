@@ -52,74 +52,6 @@ _G.CircleThickness = 1
 _G.CircleTransparency = 1
 _G.CircleFilled = false
 
--- Create Drawing Library Replacement for Roblox Studio
-local DrawingLibrary = {}
-
-function DrawingLibrary.new(objectType)
-    if objectType == "Circle" then
-        local circle = Instance.new("Frame")
-        circle.Name = "FOVCircle"
-        circle.BackgroundTransparency = 1
-        circle.AnchorPoint = Vector2.new(0.5, 0.5)
-        circle.Size = UDim2.new(0, _G.CircleRadius * 2, 0, _G.CircleRadius * 2)
-        circle.Position = UDim2.new(0.5, 0, 0.5, 0)
-        
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(1, 0)
-        uiCorner.Parent = circle
-        
-        local uiStroke = Instance.new("UIStroke")
-        uiStroke.Color = _G.CircleColor
-        uiStroke.Thickness = _G.CircleThickness
-        uiStroke.Transparency = _G.CircleTransparency
-        uiStroke.Parent = circle
-        
-        circle.Visible = _G.UseCircle
-        
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "AimbotGUI"
-        screenGui.ResetOnSpawn = false
-        screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-        circle.Parent = screenGui
-        
-        return {
-            Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2),
-            Radius = _G.CircleRadius,
-            Filled = _G.CircleFilled,
-            Color = _G.CircleColor,
-            Visible = _G.UseCircle,
-            Transparency = _G.CircleTransparency,
-            Thickness = _G.CircleThickness,
-            
-            -- Update methods for the Circle
-            _uiElement = circle,
-            _uiStroke = uiStroke,
-            
-            -- Method to update the Position
-            SetPosition = function(self, position)
-                self.Position = position
-                self._uiElement.Position = UDim2.new(0, position.X, 0, position.Y)
-            end,
-            
-            -- Method to update the Radius
-            SetRadius = function(self, radius)
-                self.Radius = radius
-                self._uiElement.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-            end,
-            
-            -- Method to update visibility
-            SetVisible = function(self, visible)
-                self.Visible = visible
-                self._uiElement.Visible = visible
-            end
-        }
-    end
-    return nil
-end
-
--- Create FOV Circle using our custom Drawing Library
-local FOVCircle = DrawingLibrary.new("Circle")
-
 -- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
@@ -128,6 +60,84 @@ local CurrentHighlight = nil
 local DamageDisplay = nil
 local TotalDamage = 0
 
+-- Create a proper FOV circle using GUI elements
+local function CreateFOVCircle()
+    -- First, clean up any existing FOV circle
+    if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+        local existingGui = LocalPlayer.PlayerGui:FindFirstChild("AimbotGUI")
+        if existingGui then
+            existingGui:Destroy()
+        end
+    end
+    
+    -- Create a new ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AimbotGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Try to place it in PlayerGui, fallback to CoreGui if in FE environment
+    local success, err = pcall(function()
+        screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end)
+    
+    if not success then
+        screenGui.Parent = game:GetService("CoreGui")
+    end
+    
+    -- Create circle frame
+    local circle = Instance.new("Frame")
+    circle.Name = "FOVCircle"
+    circle.BackgroundTransparency = _G.CircleFilled and (1 - _G.CircleTransparency) or 1
+    circle.BackgroundColor3 = _G.CircleColor
+    circle.AnchorPoint = Vector2.new(0.5, 0.5)
+    circle.Size = UDim2.new(0, _G.CircleRadius * 2, 0, _G.CircleRadius * 2)
+    circle.Position = UDim2.new(0.5, 0, 0.5, 0)
+    circle.Parent = screenGui
+    
+    -- Make it circular
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0)
+    uiCorner.Parent = circle
+    
+    -- Add stroke for outline
+    local uiStroke = Instance.new("UIStroke")
+    uiStroke.Color = _G.CircleColor
+    uiStroke.Thickness = _G.CircleThickness
+    uiStroke.Transparency = _G.CircleTransparency
+    uiStroke.Parent = circle
+    
+    return {
+        ScreenGui = screenGui,
+        Circle = circle,
+        Stroke = uiStroke,
+        UpdatePosition = function(self, position)
+            self.Circle.Position = UDim2.new(0, position.X, 0, position.Y)
+        end,
+        UpdateRadius = function(self, radius)
+            self.Circle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
+        end,
+        UpdateVisibility = function(self, visible)
+            self.ScreenGui.Enabled = visible
+        end,
+        UpdateColor = function(self, color)
+            self.Circle.BackgroundColor3 = color
+            self.Stroke.Color = color
+        end,
+        UpdateProperties = function(self)
+            self.Circle.BackgroundTransparency = _G.CircleFilled and (1 - _G.CircleTransparency) or 1
+            self.Stroke.Thickness = _G.CircleThickness
+            self.Stroke.Transparency = _G.CircleTransparency
+            self:UpdateRadius(_G.CircleRadius)
+            self:UpdateColor(_G.CircleColor)
+            self:UpdateVisibility(_G.UseCircle)
+        end
+    }
+end
+
+-- Create our FOV Circle
+local FOVCircle = CreateFOVCircle()
+
 -- Function to create the damage display GUI
 local function CreateDamageDisplay()
     if not _G.DamageDisplay then return end
@@ -135,7 +145,14 @@ local function CreateDamageDisplay()
     DamageDisplay = Instance.new("ScreenGui")
     DamageDisplay.Name = "DamageDisplay"
     DamageDisplay.ResetOnSpawn = false
-    DamageDisplay.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    
+    local success, err = pcall(function()
+        DamageDisplay.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end)
+    
+    if not success then
+        DamageDisplay.Parent = game:GetService("CoreGui")
+    end
 
     local DamageLabel = Instance.new("TextLabel")
     DamageLabel.Name = "DamageLabel"
@@ -434,15 +451,16 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Update FOV Circle position on RenderStepped
 RunService.RenderStepped:Connect(function()
-    -- Update FOV Circle position
+    -- Update FOV Circle position and properties
     if _G.UseCircle and FOVCircle then
         local mouseLocation = UserInputService:GetMouseLocation()
-        FOVCircle:SetPosition(mouseLocation)
-        FOVCircle:SetRadius(_G.CircleRadius)
+        FOVCircle:UpdatePosition(mouseLocation)
+        FOVCircle:UpdateProperties()
     else
         if FOVCircle then
-            FOVCircle:SetVisible(false)
+            FOVCircle:UpdateVisibility(false)
         end
     end
 end)
