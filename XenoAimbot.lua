@@ -336,7 +336,7 @@ local function CalculateStrafePosition(targetPosition)
         local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
 
         -- Create the strafe position with random offsets
-        strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
+        strafePosition = targetPosition + Vector3.new(_G.StrafeSpeed, randomX, randomY + _G.StrafeHeight, randomZ)
     else
         -- Calculate the strafe position using a circular path
         local x = math.cos(StrafeAngle) * _G.StrafeDisten
