@@ -324,6 +324,7 @@ local function ResolveAntiLock(target)
 end
 
 -- Function to calculate strafe position around target
+-- Function to calculate strafe position around target
 local function CalculateStrafePosition(targetPosition)
     if not _G.TargetStrafe then return nil end
 
@@ -335,8 +336,14 @@ local function CalculateStrafePosition(targetPosition)
         local randomY = math.random(-_G.StrafeDisten, _G.StrafeDisten)
         local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
 
+        -- Scale the random offsets by strafe speed
+        local speedFactor = _G.StrafeSpeed * 0.01 -- Adjust the factor as needed
+        randomX = randomX * speedFactor
+        randomY = randomY * speedFactor
+        randomZ = randomZ * speedFactor
+
         -- Create the strafe position with random offsets
-        strafePosition = targetPosition + Vector3.new(_G.StrafeSpeed, randomX, randomY + _G.StrafeHeight, randomZ)
+        strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
     else
         -- Calculate the strafe position using a circular path
         local x = math.cos(StrafeAngle) * _G.StrafeDisten
@@ -351,6 +358,7 @@ local function CalculateStrafePosition(targetPosition)
 
     return strafePosition
 end
+
 
 -- Function to predict target position
 local function PredictTargetPosition(Target)
