@@ -323,7 +323,10 @@ local function ResolveAntiLock(target)
     return humanoidRootPart.Position
 end
 
--- Function to calculate strafe position around target
+-- Variables to control the frequency of random position updates
+local strafeUpdateCounter = 0
+local strafeUpdateFrequency = 10 -- Adjust this value to control how often the position updates
+
 -- Function to calculate strafe position around target
 local function CalculateStrafePosition(targetPosition)
     if not _G.TargetStrafe then return nil end
@@ -331,19 +334,21 @@ local function CalculateStrafePosition(targetPosition)
     local strafePosition
 
     if _G.RandomPosTargetStrafe then
-        -- Calculate random offsets for X, Y, and Z
-        local randomX = math.random(-_G.StrafeDisten, _G.StrafeDisten)
-        local randomY = math.random(-_G.StrafeDisten, _G.StrafeDisten)
-        local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+        -- Increment the update counter
+        strafeUpdateCounter = strafeUpdateCounter + _G.StrafeSpeed
 
-        -- Scale the random offsets by strafe speed
-        local speedFactor = _G.StrafeSpeed * 0.01 -- Adjust the factor as needed
-        randomX = randomX * speedFactor
-        randomY = randomY * speedFactor
-        randomZ = randomZ * speedFactor
+        -- Check if it's time to update the random position
+        if strafeUpdateCounter >= strafeUpdateFrequency then
+            strafeUpdateCounter = 0 -- Reset the counter
 
-        -- Create the strafe position with random offsets
-        strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
+            -- Calculate random offsets for X, Y, and Z
+            local randomX = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+            local randomY = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+            local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+
+            -- Create the strafe position with random offsets
+            strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
+        end
     else
         -- Calculate the strafe position using a circular path
         local x = math.cos(StrafeAngle) * _G.StrafeDisten
@@ -358,6 +363,7 @@ local function CalculateStrafePosition(targetPosition)
 
     return strafePosition
 end
+
 
 
 -- Function to predict target position
