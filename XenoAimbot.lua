@@ -56,7 +56,7 @@ _G.UseCircle = true
 _G.CircleRadius = 120
 _G.CircleColor = Color3.fromRGB(255, 255, 255)
 _G.CircleThickness = 1
-_G.CircleTransparency = 0
+_G.CircleTransparency = 1
 _G.CircleFilled = false
 
 -- Current Target Variables
@@ -100,7 +100,7 @@ local function CreateFOVCircle()
     circle.Name = "FOVCircle"
     circle.BackgroundTransparency = _G.CircleFilled and (1 - _G.CircleTransparency) or 1
     circle.BackgroundColor3 = _G.CircleColor
-    circle.AnchorPoint = Vector2.new(0.5, 0.7)
+    circle.AnchorPoint = Vector2.new(0.5, 0.5)
     circle.Size = UDim2.new(0, _G.CircleRadius * 2, 0, _G.CircleRadius * 2)
     circle.Position = UDim2.new(0.5, 0, 0.5, 0)
     circle.Parent = screenGui
