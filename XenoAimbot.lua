@@ -40,6 +40,7 @@ _G.StrafeDisten = math.pi * 5 -- Distance for strafing using math.pi
 _G.StrafeSpeed = 2 -- Speed of strafing
 _G.StrafeDirection = 1 -- 1 for clockwise, -1 for counter-clockwise
 _G.StrafeHeight = 0 -- Height offset for strafing
+_G.RandomPosTargetStrafe = false -- Enable random position target strafing
 
 -- Silent Aim Settings
 _G.SilentAim = false
@@ -326,16 +327,27 @@ end
 local function CalculateStrafePosition(targetPosition)
     if not _G.TargetStrafe then return nil end
 
-    -- Calculate the strafe position using a circular path
-    local x = math.cos(StrafeAngle) * _G.StrafeDisten
-    local z = math.sin(StrafeAngle) * _G.StrafeDisten
+    local strafePosition
 
-    -- Create the strafe position offset from the target
-    local strafeOffset = Vector3.new(x, _G.StrafeHeight, z)
-    local strafePosition = targetPosition + strafeOffset
+    if _G.RandomPosTargetStrafe then
+        -- Calculate random offsets for X, Y, and Z
+        local randomX = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+        local randomY = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+        local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
 
-    -- Update the strafe angle for the next frame
-    StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
+        -- Create the strafe position with random offsets
+        strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
+    else
+        -- Calculate the strafe position using a circular path
+        local x = math.cos(StrafeAngle) * _G.StrafeDisten
+        local z = math.sin(StrafeAngle) * _G.StrafeDisten
+
+        -- Create the strafe position offset from the target
+        strafePosition = targetPosition + Vector3.new(x, _G.StrafeHeight, z)
+
+        -- Update the strafe angle for the next frame
+        StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
+    end
 
     return strafePosition
 end
