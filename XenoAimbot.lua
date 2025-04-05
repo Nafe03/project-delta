@@ -11,28 +11,36 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- Global Settings
+-- Global Settings
 _G.AimbotEnabled = true
 _G.LegitAimbot = false
 _G.TeamCheck = false
-_G.HotKeyAimbot = Enum.KeyCode.Q -- Set your desired hotkey here (e.g., Enum.KeyCode.Q)
+_G.HotKeyAimbot = Enum.KeyCode.Q -- Set your desired hotkey here
 _G.AimPart = "Head"
 _G.AirAimPart = "LowerTorso"
 _G.Sensitivity = 0      
 _G.LegitSensitivity = 0.1 
-_G.PredictionAmount = 0
-_G.AirPredictionAmount = 0
-_G.BulletDropCompensation = 0
-_G.DistanceAdjustment = false
-_G.WallCheck = false
+_G.PredictionAmount = 0.1
+_G.AirPredictionAmount = 0.2
+_G.BulletDropCompensation = 0.05
+_G.DistanceAdjustment = true
+_G.WallCheck = true
 _G.PredictionMultiplier = 0.55
 _G.FastTargetSpeedThreshold = 35
 _G.DynamicSensitivity = true
 _G.DamageAmount = 0
 _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
-_G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
+_G.ToggleAimbot = false -- Toggle mode
 _G.DamageDisplay = false -- Enable/disable damage display
 _G.VisibleHighlight = true -- For highlighting targets
+
+-- Movement Prediction Settings
+_G.MovementPredictionType = "Auto" -- "Auto", "Vector", "CFrame", or "Mixed"
+_G.PatternDetectionEnabled = true -- Enable movement pattern detection
+_G.PatternMemoryLength = 10 -- Number of positions to remember for pattern analysis
+_G.PredictionSmoothness = 0.5 -- Smoothness factor for predictions (0-1)
+_G.AdaptivePrediction = true -- Adjust prediction based on target behavior
 
 -- Target Strafe Settings
 _G.TargetStrafe = false -- Toggle for target strafing
@@ -46,10 +54,14 @@ _G.SilentAim = false
 _G.SilentAimHitChance = 100 -- Percentage chance to hit the target
 _G.SilentAimRadius = 120 -- Radius for silent aim
 
--- Resolver Settings
+-- Enhanced Resolver Settings
 _G.ResolverEnabled = true
-_G.ResolverPrediction = 0.1 -- Adjust this value based on testing
-_G.AntiLockDetectionThreshold = 50
+_G.ResolverPrediction = 0.1 -- Base prediction amount for resolver
+_G.AntiLockDetectionThreshold = 50 -- Speed threshold for anti-lock detection
+_G.DetectJumpCycling = true -- Detect jump-based anti-aims
+_G.DetectCFrameSpoofing = true -- Detect CFrame manipulation
+_G.ResolverMode = "Adaptive" -- "Adaptive", "Aggressive", or "Conservative"
+_G.ResolverSmoothing = 0.2 -- Smoothness for resolver position transitions
 
 -- FOV Circle Settings
 _G.UseCircle = true
@@ -291,7 +303,7 @@ local function IsPlayerAirborne(player)
     return false
 end
 
--- Function to resolve anti-lock
+-- Enhanced function to resolve anti-lock including CFrame manipulation
 local function ResolveAntiLock(target)
     if not _G.ResolverEnabled or not target or not target.Character then
         return nil
@@ -305,21 +317,175 @@ local function ResolveAntiLock(target)
         return nil
     end
 
+    -- Initialize prediction data if it doesn't exist
+    if not target.ResolverData then
+        target.ResolverData = {
+            LastPositions = {},
+            LastOrientations = {},
+            LastTimes = {},
+            JumpPatterns = {},
+            LastJumpTime = 0,
+            AntiAimDetected = false,
+            AntiAimType = "None", -- "Velocity", "CFrame", "Desync", "Jitter"
+            JumpCount = 0
+        }
+    end
+
+    local resolverData = target.ResolverData
+    local currentTime = tick()
+    
+    -- Store position, orientation, and time data
+    table.insert(resolverData.LastPositions, humanoidRootPart.Position)
+    table.insert(resolverData.LastOrientations, humanoidRootPart.CFrame - humanoidRootPart.Position)
+    table.insert(resolverData.LastTimes, currentTime)
+    
+    -- Keep only last 20 entries for pattern analysis
+    if #resolverData.LastPositions > 20 then
+        table.remove(resolverData.LastPositions, 1)
+        table.remove(resolverData.LastOrientations, 1)
+        table.remove(resolverData.LastTimes, 1)
+    end
+    
     -- Get the target's velocity and speed
     local velocity = humanoidRootPart.Velocity
     local speed = velocity.Magnitude
-
-    -- If the player is using anti-lock, predict their real position
-    if speed > _G.AntiLockDetectionThreshold then
-        -- Predict the real position based on their movement direction
-        local movementDirection = velocity.Unit
-        local resolvedPosition = humanoidRootPart.Position + (movementDirection * _G.ResolverPrediction)
-
+    
+    -- Detect anti-aim patterns
+    local function DetectAntiAimPatterns()
+        if #resolverData.LastPositions < 5 then return "None" end
+        
+        -- Check for velocity manipulation anti-aim
+        local velocityChanges = 0
+        local cframeChanges = 0
+        local orientationJitter = 0
+        local teleportDetected = false
+        
+        for i = 2, #resolverData.LastPositions do
+            local prevPos = resolverData.LastPositions[i-1]
+            local currPos = resolverData.LastPositions[i]
+            local prevOrientation = resolverData.LastOrientations[i-1]
+            local currOrientation = resolverData.LastOrientations[i]
+            local timeDiff = resolverData.LastTimes[i] - resolverData.LastTimes[i-1]
+            
+            if timeDiff > 0 then
+                -- Calculate expected position based on velocity
+                local projectedPos = prevPos + (humanoidRootPart.Velocity * timeDiff)
+                local posDiff = (currPos - projectedPos).Magnitude
+                
+                -- Calculate orientation difference
+                local orientationDiff = (prevOrientation:ToObjectSpace(currOrientation).Position).Magnitude
+                
+                -- Check for significant position or orientation changes
+                if posDiff > 5 then velocityChanges = velocityChanges + 1 end
+                if orientationDiff > 0.5 then orientationJitter = orientationJitter + 1 end
+                
+                -- Detect teleportation (very large position changes)
+                if posDiff > 20 and timeDiff < 0.1 then
+                    teleportDetected = true
+                end
+                
+                -- Detect CFrame manipulation
+                local expectedRotation = humanoidRootPart.CFrame.LookVector
+                local actualRotation = currOrientation.LookVector
+                if (expectedRotation - actualRotation).Magnitude > 0.5 then
+                    cframeChanges = cframeChanges + 1
+                end
+            end
+        end
+        
+        -- Determine anti-aim type based on patterns
+        if teleportDetected then
+            return "Teleport"
+        elseif velocityChanges > 3 and velocityChanges > cframeChanges then
+            return "Velocity"
+        elseif cframeChanges > 3 and cframeChanges > velocityChanges then
+            return "CFrame"
+        elseif orientationJitter > 3 then
+            return "Jitter"
+        elseif speed > _G.AntiLockDetectionThreshold then
+            return "Speed"
+        else
+            return "None"
+        end
+    end
+    
+    -- Detect the type of anti-aim
+    resolverData.AntiAimType = DetectAntiAimPatterns()
+    resolverData.AntiAimDetected = (resolverData.AntiAimType ~= "None")
+    
+    -- If anti-aim detected, resolve the position
+    if resolverData.AntiAimDetected then
+        local resolvedPosition = humanoidRootPart.Position
+        
+        -- Resolution strategies for different anti-aim types
+        if resolverData.AntiAimType == "Velocity" then
+            -- Resolve velocity manipulation by analyzing acceleration patterns
+            if #resolverData.LastPositions >= 3 then
+                local pos1 = resolverData.LastPositions[#resolverData.LastPositions-2]
+                local pos2 = resolverData.LastPositions[#resolverData.LastPositions-1]
+                local pos3 = resolverData.LastPositions[#resolverData.LastPositions]
+                local time1 = resolverData.LastTimes[#resolverData.LastTimes-2]
+                local time2 = resolverData.LastTimes[#resolverData.LastTimes-1]
+                local time3 = resolverData.LastTimes[#resolverData.LastTimes]
+                
+                local vel1 = (pos2 - pos1) / (time2 - time1)
+                local vel2 = (pos3 - pos2) / (time3 - time2)
+                local accel = (vel2 - vel1) / (time3 - time1)
+                
+                -- Predict true position using acceleration
+                resolvedPosition = pos3 + (vel2 * _G.ResolverPrediction) + 
+                                  (0.5 * accel * _G.ResolverPrediction * _G.ResolverPrediction)
+            end
+        elseif resolverData.AntiAimType == "CFrame" then
+            -- Resolve CFrame manipulation by analyzing real movement patterns
+            if #resolverData.LastPositions >= 5 then
+                -- Use a more stable position calculation based on average movement
+                local avgVelocity = Vector3.new(0, 0, 0)
+                local count = 0
+                
+                for i = 2, #resolverData.LastPositions do
+                    local posDiff = resolverData.LastPositions[i] - resolverData.LastPositions[i-1]
+                    local timeDiff = resolverData.LastTimes[i] - resolverData.LastTimes[i-1]
+                    
+                    if timeDiff > 0 then
+                        avgVelocity = avgVelocity + (posDiff / timeDiff)
+                        count = count + 1
+                    end
+                end
+                
+                if count > 0 then
+                    avgVelocity = avgVelocity / count
+                    resolvedPosition = humanoidRootPart.Position + (avgVelocity * _G.ResolverPrediction)
+                end
+            end
+        elseif resolverData.AntiAimType == "Jitter" or resolverData.AntiAimType == "Teleport" then
+            -- For jitter/teleport, use a smoothed position from recent history
+            if #resolverData.LastPositions >= 3 then
+                -- Use a weighted average of recent positions (more weight to newer positions)
+                local totalWeight = 0
+                local weightedSum = Vector3.new(0, 0, 0)
+                
+                for i = 1, #resolverData.LastPositions do
+                    local weight = i / #resolverData.LastPositions
+                    weightedSum = weightedSum + (resolverData.LastPositions[i] * weight)
+                    totalWeight = totalWeight + weight
+                end
+                
+                if totalWeight > 0 then
+                    resolvedPosition = weightedSum / totalWeight
+                end
+            end
+        elseif resolverData.AntiAimType == "Speed" then
+            -- For speed-based anti-aim, use velocity projection with higher prediction
+            local movementDirection = velocity.Unit
+            resolvedPosition = humanoidRootPart.Position + (movementDirection * speed * _G.ResolverPrediction)
+        end
+        
         return resolvedPosition
     end
-
-    -- If not using anti-lock, return the current position
-    return humanoidRootPart.Position
+    
+    -- If no anti-aim detected or unable to resolve, return nil
+    return nil
 end
 
 -- Function to calculate strafe position around target
@@ -340,7 +506,7 @@ local function CalculateStrafePosition(targetPosition)
     return strafePosition
 end
 
--- Function to predict target position
+-- Function to predict target position with enhanced CFrame and Vector movement detection
 local function PredictTargetPosition(Target)
     local character = Target.Character
     if not character then return nil end
@@ -364,24 +530,158 @@ local function PredictTargetPosition(Target)
         Position = AirAimPart.Position
     end
 
-    -- Get velocity and speed
+    -- Store historical positions for pattern detection
+    if not Target.PredictionData then
+        Target.PredictionData = {
+            PreviousPositions = {},
+            PreviousCFrames = {},
+            PreviousTimes = {},
+            MovementType = "Unknown", -- "Vector", "CFrame", or "Mixed"
+            LastUpdateTime = tick()
+        }
+    end
+    
+    local predictionData = Target.PredictionData
+    local currentTime = tick()
+    local deltaTime = currentTime - predictionData.LastUpdateTime
+    
+    -- Update historical data (keep last 10 positions for pattern analysis)
+    if deltaTime > 0.01 then -- Only update if enough time has passed
+        table.insert(predictionData.PreviousPositions, HumanoidRootPart.Position)
+        table.insert(predictionData.PreviousCFrames, HumanoidRootPart.CFrame)
+        table.insert(predictionData.PreviousTimes, currentTime)
+        
+        -- Keep only last 10 entries
+        if #predictionData.PreviousPositions > 10 then
+            table.remove(predictionData.PreviousPositions, 1)
+            table.remove(predictionData.PreviousCFrames, 1)
+            table.remove(predictionData.PreviousTimes, 1)
+        end
+        
+        predictionData.LastUpdateTime = currentTime
+    end
+    
+    -- Detect movement type based on historical data
+    if #predictionData.PreviousPositions >= 3 then
+        local vectorConsistency = 0
+        local cframeConsistency = 0
+        
+        for i = 2, #predictionData.PreviousPositions do
+            local prevPos = predictionData.PreviousPositions[i-1]
+            local currPos = predictionData.PreviousPositions[i]
+            local timeDiff = predictionData.PreviousTimes[i] - predictionData.PreviousTimes[i-1]
+            
+            -- Check vector movement consistency (linear motion)
+            local posDiff = currPos - prevPos
+            local velocity = posDiff / timeDiff
+            local predictedNextPos = currPos + (velocity * timeDiff)
+            
+            -- Check if there's a next position to compare with
+            if i < #predictionData.PreviousPositions then
+                local actualNextPos = predictionData.PreviousPositions[i+1]
+                local vectorPredictionError = (predictedNextPos - actualNextPos).Magnitude
+                
+                -- Check CFrame movement consistency (rotation + position)
+                local prevCF = predictionData.PreviousCFrames[i-1]
+                local currCF = predictionData.PreviousCFrames[i]
+                local cfDiff = prevCF:Inverse() * currCF
+                local predictedNextCF = currCF * cfDiff
+                local actualNextCF = predictionData.PreviousCFrames[i+1]
+                local cframePredictionError = (predictedNextCF.Position - actualNextCF.Position).Magnitude
+                
+                -- Update consistency scores
+                if vectorPredictionError < cframePredictionError then
+                    vectorConsistency = vectorConsistency + 1
+                else
+                    cframeConsistency = cframeConsistency + 1
+                end
+            end
+        end
+        
+        -- Determine movement type based on consistency scores
+        if vectorConsistency > cframeConsistency * 1.5 then
+            predictionData.MovementType = "Vector"
+        elseif cframeConsistency > vectorConsistency * 1.5 then
+            predictionData.MovementType = "CFrame"
+        else
+            predictionData.MovementType = "Mixed"
+        end
+    end
+    
+    -- Get current velocity and speed
     local Velocity = HumanoidRootPart.Velocity
     local Speed = Velocity.Magnitude
-
-    -- Calculate prediction offset
-    local function CalculatePredictionOffset()
-        local baseMultiplier = _G.PredictionAmount
-        local speedBasedMultiplier = math.clamp(Speed / 50, 0.02, 1.25)
-
-        return Vector3.new(
-            Velocity.X * baseMultiplier * speedBasedMultiplier,
-            Velocity.Y * baseMultiplier * speedBasedMultiplier * 0.5,
-            Velocity.Z * baseMultiplier * speedBasedMultiplier
-        )
+    
+    local predictedPosition = Position
+    
+    -- Predict based on detected movement type
+    if predictionData.MovementType == "Vector" or predictionData.MovementType == "Unknown" then
+        -- Standard velocity-based prediction
+        local baseAmount = IsPlayerAirborne(Target) and _G.AirPredictionAmount or _G.PredictionAmount
+        local speedMultiplier = Speed > _G.FastTargetSpeedThreshold and _G.PredictionMultiplier or 1
+        
+        local finalPredictionAmount = baseAmount * speedMultiplier
+        
+        -- Apply dynamic sensitivity if enabled
+        if _G.DynamicSensitivity then
+            finalPredictionAmount = finalPredictionAmount * math.clamp(Speed / 30, 0.5, 2.5)
+        end
+        
+        -- Calculate prediction based on velocity
+        predictedPosition = Position + (Velocity * finalPredictionAmount)
+    elseif predictionData.MovementType == "CFrame" then
+        -- CFrame-based prediction using previous transformations
+        if #predictionData.PreviousCFrames >= 2 then
+            local prevCF = predictionData.PreviousCFrames[#predictionData.PreviousCFrames-1]
+            local currCF = predictionData.PreviousCFrames[#predictionData.PreviousCFrames]
+            local deltaTime = predictionData.PreviousTimes[#predictionData.PreviousTimes] - 
+                             predictionData.PreviousTimes[#predictionData.PreviousTimes-1]
+            
+            -- Calculate CFrame difference and predict next position
+            local cfDiff = prevCF:Inverse() * currCF
+            
+            -- Extract rotation and position components
+            local rotationMatrix = CFrame.new(Vector3.new(), cfDiff.Position) * 
+                                 CFrame.Angles(cfDiff:ToEulerAnglesXYZ())
+            
+            -- Calculate prediction amount based on speed and settings
+            local baseAmount = IsPlayerAirborne(Target) and _G.AirPredictionAmount or _G.PredictionAmount
+            local speedMultiplier = Speed > _G.FastTargetSpeedThreshold and _G.PredictionMultiplier or 1
+            local predictionFactor = baseAmount * speedMultiplier
+            
+            -- Apply CFrame prediction
+            local predictedCF = currCF * (rotationMatrix^predictionFactor)
+            predictedPosition = predictedCF.Position
+        end
+    else -- Mixed movement type
+        -- Combine both predictions for mixed movement
+        -- Vector prediction
+        local baseAmount = IsPlayerAirborne(Target) and _G.AirPredictionAmount or _G.PredictionAmount
+        local speedMultiplier = Speed > _G.FastTargetSpeedThreshold and _G.PredictionMultiplier or 1
+        local vectorPrediction = Position + (Velocity * baseAmount * speedMultiplier)
+        
+        -- CFrame prediction
+        local cfPrediction = Position
+        if #predictionData.PreviousCFrames >= 2 then
+            local prevCF = predictionData.PreviousCFrames[#predictionData.PreviousCFrames-1]
+            local currCF = predictionData.PreviousCFrames[#predictionData.PreviousCFrames]
+            local cfDiff = prevCF:Inverse() * currCF
+            local predictedCF = currCF * cfDiff
+            cfPrediction = predictedCF.Position
+        end
+        
+        -- Blend predictions based on confidence (50/50 split for mixed)
+        predictedPosition = vectorPrediction:Lerp(cfPrediction, 0.5)
     end
-
-    local predictedOffset = CalculatePredictionOffset()
-    local predictedPosition = Position + predictedOffset
+    
+    -- Resolver for anti-lock movement if enabled
+    if _G.ResolverEnabled then
+        local resolvedPosition = ResolveAntiLock(Target)
+        if resolvedPosition then
+            -- Blend the resolved position with our prediction
+            predictedPosition = predictedPosition:Lerp(resolvedPosition, 0.5)
+        end
+    end
 
     -- Bullet drop compensation if enabled
     if _G.BulletDropCompensation > 0 and _G.DistanceAdjustment then
