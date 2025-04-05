@@ -324,7 +324,7 @@ end
 
 -- Function to calculate strafe position around target
 local function CalculateStrafePosition(targetPosition)
-    if not _G.TargetStrafe then return targetPosition end
+    if not _G.TargetStrafe then return nil end
     
     -- Calculate the strafe position using a circular path
     local x = math.cos(StrafeAngle) * _G.StrafeDisten
@@ -397,25 +397,34 @@ local function PredictTargetPosition(Target)
     return predictedPosition
 end
 
--- Function to handle target strafing
-local function HandleTargetStrafe(targetPosition)
+-- Optimized Target Strafe using CFrame teleportation
+local function OptimizedTargetStrafe(targetPosition)
     if not _G.TargetStrafe or not LocalPlayer.Character then
-        return
+        return false
     end
     
     local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then
-        return
+        return false
     end
     
-    -- Calculate strafe position around the target
+    -- Calculate strafe position
     local strafePosition = CalculateStrafePosition(targetPosition)
-    
-    -- Move the local player to the strafe position if they have a character
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid:MoveTo(strafePosition)
+    if not strafePosition then
+        return false
     end
+    
+    -- Calculate the orientation to look at the target
+    local lookVector = (targetPosition - strafePosition).Unit
+    local upVector = Vector3.new(0, 1, 0) -- Standard up vector
+    
+    -- Create the CFrame for teleportation (position + orientation)
+    local targetCFrame = CFrame.new(strafePosition, targetPosition)
+    
+    -- Apply the CFrame directly to the HumanoidRootPart
+    humanoidRootPart.CFrame = targetCFrame
+    
+    return true
 end
 
 -- Input handling
@@ -486,9 +495,9 @@ RunService.Heartbeat:Connect(function()
                 local targetPosition = PredictTargetPosition(CurrentTarget)
                 
                 if targetPosition then
-                    -- Handle target strafing if enabled
+                    -- Handle optimized target strafing if enabled
                     if _G.TargetStrafe then
-                        HandleTargetStrafe(targetPosition)
+                        OptimizedTargetStrafe(targetPosition)
                     end
                     
                     -- Set camera CFrame to look at the predicted position
