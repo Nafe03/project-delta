@@ -1,3 +1,15 @@
+-- Local Script - Place in StarterPlayerScripts
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local StarterGui = game:GetService("StarterGui")
+
+-- Local Player
+local LocalPlayer = Players.LocalPlayer
+local Holding = false
+
 -- Global Settings
 _G.AimbotEnabled = true
 _G.LegitAimbot = false
@@ -28,7 +40,6 @@ _G.StrafeDisten = math.pi * 5 -- Distance for strafing using math.pi
 _G.StrafeSpeed = 2 -- Speed of strafing
 _G.StrafeDirection = 1 -- 1 for clockwise, -1 for counter-clockwise
 _G.StrafeHeight = 0 -- Height offset for strafing
-_G.RandomTargetStrafe = false -- Enable/disable random target strafing
 
 -- Silent Aim Settings
 _G.SilentAim = false
@@ -315,24 +326,16 @@ end
 local function CalculateStrafePosition(targetPosition)
     if not _G.TargetStrafe then return nil end
 
-    local strafePosition
+    -- Calculate the strafe position using a circular path
+    local x = math.cos(StrafeAngle) * _G.StrafeDisten
+    local z = math.sin(StrafeAngle) * _G.StrafeDisten
 
-    if _G.RandomTargetStrafe then
-        -- Random strafe position
-        local randomAngle = math.random() * 2 * math.pi
-        local randomHeight = math.random(-_G.StrafeHeight, _G.StrafeHeight)
-        local x = math.cos(randomAngle) * _G.StrafeDisten
-        local z = math.sin(randomAngle) * _G.StrafeDisten
-        strafePosition = targetPosition + Vector3.new(x, randomHeight, z)
-    else
-        -- Calculate the strafe position using a circular path
-        local x = math.cos(StrafeAngle) * _G.StrafeDisten
-        local z = math.sin(StrafeAngle) * _G.StrafeDisten
-        strafePosition = targetPosition + Vector3.new(x, _G.StrafeHeight, z)
+    -- Create the strafe position offset from the target
+    local strafeOffset = Vector3.new(x, _G.StrafeHeight, z)
+    local strafePosition = targetPosition + strafeOffset
 
-        -- Update the strafe angle for the next frame
-        StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
-    end
+    -- Update the strafe angle for the next frame
+    StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
 
     return strafePosition
 end
