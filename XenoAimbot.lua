@@ -34,6 +34,13 @@ _G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
 _G.DamageDisplay = false -- Enable/disable damage display
 _G.VisibleHighlight = true -- For highlighting targets
 
+-- Target Strafe Settings
+_G.TargetStrafe = false -- Toggle for target strafing
+_G.StrafeDisten = math.pi * 5 -- Distance for strafing using math.pi
+_G.StrafeSpeed = 2 -- Speed of strafing
+_G.StrafeDirection = 1 -- 1 for clockwise, -1 for counter-clockwise
+_G.StrafeHeight = 0 -- Height offset for strafing
+
 -- Silent Aim Settings
 _G.SilentAim = false
 _G.SilentAimHitChance = 100 -- Percentage chance to hit the target
@@ -55,6 +62,9 @@ _G.CircleFilled = false
 -- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
+
+-- Target Strafe Variables
+local StrafeAngle = 0
 
 -- Damage Display Variables
 local DamageDisplay = nil
@@ -312,6 +322,24 @@ local function ResolveAntiLock(target)
     return humanoidRootPart.Position
 end
 
+-- Function to calculate strafe position around target
+local function CalculateStrafePosition(targetPosition)
+    if not _G.TargetStrafe then return targetPosition end
+    
+    -- Calculate the strafe position using a circular path
+    local x = math.cos(StrafeAngle) * _G.StrafeDisten
+    local z = math.sin(StrafeAngle) * _G.StrafeDisten
+    
+    -- Create the strafe position offset from the target
+    local strafeOffset = Vector3.new(x, _G.StrafeHeight, z)
+    local strafePosition = targetPosition + strafeOffset
+    
+    -- Update the strafe angle for the next frame
+    StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
+    
+    return strafePosition
+end
+
 -- Function to predict target position
 local function PredictTargetPosition(Target)
     local character = Target.Character
@@ -367,6 +395,27 @@ local function PredictTargetPosition(Target)
     end
 
     return predictedPosition
+end
+
+-- Function to handle target strafing
+local function HandleTargetStrafe(targetPosition)
+    if not _G.TargetStrafe or not LocalPlayer.Character then
+        return
+    end
+    
+    local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return
+    end
+    
+    -- Calculate strafe position around the target
+    local strafePosition = CalculateStrafePosition(targetPosition)
+    
+    -- Move the local player to the strafe position if they have a character
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid:MoveTo(strafePosition)
+    end
 end
 
 -- Input handling
@@ -434,11 +483,16 @@ RunService.Heartbeat:Connect(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
-                local aimPosition = PredictTargetPosition(CurrentTarget)
+                local targetPosition = PredictTargetPosition(CurrentTarget)
                 
-                if aimPosition then
+                if targetPosition then
+                    -- Handle target strafing if enabled
+                    if _G.TargetStrafe then
+                        HandleTargetStrafe(targetPosition)
+                    end
+                    
                     -- Set camera CFrame to look at the predicted position
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPosition)
                 end
             else
                 CurrentTarget = nil
