@@ -2,6 +2,7 @@
 local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local StarterGui = game:GetService("StarterGui")
@@ -34,6 +35,9 @@ _G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
 _G.DamageDisplay = false -- Enable/disable damage display
 _G.VisibleHighlight = true -- For highlighting targets
 
+-- Target Lock Info Settings
+_G.AimbotLockInfo = true -- Enable/disable target info billboard
+
 -- Target Strafe Settings
 _G.TargetStrafe = false -- Toggle for target strafing
 _G.StrafeDisten = math.pi * 5 -- Distance for strafing using math.pi
@@ -63,6 +67,7 @@ _G.CircleFilled = false
 -- Current Target Variables
 local CurrentTarget = nil
 local CurrentHighlight = nil
+local CurrentBillboardGui = nil
 
 -- Target Strafe Variables
 local StrafeAngle = 0
@@ -177,6 +182,222 @@ local function CreateDamageDisplay()
     DamageLabel.TextSize = 20
     DamageLabel.Text = "Damage: 0"
     DamageLabel.Font = Enum.Font.SourceSansBold
+end
+
+-- Function to create the target lock info billboard
+local function CreateTargetInfoBillboard(player)
+    if not player or not player.Character or not _G.AimbotLockInfo then return nil end
+    
+    -- Remove existing billboard if there is one
+    if CurrentBillboardGui then
+        CurrentBillboardGui:Destroy()
+        CurrentBillboardGui = nil
+    end
+    
+    local character = player.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return nil end
+    
+    -- Create the BillboardGui
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "TargetInfo"
+    billboardGui.Size = UDim2.new(0, 200, 0, 100)
+    billboardGui.StudsOffset = Vector3.new(0, -3.5, 0) -- Position below the player
+    billboardGui.AlwaysOnTop = true
+    billboardGui.LightInfluence = 0
+    billboardGui.Adornee = humanoidRootPart
+    
+    -- Create the main frame
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BorderSizePixel = 2
+    mainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    mainFrame.Parent = billboardGui
+    
+    -- Create the title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0.25, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mainFrame
+    
+    -- Create the title text
+    local titleText = Instance.new("TextLabel")
+    titleText.Name = "TitleText"
+    titleText.Size = UDim2.new(1, 0, 1, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = "Target GUI"
+    titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleText.TextSize = 14
+    titleText.Font = Enum.Font.SourceSansBold
+    titleText.Parent = titleBar
+    
+    -- Create the content frame
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Name = "ContentFrame"
+    contentFrame.Size = UDim2.new(1, 0, 0.75, 0)
+    contentFrame.Position = UDim2.new(0, 0, 0.25, 0)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Parent = mainFrame
+    
+    -- Create player image (left side)
+    local imageFrame = Instance.new("Frame")
+    imageFrame.Name = "ImageFrame"
+    imageFrame.Size = UDim2.new(0.3, 0, 1, 0)
+    imageFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    imageFrame.BorderSizePixel = 0
+    imageFrame.Parent = contentFrame
+    
+    -- Try to get player image using PlayerAvatar (this part may vary based on game)
+    local playerImage = Instance.new("ImageLabel")
+    playerImage.Name = "PlayerImage"
+    playerImage.Size = UDim2.new(0.9, 0, 0.9, 0)
+    playerImage.Position = UDim2.new(0.05, 0, 0.05, 0)
+    playerImage.BackgroundTransparency = 1
+    
+    -- Try to use the player's avatar image if possible
+    local userId = player.UserId
+    if userId and userId > 0 then
+        playerImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. userId .. "&w=150&h=150"
+    else
+        -- Fallback image
+        playerImage.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        playerImage.BackgroundTransparency = 0
+    end
+    
+    playerImage.Parent = imageFrame
+    
+    -- Create info section (right side)
+    local infoFrame = Instance.new("Frame")
+    infoFrame.Name = "InfoFrame"
+    infoFrame.Size = UDim2.new(0.7, 0, 1, 0)
+    infoFrame.Position = UDim2.new(0.3, 0, 0, 0)
+    infoFrame.BackgroundTransparency = 1
+    infoFrame.Parent = contentFrame
+    
+    -- Create player name
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0.05, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(100, 150, 255) -- Blue text for name
+    nameLabel.TextSize = 14
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.Parent = infoFrame
+    
+    -- Create health label
+    local healthLabel = Instance.new("TextLabel")
+    healthLabel.Name = "HealthLabel"
+    healthLabel.Size = UDim2.new(1, 0, 0.15, 0)
+    healthLabel.Position = UDim2.new(0, 0, 0.3, 0)
+    healthLabel.BackgroundTransparency = 1
+    healthLabel.Text = "Health"
+    healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    healthLabel.TextSize = 12
+    healthLabel.TextXAlignment = Enum.TextXAlignment.Left
+    healthLabel.Font = Enum.Font.SourceSans
+    healthLabel.Parent = infoFrame
+    
+    -- Create health bar background
+    local healthBg = Instance.new("Frame")
+    healthBg.Name = "HealthBackground"
+    healthBg.Size = UDim2.new(1, 0, 0.15, 0)
+    healthBg.Position = UDim2.new(0, 0, 0.45, 0)
+    healthBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBg.BorderSizePixel = 0
+    healthBg.Parent = infoFrame
+    
+    -- Create health bar fill
+    local healthFill = Instance.new("Frame")
+    healthFill.Name = "HealthFill"
+    healthFill.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
+    healthFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255) -- Blue for health
+    healthFill.BorderSizePixel = 0
+    healthFill.Parent = healthBg
+    
+    -- Create armor label
+    local armorLabel = Instance.new("TextLabel")
+    armorLabel.Name = "ArmorLabel"
+    armorLabel.Size = UDim2.new(1, 0, 0.15, 0)
+    armorLabel.Position = UDim2.new(0, 0, 0.65, 0)
+    armorLabel.BackgroundTransparency = 1
+    armorLabel.Text = "Armor"
+    armorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    armorLabel.TextSize = 12
+    armorLabel.TextXAlignment = Enum.TextXAlignment.Left
+    armorLabel.Font = Enum.Font.SourceSans
+    armorLabel.Parent = infoFrame
+    
+    -- Create armor bar background
+    local armorBg = Instance.new("Frame")
+    armorBg.Name = "ArmorBackground"
+    armorBg.Size = UDim2.new(1, 0, 0.15, 0)
+    armorBg.Position = UDim2.new(0, 0, 0.8, 0)
+    armorBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    armorBg.BorderSizePixel = 0
+    armorBg.Parent = infoFrame
+    
+    -- Create armor bar fill
+    local armorFill = Instance.new("Frame")
+    armorFill.Name = "ArmorFill"
+    
+    -- Try to get armor value (da hood specific)
+    local armorValue = 50 -- Default value
+    local armorFolder = character:FindFirstChild("BodyEffects")
+    if armorFolder and armorFolder:FindFirstChild("Armor") then
+        armorValue = armorFolder.Armor.Value
+    end
+    
+    armorFill.Size = UDim2.new(armorValue / 100, 0, 1, 0) -- Assuming armor max is 100
+    armorFill.BackgroundColor3 = Color3.fromRGB(70, 70, 200) -- Darker blue for armor
+    armorFill.BorderSizePixel = 0
+    armorFill.Parent = armorBg
+    
+    -- Function to update health and armor
+    local function UpdateStats()
+        -- Check if the billboard still exists and is valid
+        if not billboardGui or not billboardGui.Parent then return end
+        
+        -- Update health bar
+        if humanoid and healthFill then
+            healthFill.Size = UDim2.new(math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1), 0, 1, 0)
+        end
+        
+        -- Update armor bar (da hood specific)
+        if armorFolder and armorFolder:FindFirstChild("Armor") and armorFill then
+            armorValue = armorFolder.Armor.Value
+            armorFill.Size = UDim2.new(math.clamp(armorValue / 100, 0, 1), 0, 1, 0)
+        end
+    end
+    
+    -- Create a connection to update the stats
+    local connection = RunService.Heartbeat:Connect(UpdateStats)
+    
+    -- Store the connection in the billboard for cleanup
+    billboardGui:SetAttribute("ConnectionCreated", true)
+    
+    -- Attach a function to clean up when destroyed
+    billboardGui.AncestryChanged:Connect(function(_, newParent)
+        if not newParent then
+            if connection then
+                connection:Disconnect()
+            end
+        end
+    end)
+    
+    -- Try to parent to the target character
+    billboardGui.Parent = character
+    
+    return billboardGui
 end
 
 -- Function to update the damage display
@@ -469,6 +690,19 @@ local function OptimizedTargetStrafe(targetPosition)
     return true
 end
 
+-- Function to clean up target info
+local function CleanupTargetInfo()
+    if CurrentHighlight then
+        CurrentHighlight:Destroy()
+        CurrentHighlight = nil
+    end
+    
+    if CurrentBillboardGui then
+        CurrentBillboardGui:Destroy()
+        CurrentBillboardGui = nil
+    end
+end
+
 -- Input handling
 UserInputService.InputBegan:Connect(function(Input)
     -- Activate Aimbot when HotKey is pressed
@@ -481,19 +715,23 @@ UserInputService.InputBegan:Connect(function(Input)
                 if CurrentTarget then
                     local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
                     Notify(mode, "Locked onto " .. CurrentTarget.Name)
+
+                    -- Create highlight if enabled
                     if _G.VisibleHighlight then
                         CurrentHighlight = Instance.new("Highlight")
                         CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                         CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
                         CurrentHighlight.Parent = CurrentTarget.Character
                     end
+
+                    -- Create target info billboard if enabled
+                    if _G.AimbotLockInfo then
+                        CurrentBillboardGui = CreateTargetInfoBillboard(CurrentTarget)
+                    end
                 end
             else
                 CurrentTarget = nil
-                if CurrentHighlight then
-                    CurrentHighlight:Destroy()
-                    CurrentHighlight = nil
-                end
+                CleanupTargetInfo()
             end
         else
             -- Hold mode
@@ -503,11 +741,18 @@ UserInputService.InputBegan:Connect(function(Input)
                 if CurrentTarget then
                     local mode = _G.AimbotEnabled and "Aimbot" or "Legit Aimbot"
                     Notify(mode, "Locked onto " .. CurrentTarget.Name)
+
+                    -- Create highlight if enabled
                     if _G.VisibleHighlight then
                         CurrentHighlight = Instance.new("Highlight")
                         CurrentHighlight.FillColor = Color3.new(1, 0, 0)
                         CurrentHighlight.OutlineColor = Color3.new(1, 1, 0)
                         CurrentHighlight.Parent = CurrentTarget.Character
+                    end
+
+                    -- Create target info billboard if enabled
+                    if _G.AimbotLockInfo then
+                        CurrentBillboardGui = CreateTargetInfoBillboard(CurrentTarget)
                     end
                 end
             end
@@ -520,10 +765,7 @@ UserInputService.InputEnded:Connect(function(Input)
     if Input.KeyCode == _G.HotKeyAimbot and not _G.ToggleAimbot then
         Holding = false
         CurrentTarget = nil
-        if CurrentHighlight then
-            CurrentHighlight:Destroy()
-            CurrentHighlight = nil
-        end
+        CleanupTargetInfo()
     end
 end)
 
@@ -547,10 +789,7 @@ RunService.Heartbeat:Connect(function()
                 end
             else
                 CurrentTarget = nil
-                if CurrentHighlight then
-                    CurrentHighlight:Destroy()
-                    CurrentHighlight = nil
-                end
+                CleanupTargetInfo()
             end
         end
     end
