@@ -364,7 +364,23 @@ local function CalculateStrafePosition(targetPosition)
     return strafePosition
 end
 
+-- Function to check if the target is in front of the player
+local function IsTargetInFront(targetPosition)
+    local playerPosition = Camera.CFrame.Position
+    local playerForward = Camera.CFrame.LookVector
+    local directionToTarget = (targetPosition - playerPosition).Unit
 
+    -- Calculate the angle between the player's forward direction and the direction to the target
+    local dotProduct = playerForward:Dot(directionToTarget)
+    local angle = math.acos(dotProduct)
+
+    -- Convert the angle from radians to degrees
+    local angleDegrees = math.deg(angle)
+
+    -- Check if the angle is within the threshold (e.g., 90 degrees)
+    local threshold = 90
+    return angleDegrees <= threshold
+end
 
 -- Function to predict target position
 local function PredictTargetPosition(Target)
@@ -520,7 +536,7 @@ RunService.Heartbeat:Connect(function()
             if humanoid and humanoid.Health > 0 and not IsPlayerKnocked(CurrentTarget) then
                 local targetPosition = PredictTargetPosition(CurrentTarget)
 
-                if targetPosition then
+                if targetPosition and IsTargetInFront(targetPosition) then
                     -- Handle optimized target strafing if enabled
                     if _G.TargetStrafe then
                         OptimizedTargetStrafe(targetPosition)
