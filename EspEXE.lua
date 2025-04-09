@@ -10,14 +10,14 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true
-_G.HealthESPEnabled = true
-_G.NameESPEnabled = true
-_G.BoxESPEnabled = true
-_G.SkeletonESP = true
-_G.TracersEnabled = true
-_G.DistanceESPEnabled = true
-_G.ShowAmmo = true
-_G.ShowTeam = true -- Show ESP for teammates
+_G.HealthESPEnabled = false
+_G.NameESPEnabled = false
+_G.BoxESPEnabled = false
+_G.SkeletonESP = false
+_G.TracersEnabled = false
+_G.DistanceESPEnabled = false
+_G.ShowAmmo = false
+_G.ShowTeam = false -- Show ESP for teammates
 _G.MaxDistance = 5000 -- Maximum distance for ESP (in studs)
 _G.FadeDistance = 300 -- Distance at which ESP starts fading
 _G.TeamColor = Color3.fromRGB(0, 255, 0) -- Color for teammates
@@ -27,10 +27,10 @@ _G.NameColor = Color3.fromRGB(255, 255, 255)
 _G.AmmoColor = Color3.fromRGB(255, 255, 255)
 _G.SkeletonColor = Color3.fromRGB(255, 255, 255)
 _G.TracerColor = Color3.fromRGB(255, 255, 255)
-_G.Charm = true -- Enable charm (glow) feature
+_G.Charm = false -- Enable charm (glow) feature
 _G.CharmVisibleColor = Color3.fromRGB(0, 255, 0) -- Color for visible parts
 _G.CharmHiddenColor = Color3.fromRGB(255, 255, 255) -- Color for hidden parts
-_G.ItemHold = true -- Enable item hold feature
+_G.ItemHold = false -- Enable item hold feature
 
 -- Active ESP Storage
 local activeESP = {}
