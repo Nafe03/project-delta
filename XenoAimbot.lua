@@ -33,7 +33,7 @@ _G.HeadVerticalOffset = 0
 _G.UseHeadOffset = false
 _G.ToggleAimbot = false -- Add this line to enable/disable toggle mode
 _G.DamageDisplay = false -- Enable/disable damage display
-_G.VisibleHighlight = true -- For highlighting targets
+_G.VisibleHighlight = false -- For highlighting targets
 
 -- Target Lock Info Settings
 _G.AimbotLockInfo = true -- Enable/disable target info billboard
