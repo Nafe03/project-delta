@@ -10,7 +10,7 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true
-_G.HealthESPEnabled = false
+_G.HealthESPEnabled = true
 _G.NameESPEnabled = false
 _G.BoxESPEnabled = true
 _G.SkeletonESP = false
@@ -296,7 +296,6 @@ local function UpdateCharmESP(character)
     end
 end
 
--- Updates to your ESP function to make it more efficient
 local function DrawESPBoxWithHealthAndArmor(player)
     local character = player.Character or player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -309,11 +308,27 @@ local function DrawESPBoxWithHealthAndArmor(player)
     box.Color = _G.BoxColor
     box.Visible = false
 
+    -- Create health bar background (new)
+    local healthBarBackground = Drawing.new("Square")
+    healthBarBackground.Thickness = 1
+    healthBarBackground.Filled = true
+    healthBarBackground.Color = Color3.fromRGB(40, 40, 40) -- Dark gray background
+    healthBarBackground.Transparency = 0.7 -- Slightly transparent
+    healthBarBackground.Visible = false
+
+    -- Create health bar
     local healthBar = Drawing.new("Square")
     healthBar.Thickness = 1
     healthBar.Filled = true
     healthBar.Color = Color3.fromRGB(0, 255, 0)
     healthBar.Visible = false
+
+    -- Create health bar outline (new)
+    local healthBarOutline = Drawing.new("Square")
+    healthBarOutline.Thickness = 1
+    healthBarOutline.Filled = false
+    healthBarOutline.Color = Color3.fromRGB(0, 0, 0) -- Black outline
+    healthBarOutline.Visible = false
 
     local nameTag = CreateNameESP(player)
     local ammoTag = CreateAmmoESP()
@@ -323,13 +338,15 @@ local function DrawESPBoxWithHealthAndArmor(player)
     
     -- To avoid lag, we'll use a timer instead of updating every frame
     local lastUpdate = 0
-    local updateInterval = 0.01 -- Update every 0.1 seconds instead of every frame
+    local updateInterval = 0.01 -- Update every 0.05 seconds (20 times per second)
     
     -- Function to update ESP elements with optimization
     local function updateESP()
         if not _G.ESPEnabled then
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -344,6 +361,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
         if not character or not character.Parent or not rootPart then
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -361,6 +380,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
         if not myRootPart then
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -376,6 +397,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
         if distance > _G.MaxDistance then
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -386,18 +409,11 @@ local function DrawESPBoxWithHealthAndArmor(player)
             return
         end
         
-        -- For players far away, update less frequently
-        local currentTime = tick()
-        if currentTime - lastUpdate < updateInterval then
-            return
-        end
-        lastUpdate = currentTime
-        
         -- Performance: Only do the WorldToViewportPoint check once
         local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
         
         if onScreen then
-            local size = Vector2.new(2200 / screenPos.Z, 3200 / screenPos.Z) -- Reduced size values
+            local size = Vector2.new(2500 / screenPos.Z, 3500 / screenPos.Z) -- Reduced size values
             local boxPosition = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
 
             -- Update Box
@@ -406,53 +422,61 @@ local function DrawESPBoxWithHealthAndArmor(player)
             box.Color = _G.BoxColor
             box.Visible = _G.BoxESPEnabled
 
-            -- Update Name Tag (only if enabled)
-            if _G.NameESPEnabled then
-                nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
-                nameTag.Text = player.Name
-                nameTag.Color = _G.NameColor
-                nameTag.Visible = true
-            else
-                nameTag.Visible = false
-            end
+            -- Update Name Tag
+            nameTag.Position = Vector2.new(screenPos.X, boxPosition.Y - 20)
+            nameTag.Text = player.Name
+            nameTag.Color = _G.NameColor
+            nameTag.Visible = _G.NameESPEnabled
 
-            -- Update Health Bar (only if enabled)
-            if _G.HealthESPEnabled then
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    local healthFraction = humanoid.Health / humanoid.MaxHealth
-                    healthBar.Size = Vector2.new(5, size.Y * healthFraction)
-                    healthBar.Position = Vector2.new(boxPosition.X - 9, boxPosition.Y + size.Y * (1 - healthFraction))
-                    healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
-                    healthBar.Visible = true
-                else
-                    healthBar.Visible = false
-                end
+            -- Update Enhanced Health Bar
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                local healthFraction = humanoid.Health / humanoid.MaxHealth
+                
+                -- Health bar dimensions - wider and positioned to the left of the box
+                local healthBarWidth = 3
+                local healthBarPosition = Vector2.new(boxPosition.X - healthBarWidth - 5, boxPosition.Y)
+                
+                -- Background (full height always)
+                healthBarBackground.Size = Vector2.new(healthBarWidth, size.Y)
+                healthBarBackground.Position = healthBarPosition
+                healthBarBackground.Visible = _G.HealthESPEnabled
+                
+                -- Health bar (varies with health)
+                healthBar.Size = Vector2.new(healthBarWidth, size.Y * healthFraction)
+                healthBar.Position = Vector2.new(healthBarPosition.X, healthBarPosition.Y + size.Y * (1 - healthFraction))
+                
+                -- Color gradient from red to green based on health
+                healthBar.Color = Color3.fromRGB(255 * (1 - healthFraction), 255 * healthFraction, 0)
+                healthBar.Visible = _G.HealthESPEnabled
+                
+                -- Outline (same size as background)
+                healthBarOutline.Size = Vector2.new(healthBarWidth, size.Y)
+                healthBarOutline.Position = healthBarPosition
+                healthBarOutline.Visible = _G.HealthESPEnabled
             else
                 healthBar.Visible = false
+                healthBarBackground.Visible = false
+                healthBarOutline.Visible = false
             end
 
-            -- Only update other elements if specifically enabled
+            -- Update Ammo Tag
+            ammoTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 5)
+            ammoTag.Text = "Ammo: " .. tostring(GetPlayerAmmo(player))
+            ammoTag.Color = _G.AmmoColor
             ammoTag.Visible = _G.ShowAmmo
-            if _G.ShowAmmo then
-                ammoTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 5)
-                ammoTag.Text = "Ammo: " .. tostring(GetPlayerAmmo(player))
-                ammoTag.Color = _G.AmmoColor
-            end
-            
+
+            -- Update Item Hold Tag
+            itemTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 25)
+            itemTag.Text = "Holding: " .. tostring(GetPlayerTool(player))
+            itemTag.Color = _G.AmmoColor
             itemTag.Visible = _G.ItemHold
-            if _G.ItemHold then
-                itemTag.Position = Vector2.new(screenPos.X, boxPosition.Y + size.Y + 25)
-                itemTag.Text = "Holding: " .. tostring(GetPlayerTool(player))
-                itemTag.Color = _G.AmmoColor
-            end
             
+            -- Update Tracer
+            tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            tracer.Color = _G.TracerColor
             tracer.Visible = _G.TracersEnabled
-            if _G.TracersEnabled then
-                tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                tracer.Color = _G.TracerColor
-            end
             
             -- Skeleton ESP is expensive, only update if enabled and player is close
             if _G.SkeletonESP and distance < (_G.MaxDistance / 2) then
@@ -470,6 +494,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
         else
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -485,7 +511,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
     local lastRendered = 0
     local connection = RunService.RenderStepped:Connect(function()
         local now = tick()
-        if now - lastRendered >= 0.05 then  -- Only update 20 times per second max
+        if now - lastRendered >= updateInterval then  -- Only update 20 times per second max
             lastRendered = now
             updateESP()
         end
@@ -496,6 +522,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
         pcall(function()
             box.Visible = false
             healthBar.Visible = false
+            healthBarBackground.Visible = false
+            healthBarOutline.Visible = false
             nameTag.Visible = false
             ammoTag.Visible = false
             itemTag.Visible = false
@@ -508,6 +536,8 @@ local function DrawESPBoxWithHealthAndArmor(player)
             
             pcall(function() box:Remove() end)
             pcall(function() healthBar:Remove() end)
+            pcall(function() healthBarBackground:Remove() end)
+            pcall(function() healthBarOutline:Remove() end)
             pcall(function() nameTag:Remove() end)
             pcall(function() ammoTag:Remove() end)
             pcall(function() itemTag:Remove() end)
@@ -525,19 +555,22 @@ local function DrawESPBoxWithHealthAndArmor(player)
         end)
     end
 
-    return box, healthBar, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection
+    return box, healthBar, healthBarBackground, healthBarOutline, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection
+end
+
+-- Safe remove function for ESP elements
+local function safeRemove(obj)
+    if obj then
+        pcall(function() 
+            obj.Visible = false
+            obj:Remove() 
+        end)
+    end
 end
 
 -- Apply ESP to Player
 local function applyESP(player)
     if not player or player == Player then return end -- Don't apply to nil or local player
-    
-    -- Safe remove function
-    local function safeRemove(obj)
-        if obj and typeof(obj) == "table" and obj.Remove then
-            pcall(function() obj:Remove() end)
-        end
-    end
     
     -- Clean up existing ESP if any
     if activeESP[player] then
@@ -547,6 +580,8 @@ local function applyESP(player)
         
         safeRemove(activeESP[player].box)
         safeRemove(activeESP[player].healthBar)
+        safeRemove(activeESP[player].healthBarBackground)
+        safeRemove(activeESP[player].healthBarOutline)
         safeRemove(activeESP[player].nameTag)
         safeRemove(activeESP[player].ammoTag)
         safeRemove(activeESP[player].itemTag)
@@ -561,20 +596,22 @@ local function applyESP(player)
         activeESP[player] = nil
     end
 
-    -- Wait for character if needed
+    -- Wait for character
     local character = player.Character
     if not character then
         player.CharacterAdded:Wait()
         character = player.Character
     end
 
-    -- Create ESP elements
-    local box, healthBar, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection = DrawESPBoxWithHealthAndArmor(player)
+    -- Create ESP elements with improved health bar
+    local box, healthBar, healthBarBackground, healthBarOutline, nameTag, skeletonLines, ammoTag, itemTag, tracer, connection = DrawESPBoxWithHealthAndArmor(player)
 
     -- Store ESP objects for cleanup
     activeESP[player] = {
         box = box,
         healthBar = healthBar,
+        healthBarBackground = healthBarBackground,
+        healthBarOutline = healthBarOutline,
         nameTag = nameTag,
         skeletonLines = skeletonLines,
         ammoTag = ammoTag,
@@ -594,6 +631,8 @@ local function applyESP(player)
             
             safeRemove(activeESP[player].box)
             safeRemove(activeESP[player].healthBar)
+            safeRemove(activeESP[player].healthBarBackground)
+            safeRemove(activeESP[player].healthBarOutline)
             safeRemove(activeESP[player].nameTag)
             safeRemove(activeESP[player].ammoTag)
             safeRemove(activeESP[player].itemTag)
@@ -607,11 +646,13 @@ local function applyESP(player)
         end
         
         -- Create new ESP
-        local newBox, newHealthBar, newNameTag, newSkeletonLines, newAmmoTag, newItemTag, newTracer, newConnection = DrawESPBoxWithHealthAndArmor(player)
+        local newBox, newHealthBar, newHealthBarBackground, newHealthBarOutline, newNameTag, newSkeletonLines, newAmmoTag, newItemTag, newTracer, newConnection = DrawESPBoxWithHealthAndArmor(player)
         
         activeESP[player] = {
             box = newBox,
             healthBar = newHealthBar,
+            healthBarBackground = newHealthBarBackground,
+            healthBarOutline = newHealthBarOutline,
             nameTag = newNameTag,
             skeletonLines = newSkeletonLines,
             ammoTag = newAmmoTag,
@@ -629,15 +670,10 @@ local function cleanupESP(player)
             activeESP[player].updateConnection:Disconnect()
         end
         
-        -- Safe remove function
-        local function safeRemove(obj)
-            if obj and typeof(obj) == "table" and obj.Remove then
-                pcall(function() obj:Remove() end)
-            end
-        end
-        
         safeRemove(activeESP[player].box)
         safeRemove(activeESP[player].healthBar)
+        safeRemove(activeESP[player].healthBarBackground)
+        safeRemove(activeESP[player].healthBarOutline)
         safeRemove(activeESP[player].nameTag)
         safeRemove(activeESP[player].ammoTag)
         safeRemove(activeESP[player].itemTag)
@@ -686,6 +722,13 @@ Players.PlayerRemoving:Connect(function(player)
     cleanupESP(player)
 end)
 
+-- Optional: Function to toggle ESP features
+local function toggleESPFeature(featureName, value)
+    if _G[featureName] ~= nil then
+        _G[featureName] = value
+    end
+end
+
 -- Example usage:
 -- toggleESPFeature("BoxESPEnabled", true)  -- Enable Box ESP
--- toggleESPFeature("HealthESPEnabled", false)  -- Disable Health ESP
+-- toggleESPFeature("HealthESPEnabled", true)  -- Enable Health ESP with the improved look
