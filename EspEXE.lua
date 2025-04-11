@@ -19,7 +19,7 @@ _G.DistanceESPEnabled = false
 _G.ShowAmmo = false
 _G.ShowTeam = false -- Show ESP for teammates
 _G.MaxDistance = 100 -- Maximum distance for ESP (in studs)
-_G.FadeDistance = 300 -- Distance at which ESP starts fading
+_G.FadeDistance = 0 -- Distance at which ESP starts fading
 _G.TeamColor = Color3.fromRGB(0, 255, 0) -- Color for teammates
 _G.EnemyColor = Color3.fromRGB(255, 0, 0) -- Color for enemies
 _G.BoxColor = Color3.fromRGB(255, 255, 255)
@@ -338,7 +338,7 @@ local function DrawESPBoxWithHealthAndArmor(player)
     
     -- To avoid lag, we'll use a timer instead of updating every frame
     local lastUpdate = 0
-    local updateInterval = 0.01 -- Update every 0.05 seconds (20 times per second)
+    local updateInterval = 0.05 -- Update every 0.05 seconds (20 times per second)
     
     -- Function to update ESP elements with optimization
     local function updateESP()
