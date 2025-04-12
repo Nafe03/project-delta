@@ -36,7 +36,7 @@ _G.DamageDisplay = false -- Enable/disable damage display
 _G.VisibleHighlight = false -- For highlighting targets
 
 -- Target Lock Info Settings
-_G.AimbotLockInfo = true -- Enable/disable target info billboard
+_G.AimbotLockInfo = false -- Enable/disable target info billboard
 
 -- Target Strafe Settings
 _G.TargetStrafe = false -- Toggle for target strafing
