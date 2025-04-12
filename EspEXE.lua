@@ -10,9 +10,9 @@ local Camera = Workspace.CurrentCamera
 
 -- ESP Settings
 _G.ESPEnabled = true
-_G.HealthESPEnabled = true
+_G.HealthESPEnabled = false
 _G.NameESPEnabled = false
-_G.BoxESPEnabled = true
+_G.BoxESPEnabled = false
 _G.SkeletonESP = false
 _G.TracersEnabled = false
 _G.DistanceESPEnabled = false
