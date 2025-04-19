@@ -12,7 +12,8 @@ _G.AimbotEnabled = true
 _G.TeamCheck = false -- If set to true then the script would only lock your aim at enemy team members.
 _G.AimPart = "Head" -- Where the aimbot script would lock at.
 _G.Sensitivity = 0 -- How many seconds it takes for the aimbot script to officially lock onto the target's aimpart.
-_G.PredictionAmount = 0 -- Amount of prediction (velocity multiplier) to use when aiming
+_G.PredictionAmount = 0 -- Amount of prediction (velocity multiplier) for left/right movement
+_G.AirPredictionAmount = 0 -- Amount of prediction (velocity multiplier) for up/down movement
 
 _G.CircleSides = 64 -- How many sides the FOV circle would have.
 _G.CircleColor = Color3.fromRGB(255, 255, 255) -- (RGB) Color that the FOV circle would appear as.
@@ -93,15 +94,22 @@ local function GetClosestPlayer()
     return Target
 end
 
--- Prediction function
+-- Enhanced prediction function with directional prediction
 local function PredictPosition(targetPart)
     if not targetPart then return targetPart.Position end
     
     local velocity = targetPart.Velocity
     local position = targetPart.Position
     
-    -- Apply prediction based on target's velocity and prediction amount
-    return position + (velocity * _G.PredictionAmount)
+    -- Create a directional prediction by splitting velocity into components
+    -- Create a vector with only left/right (X and Z) components for horizontal movement
+    local horizontalVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+    
+    -- Create a vector with only up/down (Y) component for vertical movement
+    local verticalVelocity = Vector3.new(0, velocity.Y, 0)
+    
+    -- Apply different prediction amounts to different directions
+    return position + (horizontalVelocity * _G.PredictionAmount) + (verticalVelocity * _G.AirPredictionAmount)
 end
 
 -- Check if a target is valid (still exists and alive)
@@ -182,7 +190,7 @@ RunService.RenderStepped:Connect(function()
         if target and target.Character and target.Character:FindFirstChild(_G.AimPart) then
             local targetPart = target.Character[_G.AimPart]
             
-            -- Apply prediction to the aim position
+            -- Apply direction-based prediction to the aim position
             local predictedPosition = PredictPosition(targetPart)
             
             -- Create a tween to smoothly move the camera to the predicted position
