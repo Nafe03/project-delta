@@ -7,6 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 local Holding = false
 local LockedTarget = nil
 local TargetLockEnabled = false
+local StrafeAngle = 0 -- Initialize strafe angle
 
 _G.AimbotEnabled = true
 _G.TeamCheck = false -- If set to true then the script would only lock your aim at enemy team members.
@@ -23,6 +24,17 @@ _G.CircleFilled = false -- Determines whether or not the circle is filled.
 _G.CircleVisible = true -- Determines whether or not the circle is visible.
 _G.CircleThickness = 0 -- The thickness of the circle.
 
+_G.TargetStrafe = false -- Toggle for target strafing
+_G.StrafeDisten = math.pi * 5 -- Distance for strafing using math.pi
+_G.StrafeSpeed = 2 -- Speed of strafing
+_G.StrafeDirection = 1 -- 1 for clockwise, -1 for counter-clockwise
+_G.StrafeHeight = 0 -- Height offset for strafing
+_G.RandomPosTargetStrafe = false -- Enable random position target strafing
+
+-- Variables to control the frequency of random position updates
+local strafeUpdateCounter = 0
+local strafeUpdateFrequency = 10 -- Adjust this value to control how often the position updates
+
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Radius = _G.CircleRadius
@@ -33,6 +45,19 @@ FOVCircle.Radius = _G.CircleRadius
 FOVCircle.Transparency = _G.CircleTransparency
 FOVCircle.NumSides = _G.CircleSides
 FOVCircle.Thickness = _G.CircleThickness
+
+-- Function to check if a player is knocked
+local function IsPlayerKnocked(player)
+    local character = player.Character
+    if not character then return true end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return true end
+    local knocked = character:FindFirstChild("BodyEffects")
+    if knocked and knocked:FindFirstChild("K.O") then
+        return knocked["K.O"].Value
+    end
+    return false
+end
 
 -- Function to check if the target is in front of the player
 local function IsTargetInFront(targetPosition)
@@ -49,6 +74,35 @@ local function IsTargetInFront(targetPosition)
     return angleDegrees <= threshold
 end
 
+-- Function to calculate strafe position around target
+local function CalculateStrafePosition(targetPosition)
+    if not _G.TargetStrafe then return nil end
+    local strafePosition
+    if _G.RandomPosTargetStrafe then
+        -- Increment the update counter
+        strafeUpdateCounter = strafeUpdateCounter + _G.StrafeSpeed
+        -- Check if it's time to update the random position
+        if strafeUpdateCounter >= strafeUpdateFrequency then
+            strafeUpdateCounter = 0 -- Reset the counter
+            -- Calculate random offsets for X, Y, and Z
+            local randomX = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+            local randomY = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+            local randomZ = math.random(-_G.StrafeDisten, _G.StrafeDisten)
+            -- Create the strafe position with random offsets
+            strafePosition = targetPosition + Vector3.new(randomX, randomY + _G.StrafeHeight, randomZ)
+        end
+    else
+        -- Calculate the strafe position using a circular path
+        local x = math.cos(StrafeAngle) * _G.StrafeDisten
+        local z = math.sin(StrafeAngle) * _G.StrafeDisten
+        -- Create the strafe position offset from the target
+        strafePosition = targetPosition + Vector3.new(x, _G.StrafeHeight, z)
+        -- Update the strafe angle for the next frame
+        StrafeAngle = StrafeAngle + (_G.StrafeSpeed * 0.01 * _G.StrafeDirection)
+    end
+    return strafePosition
+end
+
 local function GetClosestPlayer()
     local MaximumDistance = _G.CircleRadius
     local Target = nil
@@ -59,7 +113,7 @@ local function GetClosestPlayer()
                 if v.Team ~= LocalPlayer.Team then
                     if v.Character ~= nil then
                         if v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
-                            if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 then
+                            if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 and not IsPlayerKnocked(v) then
                                 local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
                                 local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
                                 
@@ -75,7 +129,7 @@ local function GetClosestPlayer()
             else
                 if v.Character ~= nil then
                     if v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
-                        if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 then
+                        if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 and not IsPlayerKnocked(v) then
                             local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
                             local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
                             
@@ -117,7 +171,8 @@ local function IsTargetValid(target)
     return target and target.Character and 
            target.Character:FindFirstChild("Humanoid") and 
            target.Character.Humanoid.Health > 0 and
-           target.Character:FindFirstChild(_G.AimPart)
+           target.Character:FindFirstChild(_G.AimPart) and
+           not IsPlayerKnocked(target)
 end
 
 UserInputService.InputBegan:Connect(function(Input)
@@ -142,6 +197,21 @@ UserInputService.InputBegan:Connect(function(Input)
     if Input.KeyCode == Enum.KeyCode.E then
         LockedTarget = nil
         TargetLockEnabled = false
+    end
+    
+    -- Toggle target strafing with B key
+    if Input.KeyCode == Enum.KeyCode.B then
+        _G.TargetStrafe = not _G.TargetStrafe
+    end
+    
+    -- Toggle random position strafe with N key
+    if Input.KeyCode == Enum.KeyCode.N then
+        _G.RandomPosTargetStrafe = not _G.RandomPosTargetStrafe
+    end
+    
+    -- Change strafe direction with M key
+    if Input.KeyCode == Enum.KeyCode.M then
+        _G.StrafeDirection = _G.StrafeDirection * -1 -- Flip direction
     end
 end)
 
@@ -189,9 +259,19 @@ RunService.RenderStepped:Connect(function()
         
         if target and target.Character and target.Character:FindFirstChild(_G.AimPart) then
             local targetPart = target.Character[_G.AimPart]
+            local targetRootPart = target.Character.HumanoidRootPart
             
             -- Apply direction-based prediction to the aim position
             local predictedPosition = PredictPosition(targetPart)
+            
+            -- If target strafing is enabled, move the character around the target
+            if _G.TargetStrafe and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local strafePosition = CalculateStrafePosition(targetRootPart.Position)
+                if strafePosition then
+                    -- Move the player to the strafe position
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(strafePosition, targetRootPart.Position)
+                end
+            end
             
             -- Create a tween to smoothly move the camera to the predicted position
             TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), 
