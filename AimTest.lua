@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 local Holding = false
 local LockedTarget = nil
 local TargetLockEnabled = false
@@ -31,9 +32,19 @@ _G.StrafeDirection = 1 -- 1 for clockwise, -1 for counter-clockwise
 _G.StrafeHeight = 0 -- Height offset for strafing
 _G.RandomPosTargetStrafe = false -- Enable random position target strafing
 
+-- Wall check settings
+_G.WallCheckEnabled = true -- Toggle for wall check feature
+_G.WallCheckTransparency = 0.5 -- Maximum transparency that still counts as a wall
+
+-- Triggerbot settings
+_G.TriggerbotEnabled = false -- Toggle for triggerbot (off by default)
+_G.TriggerbotDelay = 0.1 -- Delay in seconds before the triggerbot fires
+_G.TriggerbotFOV = 5 -- FOV for the triggerbot (smaller than aimbot FOV for precision)
+
 -- Variables to control the frequency of random position updates
 local strafeUpdateCounter = 0
 local strafeUpdateFrequency = 10 -- Adjust this value to control how often the position updates
+local lastTriggerTime = 0 -- For triggerbot timing
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -72,6 +83,30 @@ local function IsTargetInFront(targetPosition)
     -- Check if the angle is within the threshold (e.g., 90 degrees)
     local threshold = 90
     return angleDegrees <= threshold
+end
+
+-- Wall check function to determine if a target is visible
+local function IsTargetVisible(targetPart)
+    if not _G.WallCheckEnabled then return true end
+    
+    local origin = Camera.CFrame.Position
+    local direction = (targetPart.Position - origin).Unit
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    
+    local raycastResult = workspace:Raycast(origin, direction * (targetPart.Position - origin).Magnitude, raycastParams)
+    
+    if raycastResult then
+        -- Check if the hit object is transparent enough to not be considered a wall
+        if raycastResult.Instance.Transparency > _G.WallCheckTransparency then
+            return true
+        else
+            return false -- Hit a wall
+        end
+    else
+        return true -- No obstacles in the way
+    end
 end
 
 -- Function to calculate strafe position around target
@@ -117,8 +152,10 @@ local function GetClosestPlayer()
                                 local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
                                 local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
                                 
-                                -- Check if target is in front of player
-                                if VectorDistance < MaximumDistance and IsTargetInFront(v.Character.HumanoidRootPart.Position) then
+                                -- Check if target is in front of player and visible (not behind a wall)
+                                if VectorDistance < MaximumDistance and 
+                                   IsTargetInFront(v.Character.HumanoidRootPart.Position) and 
+                                   IsTargetVisible(v.Character.HumanoidRootPart) then
                                     Target = v
                                     MaximumDistance = VectorDistance -- Update to get the closest
                                 end
@@ -133,8 +170,10 @@ local function GetClosestPlayer()
                             local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
                             local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
                             
-                            -- Check if target is in front of player
-                            if VectorDistance < MaximumDistance and IsTargetInFront(v.Character.HumanoidRootPart.Position) then
+                            -- Check if target is in front of player and visible (not behind a wall)
+                            if VectorDistance < MaximumDistance and 
+                               IsTargetInFront(v.Character.HumanoidRootPart.Position) and 
+                               IsTargetVisible(v.Character.HumanoidRootPart) then
                                 Target = v
                                 MaximumDistance = VectorDistance -- Update to get the closest
                             end
@@ -146,6 +185,68 @@ local function GetClosestPlayer()
     end
 
     return Target
+end
+
+-- Function to get a player directly under the mouse cursor for triggerbot
+local function GetPlayerUnderMouse()
+    local MaxDistance = _G.TriggerbotFOV or 5 -- Smaller FOV for triggerbot for precision
+    local Target = nil
+
+    for _, v in next, Players:GetPlayers() do
+        if v.Name ~= LocalPlayer.Name then
+            if _G.TeamCheck == true then
+                if v.Team ~= LocalPlayer.Team then
+                    if v.Character and v.Character:FindFirstChild(_G.AimPart) then
+                        local aimPart = v.Character[_G.AimPart]
+                        if aimPart and v.Character:FindFirstChild("Humanoid") and 
+                           v.Character.Humanoid.Health > 0 and not IsPlayerKnocked(v) then
+                            
+                            local ScreenPoint = Camera:WorldToScreenPoint(aimPart.Position)
+                            local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                            
+                            -- Check if player is under mouse cursor, in front of player, and not behind wall
+                            if VectorDistance < MaxDistance and 
+                               IsTargetInFront(aimPart.Position) and 
+                               IsTargetVisible(aimPart) then
+                                Target = v
+                                MaxDistance = VectorDistance
+                            end
+                        end
+                    end
+                end
+            else
+                if v.Character and v.Character:FindFirstChild(_G.AimPart) then
+                    local aimPart = v.Character[_G.AimPart]
+                    if aimPart and v.Character:FindFirstChild("Humanoid") and 
+                       v.Character.Humanoid.Health > 0 and not IsPlayerKnocked(v) then
+                        
+                        local ScreenPoint = Camera:WorldToScreenPoint(aimPart.Position)
+                        local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                        
+                        -- Check if player is under mouse cursor, in front of player, and not behind wall
+                        if VectorDistance < MaxDistance and 
+                           IsTargetInFront(aimPart.Position) and 
+                           IsTargetVisible(aimPart) then
+                            Target = v
+                            MaxDistance = VectorDistance
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return Target
+end
+
+-- Function to simulate a mouse click for the triggerbot
+local function TriggerClick()
+    -- Simulate mouse press
+    mouse1press()
+    -- Small delay
+    wait(0.01)
+    -- Simulate mouse release
+    mouse1release()
 end
 
 -- Enhanced prediction function with directional prediction
@@ -213,6 +314,18 @@ UserInputService.InputBegan:Connect(function(Input)
     if Input.KeyCode == Enum.KeyCode.M then
         _G.StrafeDirection = _G.StrafeDirection * -1 -- Flip direction
     end
+    
+    -- Toggle triggerbot with T key
+    if Input.KeyCode == Enum.KeyCode.T then
+        _G.TriggerbotEnabled = not _G.TriggerbotEnabled
+        print("Triggerbot " .. (_G.TriggerbotEnabled and "Enabled" or "Disabled"))
+    end
+    
+    -- Toggle wall check with V key
+    if Input.KeyCode == Enum.KeyCode.V then
+        _G.WallCheckEnabled = not _G.WallCheckEnabled
+        print("Wall Check " .. (_G.WallCheckEnabled and "Enabled" or "Disabled"))
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(Input)
@@ -224,12 +337,12 @@ UserInputService.InputEnded:Connect(function(Input)
 end)
 
 RunService.RenderStepped:Connect(function()
+    -- Update FOV circle
     FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
     FOVCircle.Radius = _G.CircleRadius
     FOVCircle.Filled = _G.CircleFilled
     FOVCircle.Color = _G.CircleColor
     FOVCircle.Visible = _G.CircleVisible
-    FOVCircle.Radius = _G.CircleRadius
     FOVCircle.Transparency = _G.CircleTransparency
     FOVCircle.NumSides = _G.CircleSides
     FOVCircle.Thickness = _G.CircleThickness
@@ -240,6 +353,7 @@ RunService.RenderStepped:Connect(function()
         TargetLockEnabled = false
     end
 
+    -- Aimbot logic
     if Holding == true and _G.AimbotEnabled == true then
         local target
         
@@ -261,6 +375,11 @@ RunService.RenderStepped:Connect(function()
             local targetPart = target.Character[_G.AimPart]
             local targetRootPart = target.Character.HumanoidRootPart
             
+            -- Skip if wall check is enabled and target is not visible
+            if _G.WallCheckEnabled and not IsTargetVisible(targetPart) then
+                return
+            end
+            
             -- Apply direction-based prediction to the aim position
             local predictedPosition = PredictPosition(targetPart)
             
@@ -276,6 +395,22 @@ RunService.RenderStepped:Connect(function()
             -- Create a tween to smoothly move the camera to the predicted position
             TweenService:Create(Camera, TweenInfo.new(_G.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), 
                 {CFrame = CFrame.new(Camera.CFrame.Position, predictedPosition)}):Play()
+        end
+    end
+    
+    -- Triggerbot logic
+    if _G.TriggerbotEnabled then
+        local currentTime = tick()
+        
+        -- Only check for player under mouse if enough time has passed since last trigger
+        if currentTime - lastTriggerTime > _G.TriggerbotDelay then
+            local playerUnderMouse = GetPlayerUnderMouse()
+            
+            if playerUnderMouse then
+                -- Fire the triggerbot
+                TriggerClick()
+                lastTriggerTime = currentTime
+            end
         end
     end
 end)
