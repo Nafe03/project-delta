@@ -33,7 +33,7 @@ _G.StrafeHeight = 0 -- Height offset for strafing
 _G.RandomPosTargetStrafe = false -- Enable random position target strafing
 
 -- Wall check settings
-_G.WallCheckEnabled = true -- Toggle for wall check feature
+_G.WallCheckEnabled = false -- Toggle for wall check feature
 _G.WallCheckTransparency = 0.5 -- Maximum transparency that still counts as a wall
 
 -- Triggerbot settings
