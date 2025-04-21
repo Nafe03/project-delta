@@ -27,6 +27,7 @@ if not getgenv().penisColor then getgenv().penisColor = Color3.new(0.85, 0.65, 0
 if not getgenv().nameTextSize then getgenv().nameTextSize = 18 end
 if not getgenv().distanceTextSize then getgenv().distanceTextSize = 16 end
 if not getgenv().nameDisplayMode then getgenv().nameDisplayMode = "Username" end
+if not getgenv().maxDistance then getgenv().maxDistance = 1000 end -- Added MaxDistance setting
 
 -- Global ESP toggle variables
 _G.ESPEnabled = true
@@ -39,6 +40,7 @@ _G.ArmorESPEnabled = true
 _G.PenisESPEnabled = true
 _G.OutlineEnabled = false
 _G.GlowEnabled = true -- Added glow toggle
+_G.MaxDistance = 1000 -- Added MaxDistance toggle
 
 -- Set up reference to existing globals if they exist, otherwise use the new _G values
 getgenv().espEnabled = getgenv().espEnabled or _G.ESPEnabled
@@ -50,6 +52,7 @@ getgenv().armorBarESP = getgenv().armorBarESP or _G.ArmorESPEnabled
 getgenv().penisESPEnabled = getgenv().penisESPEnabled or _G.PenisESPEnabled
 getgenv().outlineEnabled = getgenv().outlineEnabled or _G.OutlineEnabled
 getgenv().glowEnabled = getgenv().glowEnabled or _G.GlowEnabled -- Added glow reference
+getgenv().maxDistance = getgenv().maxDistance or _G.MaxDistance -- Added MaxDistance reference
 
 -- Function to synchronize _G variables with getgenv variables
 local function syncESPSettings()
@@ -62,6 +65,7 @@ local function syncESPSettings()
     getgenv().penisESPEnabled = _G.PenisESPEnabled
     getgenv().outlineEnabled = _G.OutlineEnabled
     getgenv().glowEnabled = _G.GlowEnabled -- Added glow sync
+    getgenv().maxDistance = _G.MaxDistance -- Added MaxDistance sync
 end
 
 -- Function to destroy ESP for a player
@@ -294,6 +298,22 @@ local function UpdateESP()
                 end
             end
             continue -- Skip to next player
+        end
+
+        -- Check the distance to the player
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+            if distance > getgenv().maxDistance then
+                -- Hide all ESP elements if the player is too far
+                for _, obj in pairs(objects) do
+                    if obj and typeof(obj) == "table" and obj.Visible ~= nil then
+                        obj.Visible = false
+                    elseif obj and typeof(obj) == "Instance" then
+                        obj.Enabled = false
+                    end
+                end
+                continue -- Skip to next player
+            end
         end
 
         -- Check if the player is behind a wall using raycasting
@@ -550,6 +570,8 @@ function toggleESP(setting, value)
         _G.OutlineEnabled = value
     elseif setting == "Glow" then
         _G.GlowEnabled = value
+    elseif setting == "MaxDistance" then
+        _G.MaxDistance = value
     end
 
     syncESPSettings()
