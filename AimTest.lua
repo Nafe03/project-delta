@@ -1,3 +1,4 @@
+-- Services
 local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -414,3 +415,61 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- Module return function
+local function setupAimbot(settings)
+    -- Update global settings if provided
+    if settings[1] ~= nil then _G.AimbotEnabled = settings[1] end
+    if settings[2] ~= nil then _G.LegitAimbot = settings[2] end
+    if settings[3] ~= nil then _G.TeamCheck = settings[3] end
+    if settings[4] ~= nil then _G.Resolver = settings[4] end
+    if settings[5] ~= nil then _G.AimPart = settings[5] end
+    if settings[6] ~= nil then _G.SilentAim = settings[6] end
+    if settings[7] ~= nil then _G.AirAimPart = settings[7] end
+    if settings[8] ~= nil then _G.HotKeyAimbot = settings[8] end
+    if settings[9] ~= nil then _G.Sensitivity = settings[9] end
+    if settings[10] ~= nil then _G.PredictionAmount = settings[10] end
+    if settings[11] ~= nil then _G.AutoPredict = settings[11] end
+    if settings[12] ~= nil then _G.CircleSides = settings[12] end
+    if settings[13] ~= nil then _G.CircleColor = settings[13] end
+    if settings[14] ~= nil then _G.CircleTransparency = settings[14] end
+    if settings[15] ~= nil then _G.CircleRadius = settings[15] end
+    if settings[16] ~= nil then _G.CircleFilled = settings[16] end
+    if settings[17] ~= nil then _G.CircleVisible = settings[17] end
+    if settings[18] ~= nil then _G.CircleThickness = settings[18] end
+    if settings[19] ~= nil then _G.UseCircle = settings[19] end
+    if settings[20] ~= nil then _G.WallCheck = settings[20] end
+    if settings[21] ~= nil then _G.ResolverEnabled = settings[21] end
+    if settings[22] ~= nil then _G.AirPredictionAmount = settings[22] end
+    if settings[23] ~= nil then _G.LinePredic = settings[23] end
+    if settings[24] ~= nil then _G.PredictionMultiplier = settings[24] end
+    
+    return {
+        ToggleAim = function(enabled)
+            _G.AimbotEnabled = enabled
+        end,
+        ChangeAimPart = function(part)
+            _G.AimPart = part
+        end,
+        ToggleTeamCheck = function(enabled)
+            _G.TeamCheck = enabled
+        end,
+        SetPrediction = function(amount)
+            _G.PredictionAmount = amount
+        end,
+        SetCircleRadius = function(radius)
+            _G.CircleRadius = radius
+        end,
+        SetCircleVisible = function(visible)
+            _G.CircleVisible = visible
+        end,
+        ToggleTargetStrafe = function(enabled)
+            _G.TargetStrafe = enabled
+        end,
+        ToggleWallCheck = function(enabled)
+            _G.WallCheckEnabled = enabled
+        end
+    }
+end
+
+return setupAimbot 
