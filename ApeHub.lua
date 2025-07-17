@@ -958,15 +958,15 @@ function UILibrary.new(options)
                         SliderFrame.LayoutOrder = #self.Elements + 1
 
                         SliderText.Name = "Text"
-                        SliderText.Parent = SliderFrame
-                        SliderText.BackgroundTransparency = 1
-                        SliderText.Position = UDim2.new(0, 0, 0, 0)
-                        SliderText.Size = UDim2.new(1, -30, 0, 18)
-                        SliderText.Font = Enum.Font.JosefinSans
-                        SliderText.Text = options.Text or id
-                        SliderText.TextColor3 = options.TextColor
-                        SliderText.TextSize = 12
-                        SliderText.TextXAlignment = Enum.TextXAlignment.Left
+    SliderText.Parent = SliderFrame
+    SliderText.BackgroundTransparency = 1
+    SliderText.Position = UDim2.new(0, 0, 0, 0)
+    SliderText.Size = UDim2.new(1, -30, 0, 18)
+    SliderText.Font = Enum.Font.JosefinSans
+    SliderText.Text = options.Text or id
+    SliderText.TextColor3 = options.TextColor -- Now guaranteed to have a value
+    SliderText.TextSize = 12
+    SliderText.TextXAlignment = Enum.TextXAlignment.Left
 
                         SliderBackground.Name = "Background"
                         SliderBackground.Parent = SliderFrame
