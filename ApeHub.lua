@@ -1076,6 +1076,9 @@ function UILibrary.new(options)
                     end,
                     AddDropdown = function(self, id, options)
                         options = options or {}
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local DropdownFrame = Instance.new("Frame")
                         local DropdownText = Instance.new("TextLabel")
                         local DropdownButton = Instance.new("TextButton")
@@ -1220,6 +1223,9 @@ function UILibrary.new(options)
                     end,
                     AddButton = function(self, id, options)
                         options = options or {}
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local ButtonFrame = Instance.new("Frame")
                         local Button = Instance.new("TextButton")
                         local ButtonCorner = Instance.new("UICorner")
@@ -1270,6 +1276,9 @@ function UILibrary.new(options)
                     end,
                     AddLabel = function(self, id, options)
                         options = options or {}
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local LabelFrame = Instance.new("Frame")
                         local Label = Instance.new("TextLabel")
 
@@ -1307,6 +1316,9 @@ function UILibrary.new(options)
                     end,
                     AddTextBox = function(self, id, options)
                         options = options or {}
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local TextBoxFrame = Instance.new("Frame")
                         local TextBox = Instance.new("TextBox")
                         local TextBoxCorner = Instance.new("UICorner")
