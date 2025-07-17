@@ -942,6 +942,9 @@ function UILibrary.new(options)
                     end,
                     AddSlider = function(self, id, options)
                         options = options or {}
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local SliderFrame = Instance.new("Frame")
                         local SliderText = Instance.new("TextLabel")
                         local SliderBackground = Instance.new("Frame")
