@@ -325,8 +325,6 @@ function UILibrary.new(options)
                     Elements = {},
                     AddToggle = function(self, id, options)
                         options = options or {}
-                        
-                        -- Ensure required properties have defaults
                         options.DefaultColor = options.DefaultColor or Window.DefaultColor
                         options.TextColor = options.TextColor or Window.TextColor
                         
@@ -1076,9 +1074,8 @@ function UILibrary.new(options)
                     end,
                     AddDropdown = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local DropdownFrame = Instance.new("Frame")
                         local DropdownText = Instance.new("TextLabel")
                         local DropdownButton = Instance.new("TextButton")
