@@ -1434,10 +1434,7 @@ function UILibrary.new(options)
         return MainBackGround.Size
     end
 
-    return Window
-end
-
-local dragToggle = nil
+    local dragToggle = nil
 local dragSpeed = 0.25
 local dragStart = nil
 local startPos = nil
@@ -1473,5 +1470,9 @@ UserInputService.InputChanged:Connect(function(input)
         end
     end
 end)
+
+    return Window
+end
+
 
 return UILibrary
