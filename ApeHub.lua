@@ -325,6 +325,11 @@ function UILibrary.new(options)
                     Elements = {},
                     AddToggle = function(self, id, options)
                         options = options or {}
+                        
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
+                        
                         local ToggleFrame = Instance.new("Frame")
                         local ToggleButton = Instance.new("TextButton")
                         local ToggleIndicator = Instance.new("Frame")
@@ -353,19 +358,19 @@ function UILibrary.new(options)
                             gearCorner.CornerRadius = UDim.new(0, 3)
                             gearCorner.Parent = GearIcon
                         end
-
+                    
                         ToggleFrame.Name = id .. "Toggle"
                         ToggleFrame.Parent = GroupboxContent
                         ToggleFrame.BackgroundTransparency = 1
                         ToggleFrame.Size = UDim2.new(1, 0, 0, 20)
                         ToggleFrame.LayoutOrder = #self.Elements + 1
-
+                    
                         ToggleButton.Name = "Button"
                         ToggleButton.Parent = ToggleFrame
                         ToggleButton.BackgroundTransparency = 1
                         ToggleButton.Size = UDim2.new(1, 0, 1, 0)
                         ToggleButton.Text = ""
-
+                    
                         ToggleIndicator.Name = "Indicator"
                         ToggleIndicator.Parent = ToggleFrame
                         ToggleIndicator.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -373,10 +378,10 @@ function UILibrary.new(options)
                         ToggleIndicator.BorderSizePixel = 1
                         ToggleIndicator.Position = UDim2.new(0, 0, 0.5, -6)
                         ToggleIndicator.Size = UDim2.new(0, 12, 0, 12)
-
+                    
                         ToggleIndicatorCorner.CornerRadius = UDim.new(0, 2)
                         ToggleIndicatorCorner.Parent = ToggleIndicator
-
+                    
                         ToggleText.Name = "Text"
                         ToggleText.Parent = ToggleFrame
                         ToggleText.BackgroundTransparency = 1
@@ -384,24 +389,24 @@ function UILibrary.new(options)
                         ToggleText.Size = UDim2.new(1, -20, 1, 0)
                         ToggleText.Font = Enum.Font.JosefinSans
                         ToggleText.Text = options.Text or id
-                        ToggleText.TextColor3 = options.TextColor
+                        ToggleText.TextColor3 = options.TextColor  -- Now guaranteed to have a value
                         ToggleText.TextSize = 12
                         ToggleText.TextXAlignment = Enum.TextXAlignment.Left
-
+                    
                         local toggled = options.Default or false
-
+                    
                         local function updateToggle()
                             ToggleIndicator.BackgroundColor3 = toggled and options.DefaultColor or Color3.fromRGB(30, 30, 30)
                             if options.Callback then
                                 options.Callback(toggled)
                             end
                         end
-
+                    
                         ToggleButton.MouseButton1Click:Connect(function()
                             toggled = not toggled
                             updateToggle()
                         end)
-
+                    
                         -- Color picker implementation
                         local colorPicker = nil
                         if options.HasColorPicker then
@@ -915,7 +920,7 @@ function UILibrary.new(options)
                                 end
                             }
                         end
-
+                    
                         updateToggle()
 
                         local element = {
