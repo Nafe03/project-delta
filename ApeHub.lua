@@ -1074,8 +1074,9 @@ function UILibrary.new(options)
                     end,
                     AddDropdown = function(self, id, options)
                         options = options or {}
-                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
-                        options.TextColor = options.TextColor or Window.TextColor
+    -- Ensure required properties have defaults
+    options.DefaultColor = options.DefaultColor or Window.DefaultColor
+    options.TextColor = options.TextColor or Window.TextColor
                         local DropdownFrame = Instance.new("Frame")
                         local DropdownText = Instance.new("TextLabel")
                         local DropdownButton = Instance.new("TextButton")
@@ -1093,15 +1094,15 @@ function UILibrary.new(options)
                         DropdownFrame.ZIndex = 2
 
                         DropdownText.Name = "Text"
-                        DropdownText.Parent = DropdownFrame
-                        DropdownText.BackgroundTransparency = 1
-                        DropdownText.Position = UDim2.new(0, 0, 0, 0)
-                        DropdownText.Size = UDim2.new(1, 0, 0, 18)
-                        DropdownText.Font = Enum.Font.JosefinSans
-                        DropdownText.Text = options.Text or id
-                        DropdownText.TextColor3 = options.TextColor
-                        DropdownText.TextSize = 12
-                        DropdownText.TextXAlignment = Enum.TextXAlignment.Left
+    DropdownText.Parent = DropdownFrame
+    DropdownText.BackgroundTransparency = 1
+    DropdownText.Position = UDim2.new(0, 0, 0, 0)
+    DropdownText.Size = UDim2.new(1, 0, 0, 18)
+    DropdownText.Font = Enum.Font.JosefinSans
+    DropdownText.Text = options.Text or id
+    DropdownText.TextColor3 = options.TextColor  -- Now guaranteed to have a value
+    DropdownText.TextSize = 12
+    DropdownText.TextXAlignment = Enum.TextXAlignment.Left
 
                         DropdownButton.Name = "Button"
                         DropdownButton.Parent = DropdownFrame
