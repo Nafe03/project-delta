@@ -413,537 +413,584 @@ function UILibrary.new(options)
                         end)
                     
                         -- Color picker implementation
-                        local colorPicker = nil
-                        if options.HasColorPicker then
-                            -- Create dedicated ScreenGui for color picker
-                            local colorPickerScreenGui = Instance.new("ScreenGui")
-                            colorPickerScreenGui.Name = "ColorPickerGui_" .. id
-                            colorPickerScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-                            colorPickerScreenGui.ResetOnSpawn = false
-                            colorPickerScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-                            
-                            -- Create main color picker window
-                            local colorPickerWindow = Instance.new("Frame")
-                            colorPickerWindow.Name = "ColorPickerWindow"
-                            colorPickerWindow.Parent = colorPickerScreenGui
-                            colorPickerWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-                            colorPickerWindow.BorderSizePixel = 0
-                            colorPickerWindow.Position = UDim2.new(0.5, -150, 0.5, -175)
-                            colorPickerWindow.Size = UDim2.new(0, 300, 0, 350)
-                            colorPickerWindow.Visible = false
-                            colorPickerWindow.ZIndex = 100
-                            
-                            local windowCorner = Instance.new("UICorner")
-                            windowCorner.CornerRadius = UDim.new(0, 12)
-                            windowCorner.Parent = colorPickerWindow
-                            
-                            -- Window title bar
-                            local titleBar = Instance.new("Frame")
-                            titleBar.Name = "TitleBar"
-                            titleBar.Parent = colorPickerWindow
-                            titleBar.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-                            titleBar.BorderSizePixel = 0
-                            titleBar.Size = UDim2.new(1, 0, 0, 40)
-                            titleBar.ZIndex = 101
-                            
-                            local titleCorner = Instance.new("UICorner")
-                            titleCorner.CornerRadius = UDim.new(0, 12)
-                            titleCorner.Parent = titleBar
-                            
-                            -- Fix title bar corners
-                            local titleBarFix = Instance.new("Frame")
-                            titleBarFix.Parent = titleBar
-                            titleBarFix.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-                            titleBarFix.BorderSizePixel = 0
-                            titleBarFix.Position = UDim2.new(0, 0, 0.6, 0)
-                            titleBarFix.Size = UDim2.new(1, 0, 0.4, 0)
-                            titleBarFix.ZIndex = 101
-                            
-                            local titleText = Instance.new("TextLabel")
-                            titleText.Name = "TitleText"
-                            titleText.Parent = titleBar
-                            titleText.BackgroundTransparency = 1
-                            titleText.Position = UDim2.new(0, 20, 0, 0)
-                            titleText.Size = UDim2.new(1, -80, 1, 0)
-                            titleText.Font = Enum.Font.SourceSansBold
-                            titleText.Text = "Color Picker - " .. (options.Text or id)
-                            titleText.TextColor3 = options.DefaultColor
-                            titleText.TextSize = 16
-                            titleText.TextXAlignment = Enum.TextXAlignment.Left
-                            titleText.ZIndex = 102
-                            
-                            -- Close button
-                            local closeButton = Instance.new("TextButton")
-                            closeButton.Name = "CloseButton"
-                            closeButton.Parent = titleBar
-                            closeButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-                            closeButton.BorderSizePixel = 0
-                            closeButton.Position = UDim2.new(1, -35, 0, 10)
-                            closeButton.Size = UDim2.new(0, 20, 0, 20)
-                            closeButton.Font = Enum.Font.SourceSansBold
-                            closeButton.Text = "×"
-                            closeButton.TextColor3 = Color3.new(1, 1, 1)
-                            closeButton.TextSize = 14
-                            closeButton.ZIndex = 102
-                            closeButton.AutoButtonColor = false
-                            
-                            local closeButtonCorner = Instance.new("UICorner")
-                            closeButtonCorner.CornerRadius = UDim.new(1, 0)
-                            closeButtonCorner.Parent = closeButton
-                            
-                            -- Add hover effect for close button
-                            closeButton.MouseEnter:Connect(function()
-                                closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-                            end)
-                            closeButton.MouseLeave:Connect(function()
-                                closeButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-                            end)
-                            
-                            -- Content frame for color picker
-                            local colorPickerFrame = Instance.new("Frame")
-                            colorPickerFrame.Name = "ColorPickerFrame"
-                            colorPickerFrame.Parent = colorPickerWindow
-                            colorPickerFrame.BackgroundTransparency = 1
-                            colorPickerFrame.Position = UDim2.new(0, 20, 0, 55)
-                            colorPickerFrame.Size = UDim2.new(1, -40, 1, -75)
-                            colorPickerFrame.ZIndex = 101
-                            
-                            -- Color preview with better styling
-                            local colorPreview = Instance.new("Frame")
-                            colorPreview.Name = "ColorPreview"
-                            colorPreview.Parent = colorPickerFrame
-                            colorPreview.BackgroundColor3 = Color3.new(1, 1, 1)
-                            colorPreview.BorderSizePixel = 0
-                            colorPreview.Position = UDim2.new(0, 0, 0, 0)
-                            colorPreview.Size = UDim2.new(1, 0, 0, 35)
-                            colorPreview.ZIndex = 101
-                            
-                            local previewCorner = Instance.new("UICorner")
-                            previewCorner.CornerRadius = UDim.new(0, 8)
-                            previewCorner.Parent = colorPreview
-                            
-                            -- Add subtle border to preview
-                            local previewBorder = Instance.new("UIStroke")
-                            previewBorder.Color = Color3.fromRGB(80, 80, 80)
-                            previewBorder.Thickness = 1
-                            previewBorder.Parent = colorPreview
-                            
-                            -- Saturation/Value box with better styling
-                            local saturationValueBox = Instance.new("Frame")
-                            saturationValueBox.Name = "SaturationValueBox"
-                            saturationValueBox.Parent = colorPickerFrame
-                            saturationValueBox.BackgroundColor3 = Color3.new(1, 0, 0)
-                            saturationValueBox.BorderSizePixel = 0
-                            saturationValueBox.Position = UDim2.new(0, 0, 0, 50)
-                            saturationValueBox.Size = UDim2.new(0, 180, 0, 180)
-                            saturationValueBox.ZIndex = 101
-                            
-                            local svCorner = Instance.new("UICorner")
-                            svCorner.CornerRadius = UDim.new(0, 8)
-                            svCorner.Parent = saturationValueBox
-                            
-                            local svBorder = Instance.new("UIStroke")
-                            svBorder.Color = Color3.fromRGB(80, 80, 80)
-                            svBorder.Thickness = 1
-                            svBorder.Parent = saturationValueBox
-                            
-                            local saturationValueGradient1 = Instance.new("UIGradient")
-                            saturationValueGradient1.Color = ColorSequence.new{
-                                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-                                ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
-                            }
-                            saturationValueGradient1.Transparency = NumberSequence.new{
-                                NumberSequenceKeypoint.new(0, 0),
-                                NumberSequenceKeypoint.new(1, 1)
-                            }
-                            saturationValueGradient1.Parent = saturationValueBox
-                            
-                            local saturationValueGradient2 = Instance.new("UIGradient")
-                            saturationValueGradient2.Color = ColorSequence.new{
-                                ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
-                                ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0))
-                            }
-                            saturationValueGradient2.Transparency = NumberSequence.new{
-                                NumberSequenceKeypoint.new(0, 1),
-                                NumberSequenceKeypoint.new(1, 0)
-                            }
-                            saturationValueGradient2.Rotation = 90
-                            saturationValueGradient2.Parent = saturationValueBox
-                            
-                            local saturationValueButton = Instance.new("TextButton")
-                            saturationValueButton.Name = "SaturationValueButton"
-                            saturationValueButton.Parent = saturationValueBox
-                            saturationValueButton.BackgroundColor3 = Color3.new(1, 1, 1)
-                            saturationValueButton.BorderSizePixel = 0
-                            saturationValueButton.Position = UDim2.new(0.5, -6, 0.5, -6)
-                            saturationValueButton.Size = UDim2.new(0, 12, 0, 12)
-                            saturationValueButton.Text = ""
-                            saturationValueButton.ZIndex = 102
-                            saturationValueButton.AutoButtonColor = false
-                            
-                            local svButtonCorner = Instance.new("UICorner")
-                            svButtonCorner.CornerRadius = UDim.new(1, 0)
-                            svButtonCorner.Parent = saturationValueButton
-                            
-                            local svButtonBorder = Instance.new("UIStroke")
-                            svButtonBorder.Color = Color3.fromRGB(40, 40, 40)
-                            svButtonBorder.Thickness = 2
-                            svButtonBorder.Parent = saturationValueButton
-                            
-                            -- Hue slider with better styling
-                            local hueSlider = Instance.new("Frame")
-                            hueSlider.Name = "HueSlider"
-                            hueSlider.Parent = colorPickerFrame
-                            hueSlider.BackgroundColor3 = Color3.new(1, 1, 1)
-                            hueSlider.BorderSizePixel = 0
-                            hueSlider.Position = UDim2.new(0, 200, 0, 50)
-                            hueSlider.Size = UDim2.new(0, 20, 0, 180)
-                            hueSlider.ZIndex = 101
-                            
-                            local hueCorner = Instance.new("UICorner")
-                            hueCorner.CornerRadius = UDim.new(0, 8)
-                            hueCorner.Parent = hueSlider
-                            
-                            local hueBorder = Instance.new("UIStroke")
-                            hueBorder.Color = Color3.fromRGB(80, 80, 80)
-                            hueBorder.Thickness = 1
-                            hueBorder.Parent = hueSlider
-                            
-                            local hueSliderGradient = Instance.new("UIGradient")
-                            hueSliderGradient.Color = ColorSequence.new{
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-                                ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
-                                ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
-                                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-                                ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
-                                ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
-                            }
-                            hueSliderGradient.Rotation = 90
-                            hueSliderGradient.Parent = hueSlider
-                            
-                            local hueSliderButton = Instance.new("TextButton")
-                            hueSliderButton.Name = "HueSliderButton"
-                            hueSliderButton.Parent = hueSlider
-                            hueSliderButton.BackgroundColor3 = Color3.new(1, 1, 1)
-                            hueSliderButton.BorderSizePixel = 0
-                            hueSliderButton.Position = UDim2.new(0, -4, 0, 0)
-                            hueSliderButton.Size = UDim2.new(1, 8, 0, 8)
-                            hueSliderButton.Text = ""
-                            hueSliderButton.ZIndex = 102
-                            hueSliderButton.AutoButtonColor = false
-                            
-                            local hueButtonCorner = Instance.new("UICorner")
-                            hueButtonCorner.CornerRadius = UDim.new(0, 4)
-                            hueButtonCorner.Parent = hueSliderButton
-                            
-                            local hueButtonBorder = Instance.new("UIStroke")
-                            hueButtonBorder.Color = Color3.fromRGB(40, 40, 40)
-                            hueButtonBorder.Thickness = 2
-                            hueButtonBorder.Parent = hueSliderButton
-                            
-                            -- RGB input fields with better styling
-                            local rgbFrame = Instance.new("Frame")
-                            rgbFrame.Name = "RGBFrame"
-                            rgbFrame.Parent = colorPickerFrame
-                            rgbFrame.BackgroundTransparency = 1
-                            rgbFrame.Position = UDim2.new(0, 0, 0, 245)
-                            rgbFrame.Size = UDim2.new(1, 0, 0, 50)
-                            rgbFrame.ZIndex = 101
-                            
-                            local function createRGBInput(name, position)
-                                local label = Instance.new("TextLabel")
-                                label.Name = name .. "Label"
-                                label.Parent = rgbFrame
-                                label.BackgroundTransparency = 1
-                                label.Position = position
-                                label.Size = UDim2.new(0, 20, 0, 25)
-                                label.Font = Enum.Font.SourceSansBold
-                                label.Text = name .. ":"
-                                label.TextColor3 = Color3.fromRGB(220, 220, 220)
-                                label.TextSize = 14
-                                label.TextXAlignment = Enum.TextXAlignment.Left
-                                label.ZIndex = 102
-                                
-                                local input = Instance.new("TextBox")
-                                input.Name = name .. "Input"
-                                input.Parent = rgbFrame
-                                input.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                                input.BorderSizePixel = 0
-                                input.Position = UDim2.new(0, position.X.Offset + 25, 0, position.Y.Offset)
-                                input.Size = UDim2.new(0, 45, 0, 25)
-                                input.Font = Enum.Font.SourceSans
-                                input.Text = "255"
-                                input.TextColor3 = Color3.fromRGB(255, 255, 255)
-                                input.TextSize = 14
-                                input.TextXAlignment = Enum.TextXAlignment.Center
-                                input.ZIndex = 102
-                                
-                                local inputCorner = Instance.new("UICorner")
-                                inputCorner.CornerRadius = UDim.new(0, 6)
-                                inputCorner.Parent = input
-                                
-                                local inputBorder = Instance.new("UIStroke")
-                                inputBorder.Color = Color3.fromRGB(80, 80, 80)
-                                inputBorder.Thickness = 1
-                                inputBorder.Parent = input
-                                
-                                -- Add focus effects
-                                input.Focused:Connect(function()
-                                    inputBorder.Color = Color3.fromRGB(120, 120, 120)
-                                end)
-                                input.FocusLost:Connect(function()
-                                    inputBorder.Color = Color3.fromRGB(80, 80, 80)
-                                end)
-                                
-                                return input
-                            end
-                            
-                            local rInput = createRGBInput("R", UDim2.new(0, 0, 0, 0))
-                            local gInput = createRGBInput("G", UDim2.new(0, 0, 0, 27))
-                            local bInput = createRGBInput("B", UDim2.new(0, 85, 0, 0))
-                            
-                            local hexLabel = Instance.new("TextLabel")
-                            hexLabel.Name = "HexLabel"
-                            hexLabel.Parent = rgbFrame
-                            hexLabel.BackgroundTransparency = 1
-                            hexLabel.Position = UDim2.new(0, 85, 0, 27)
-                            hexLabel.Size = UDim2.new(0, 35, 0, 25)
-                            hexLabel.Font = Enum.Font.SourceSansBold
-                            hexLabel.Text = "Hex:"
-                            hexLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-                            hexLabel.TextSize = 14
-                            hexLabel.TextXAlignment = Enum.TextXAlignment.Left
-                            hexLabel.ZIndex = 102
-                            
-                            local hexInput = Instance.new("TextBox")
-                            hexInput.Name = "HexInput"
-                            hexInput.Parent = rgbFrame
-                            hexInput.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                            hexInput.BorderSizePixel = 0
-                            hexInput.Position = UDim2.new(0, 125, 0, 27)
-                            hexInput.Size = UDim2.new(0, 75, 0, 25)
-                            hexInput.Font = Enum.Font.SourceSans
-                            hexInput.Text = "#FFFFFF"
-                            hexInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-                            hexInput.TextSize = 14
-                            hexInput.TextXAlignment = Enum.TextXAlignment.Center
-                            hexInput.ZIndex = 102
-                            
-                            local hexCorner = Instance.new("UICorner")
-                            hexCorner.CornerRadius = UDim.new(0, 6)
-                            hexCorner.Parent = hexInput
-                            
-                            local hexBorder = Instance.new("UIStroke")
-                            hexBorder.Color = Color3.fromRGB(80, 80, 80)
-                            hexBorder.Thickness = 1
-                            hexBorder.Parent = hexInput
-                            
-                            -- Add focus effects for hex input
-                            hexInput.Focused:Connect(function()
-                                hexBorder.Color = Color3.fromRGB(120, 120, 120)
-                            end)
-                            hexInput.FocusLost:Connect(function()
-                                hexBorder.Color = Color3.fromRGB(80, 80, 80)
-                            end)
-                            
-                            -- Color picker logic
-                            local currentColor = options.DefaultColor or Color3.new(1, 1, 1)
-                            local hue = 0
-                            local saturation = 0
-                            local value = 1
-                            
-                            -- Update all UI elements
-                            local function updateColor()
-                                -- Convert HSV to RGB
-                                local r, g, b = HSVtoRGB(hue, saturation, value)
-                                currentColor = Color3.new(r, g, b)
-                                
-                                -- Update preview
-                                colorPreview.BackgroundColor3 = currentColor
-                                
-                                -- Update saturation/value box background
-                                saturationValueBox.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
-                                
-                                -- Update RGB inputs
-                                rInput.Text = tostring(math.floor(currentColor.r * 255))
-                                gInput.Text = tostring(math.floor(currentColor.g * 255))
-                                bInput.Text = tostring(math.floor(currentColor.b * 255))
-                                
-                                -- Update hex input
-                                hexInput.Text = colorToHex(currentColor)
-                                
-                                -- Update button positions
-                                hueSliderButton.Position = UDim2.new(0, -4, 0, math.floor(hue * 172))
-                                saturationValueButton.Position = UDim2.new(0, math.floor(saturation * 168), 0, math.floor((1 - value) * 168))
-                                
-                                -- Call callback
-                                if options.ColorCallback then
-                                    options.ColorCallback(currentColor)
-                                end
-                            end
-                            
-                            local function updateFromRGB(color)
-                                hue, saturation, value = RGBtoHSV(color.r, color.g, color.b)
-                                updateColor()
-                            end
-                            
-                            -- Dragging logic
-                            local hueDragging = false
-                            local svDragging = false
-                            local UserInputService = game:GetService("UserInputService")
-                            
-                            hueSliderButton.InputBegan:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                    hueDragging = true
-                                end
-                            end)
-                            
-                            saturationValueButton.InputBegan:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                    svDragging = true
-                                end
-                            end)
-                            
-                            UserInputService.InputChanged:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseMovement then
-                                    if hueDragging then
-                                        local yPos = math.clamp(input.Position.Y - hueSlider.AbsolutePosition.Y, 0, 172)
-                                        hue = yPos / 172
-                                        updateColor()
-                                    elseif svDragging then
-                                        local xPos = math.clamp(input.Position.X - saturationValueBox.AbsolutePosition.X, 0, 168)
-                                        local yPos = math.clamp(input.Position.Y - saturationValueBox.AbsolutePosition.Y, 0, 168)
-                                        saturation = xPos / 168
-                                        value = 1 - (yPos / 168)
-                                        updateColor()
-                                    end
-                                end
-                            end)
-                            
-                            UserInputService.InputEnded:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                    hueDragging = false
-                                    svDragging = false
-                                end
-                            end)
-                            
-                            -- Click handling for sliders
-                            saturationValueBox.InputBegan:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                    local xPos = math.clamp(input.Position.X - saturationValueBox.AbsolutePosition.X, 0, 168)
-                                    local yPos = math.clamp(input.Position.Y - saturationValueBox.AbsolutePosition.Y, 0, 168)
-                                    saturation = xPos / 168
-                                    value = 1 - (yPos / 168)
-                                    updateColor()
-                                    svDragging = true
-                                end
-                            end)
-                            
-                            hueSlider.InputBegan:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                    local yPos = math.clamp(input.Position.Y - hueSlider.AbsolutePosition.Y, 0, 172)
-                                    hue = yPos / 172
-                                    updateColor()
-                                    hueDragging = true
-                                end
-                            end)
-                            
-                            -- RGB input handling
-                            local function handleRGBInput()
-                                local r = math.clamp(tonumber(rInput.Text) or 0, 0, 255) / 255
-                                local g = math.clamp(tonumber(gInput.Text) or 0, 0, 255) / 255
-                                local b = math.clamp(tonumber(bInput.Text) or 0, 0, 255) / 255
-                                updateFromRGB(Color3.new(r, g, b))
-                            end
-                            
-                            rInput.FocusLost:Connect(handleRGBInput)
-                            gInput.FocusLost:Connect(handleRGBInput)
-                            bInput.FocusLost:Connect(handleRGBInput)
-                            
-                            -- Hex input handling
-                            hexInput.FocusLost:Connect(function()
-                                local hex = hexInput.Text:gsub("#", "")
-                                if hex:len() == 6 then
-                                    local r = tonumber(hex:sub(1, 2), 16) / 255
-                                    local g = tonumber(hex:sub(3, 4), 16) / 255
-                                    local b = tonumber(hex:sub(5, 6), 16) / 255
-                                    if r and g and b then
-                                        updateFromRGB(Color3.new(r, g, b))
-                                    end
-                                end
-                            end)
-                            
-                            -- Initialize with default color
-                            if options.DefaultColor then
-                                updateFromRGB(options.DefaultColor)
-                            else
-                                updateColor()
-                            end
-                            
-                            -- Gear icon click handler
-                            GearIcon.MouseButton1Click:Connect(function()
-                                colorPickerWindow.Visible = not colorPickerWindow.Visible
-                            end)
-                            
-                            -- Close button handler
-                            closeButton.MouseButton1Click:Connect(function()
-                                colorPickerWindow.Visible = false
-                            end)
-                            
-                            -- Close when clicking outside
-                            UserInputService.InputBegan:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 and colorPickerWindow.Visible then
-                                    local mousePos = UserInputService:GetMouseLocation()
-                                    local windowPos = colorPickerWindow.AbsolutePosition
-                                    local windowSize = colorPickerWindow.AbsoluteSize
-                                    
-                                    if mousePos.X < windowPos.X or mousePos.X > windowPos.X + windowSize.X or
-                                       mousePos.Y < windowPos.Y or mousePos.Y > windowPos.Y + windowSize.Y then
-                                        colorPickerWindow.Visible = false
-                                    end
-                                end
-                            end)
-                            
-                            colorPicker = {
-                                ScreenGui = colorPickerScreenGui,
-                                Window = colorPickerWindow,
-                                SetColor = function(color)
-                                    updateFromRGB(color)
-                                end,
-                                GetColor = function()
-                                    return currentColor
-                                end,
-                                Show = function()
-                                    colorPickerWindow.Visible = true
-                                end,
-                                Hide = function()
-                                    colorPickerWindow.Visible = false
-                                end,
-                                Destroy = function()
-                                    colorPickerScreenGui:Destroy()
-                                end
-                            }
-                        end
-                    
-                        updateToggle()
+local colorPicker = nil
+if options.HasColorPicker then
+    -- Create dedicated ScreenGui for color picker
+    local colorPickerScreenGui = Instance.new("ScreenGui")
+    colorPickerScreenGui.Name = "ColorPickerGui_" .. id
+    colorPickerScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    colorPickerScreenGui.ResetOnSpawn = false
+    colorPickerScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Create main color picker window
+    local colorPickerWindow = Instance.new("Frame")
+    colorPickerWindow.Name = "ColorPickerWindow"
+    colorPickerWindow.Parent = colorPickerScreenGui
+    colorPickerWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    colorPickerWindow.BorderSizePixel = 0
+    colorPickerWindow.Position = UDim2.new(0.5, -150, 0.5, -175)
+    colorPickerWindow.Size = UDim2.new(0, 300, 0, 350)
+    colorPickerWindow.Visible = false
+    colorPickerWindow.ZIndex = 100
+    
+    local windowCorner = Instance.new("UICorner")
+    windowCorner.CornerRadius = UDim.new(0, 12)
+    windowCorner.Parent = colorPickerWindow
+    
+    -- Window title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Parent = colorPickerWindow
+    titleBar.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+    titleBar.BorderSizePixel = 0
+    titleBar.Size = UDim2.new(1, 0, 0, 40)
+    titleBar.ZIndex = 101
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleBar
+    
+    -- Fix title bar corners
+    local titleBarFix = Instance.new("Frame")
+    titleBarFix.Parent = titleBar
+    titleBarFix.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+    titleBarFix.BorderSizePixel = 0
+    titleBarFix.Position = UDim2.new(0, 0, 0.6, 0)
+    titleBarFix.Size = UDim2.new(1, 0, 0.4, 0)
+    titleBarFix.ZIndex = 101
+    
+    local titleText = Instance.new("TextLabel")
+    titleText.Name = "TitleText"
+    titleText.Parent = titleBar
+    titleText.BackgroundTransparency = 1
+    titleText.Position = UDim2.new(0, 20, 0, 0)
+    titleText.Size = UDim2.new(1, -80, 1, 0)
+    titleText.Font = Enum.Font.SourceSansBold
+    titleText.Text = "Color Picker - " .. (options.Text or id)
+    titleText.TextColor3 = options.DefaultColor or Color3.new(1, 1, 1)
+    titleText.TextSize = 16
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.ZIndex = 102
+    
+    -- Close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Parent = titleBar
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    closeButton.BorderSizePixel = 0
+    closeButton.Position = UDim2.new(1, -35, 0, 10)
+    closeButton.Size = UDim2.new(0, 20, 0, 20)
+    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Text = "×"
+    closeButton.TextColor3 = Color3.new(1, 1, 1)
+    closeButton.TextSize = 14
+    closeButton.ZIndex = 102
+    closeButton.AutoButtonColor = false
+    
+    local closeButtonCorner = Instance.new("UICorner")
+    closeButtonCorner.CornerRadius = UDim.new(1, 0)
+    closeButtonCorner.Parent = closeButton
+    
+    -- Add hover effect for close button
+    closeButton.MouseEnter:Connect(function()
+        closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end)
+    closeButton.MouseLeave:Connect(function()
+        closeButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    end)
+    
+    -- Content frame for color picker
+    local colorPickerFrame = Instance.new("Frame")
+    colorPickerFrame.Name = "ColorPickerFrame"
+    colorPickerFrame.Parent = colorPickerWindow
+    colorPickerFrame.BackgroundTransparency = 1
+    colorPickerFrame.Position = UDim2.new(0, 20, 0, 55)
+    colorPickerFrame.Size = UDim2.new(1, -40, 1, -75)
+    colorPickerFrame.ZIndex = 101
+    
+    -- Color preview with better styling
+    local colorPreview = Instance.new("Frame")
+    colorPreview.Name = "ColorPreview"
+    colorPreview.Parent = colorPickerFrame
+    colorPreview.BackgroundColor3 = Color3.new(1, 1, 1)
+    colorPreview.BorderSizePixel = 0
+    colorPreview.Position = UDim2.new(0, 0, 0, 0)
+    colorPreview.Size = UDim2.new(1, 0, 0, 35)
+    colorPreview.ZIndex = 101
+    
+    local previewCorner = Instance.new("UICorner")
+    previewCorner.CornerRadius = UDim.new(0, 8)
+    previewCorner.Parent = colorPreview
+    
+    -- Add subtle border to preview
+    local previewBorder = Instance.new("UIStroke")
+    previewBorder.Color = Color3.fromRGB(80, 80, 80)
+    previewBorder.Thickness = 1
+    previewBorder.Parent = colorPreview
+    
+    -- Saturation/Value box with better styling
+    local saturationValueBox = Instance.new("Frame")
+    saturationValueBox.Name = "SaturationValueBox"
+    saturationValueBox.Parent = colorPickerFrame
+    saturationValueBox.BackgroundColor3 = Color3.new(1, 0, 0)
+    saturationValueBox.BorderSizePixel = 0
+    saturationValueBox.Position = UDim2.new(0, 0, 0, 50)
+    saturationValueBox.Size = UDim2.new(0, 180, 0, 180)
+    saturationValueBox.ZIndex = 101
+    
+    local svCorner = Instance.new("UICorner")
+    svCorner.CornerRadius = UDim.new(0, 8)
+    svCorner.Parent = saturationValueBox
+    
+    local svBorder = Instance.new("UIStroke")
+    svBorder.Color = Color3.fromRGB(80, 80, 80)
+    svBorder.Thickness = 1
+    svBorder.Parent = saturationValueBox
+    
+    -- Create overlay frame for gradients to fix layering issues
+    local svOverlay = Instance.new("Frame")
+    svOverlay.Name = "SVOverlay"
+    svOverlay.Parent = saturationValueBox
+    svOverlay.BackgroundTransparency = 1
+    svOverlay.Size = UDim2.new(1, 0, 1, 0)
+    svOverlay.ZIndex = 101
+    
+    local saturationValueGradient1 = Instance.new("UIGradient")
+    saturationValueGradient1.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+        ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
+    }
+    saturationValueGradient1.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    saturationValueGradient1.Parent = svOverlay
+    
+    -- Create second overlay for value gradient
+    local svOverlay2 = Instance.new("Frame")
+    svOverlay2.Name = "SVOverlay2"
+    svOverlay2.Parent = saturationValueBox
+    svOverlay2.BackgroundColor3 = Color3.new(0, 0, 0)
+    svOverlay2.Size = UDim2.new(1, 0, 1, 0)
+    svOverlay2.ZIndex = 102
+    
+    local saturationValueGradient2 = Instance.new("UIGradient")
+    saturationValueGradient2.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(1, 0)
+    }
+    saturationValueGradient2.Rotation = 90
+    saturationValueGradient2.Parent = svOverlay2
+    
+    local saturationValueButton = Instance.new("TextButton")
+    saturationValueButton.Name = "SaturationValueButton"
+    saturationValueButton.Parent = saturationValueBox
+    saturationValueButton.BackgroundColor3 = Color3.new(1, 1, 1)
+    saturationValueButton.BorderSizePixel = 0
+    saturationValueButton.Position = UDim2.new(0.5, -6, 0.5, -6)
+    saturationValueButton.Size = UDim2.new(0, 12, 0, 12)
+    saturationValueButton.Text = ""
+    saturationValueButton.ZIndex = 103
+    saturationValueButton.AutoButtonColor = false
+    
+    local svButtonCorner = Instance.new("UICorner")
+    svButtonCorner.CornerRadius = UDim.new(1, 0)
+    svButtonCorner.Parent = saturationValueButton
+    
+    local svButtonBorder = Instance.new("UIStroke")
+    svButtonBorder.Color = Color3.fromRGB(40, 40, 40)
+    svButtonBorder.Thickness = 2
+    svButtonBorder.Parent = saturationValueButton
+    
+    -- Hue slider with better styling
+    local hueSlider = Instance.new("Frame")
+    hueSlider.Name = "HueSlider"
+    hueSlider.Parent = colorPickerFrame
+    hueSlider.BackgroundColor3 = Color3.new(1, 1, 1)
+    hueSlider.BorderSizePixel = 0
+    hueSlider.Position = UDim2.new(0, 200, 0, 50)
+    hueSlider.Size = UDim2.new(0, 20, 0, 180)
+    hueSlider.ZIndex = 101
+    
+    local hueCorner = Instance.new("UICorner")
+    hueCorner.CornerRadius = UDim.new(0, 8)
+    hueCorner.Parent = hueSlider
+    
+    local hueBorder = Instance.new("UIStroke")
+    hueBorder.Color = Color3.fromRGB(80, 80, 80)
+    hueBorder.Thickness = 1
+    hueBorder.Parent = hueSlider
+    
+    local hueSliderGradient = Instance.new("UIGradient")
+    hueSliderGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
+        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
+        ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+    }
+    hueSliderGradient.Rotation = 90
+    hueSliderGradient.Parent = hueSlider
+    
+    local hueSliderButton = Instance.new("TextButton")
+    hueSliderButton.Name = "HueSliderButton"
+    hueSliderButton.Parent = hueSlider
+    hueSliderButton.BackgroundColor3 = Color3.new(1, 1, 1)
+    hueSliderButton.BorderSizePixel = 0
+    hueSliderButton.Position = UDim2.new(0, -4, 0, 0)
+    hueSliderButton.Size = UDim2.new(1, 8, 0, 8)
+    hueSliderButton.Text = ""
+    hueSliderButton.ZIndex = 102
+    hueSliderButton.AutoButtonColor = false
+    
+    local hueButtonCorner = Instance.new("UICorner")
+    hueButtonCorner.CornerRadius = UDim.new(0, 4)
+    hueButtonCorner.Parent = hueSliderButton
+    
+    local hueButtonBorder = Instance.new("UIStroke")
+    hueButtonBorder.Color = Color3.fromRGB(40, 40, 40)
+    hueButtonBorder.Thickness = 2
+    hueButtonBorder.Parent = hueSliderButton
+    
+    -- RGB input fields with better styling
+    local rgbFrame = Instance.new("Frame")
+    rgbFrame.Name = "RGBFrame"
+    rgbFrame.Parent = colorPickerFrame
+    rgbFrame.BackgroundTransparency = 1
+    rgbFrame.Position = UDim2.new(0, 0, 0, 245)
+    rgbFrame.Size = UDim2.new(1, 0, 0, 50)
+    rgbFrame.ZIndex = 101
+    
+    local function createRGBInput(name, position)
+        local label = Instance.new("TextLabel")
+        label.Name = name .. "Label"
+        label.Parent = rgbFrame
+        label.BackgroundTransparency = 1
+        label.Position = position
+        label.Size = UDim2.new(0, 20, 0, 25)
+        label.Font = Enum.Font.SourceSansBold
+        label.Text = name .. ":"
+        label.TextColor3 = Color3.fromRGB(220, 220, 220)
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.ZIndex = 102
+        
+        local input = Instance.new("TextBox")
+        input.Name = name .. "Input"
+        input.Parent = rgbFrame
+        input.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        input.BorderSizePixel = 0
+        input.Position = UDim2.new(0, position.X.Offset + 25, 0, position.Y.Offset)
+        input.Size = UDim2.new(0, 45, 0, 25)
+        input.Font = Enum.Font.SourceSans
+        input.Text = "255"
+        input.TextColor3 = Color3.fromRGB(255, 255, 255)
+        input.TextSize = 14
+        input.TextXAlignment = Enum.TextXAlignment.Center
+        input.ZIndex = 102
+        
+        local inputCorner = Instance.new("UICorner")
+        inputCorner.CornerRadius = UDim.new(0, 6)
+        inputCorner.Parent = input
+        
+        local inputBorder = Instance.new("UIStroke")
+        inputBorder.Color = Color3.fromRGB(80, 80, 80)
+        inputBorder.Thickness = 1
+        inputBorder.Parent = input
+        
+        -- Add focus effects
+        input.Focused:Connect(function()
+            inputBorder.Color = Color3.fromRGB(120, 120, 120)
+        end)
+        input.FocusLost:Connect(function()
+            inputBorder.Color = Color3.fromRGB(80, 80, 80)
+        end)
+        
+        return input
+    end
+    
+    local rInput = createRGBInput("R", UDim2.new(0, 0, 0, 0))
+    local gInput = createRGBInput("G", UDim2.new(0, 0, 0, 27))
+    local bInput = createRGBInput("B", UDim2.new(0, 85, 0, 0))
+    
+    local hexLabel = Instance.new("TextLabel")
+    hexLabel.Name = "HexLabel"
+    hexLabel.Parent = rgbFrame
+    hexLabel.BackgroundTransparency = 1
+    hexLabel.Position = UDim2.new(0, 85, 0, 27)
+    hexLabel.Size = UDim2.new(0, 35, 0, 25)
+    hexLabel.Font = Enum.Font.SourceSansBold
+    hexLabel.Text = "Hex:"
+    hexLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    hexLabel.TextSize = 14
+    hexLabel.TextXAlignment = Enum.TextXAlignment.Left
+    hexLabel.ZIndex = 102
+    
+    local hexInput = Instance.new("TextBox")
+    hexInput.Name = "HexInput"
+    hexInput.Parent = rgbFrame
+    hexInput.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    hexInput.BorderSizePixel = 0
+    hexInput.Position = UDim2.new(0, 125, 0, 27)
+    hexInput.Size = UDim2.new(0, 75, 0, 25)
+    hexInput.Font = Enum.Font.SourceSans
+    hexInput.Text = "#FFFFFF"
+    hexInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hexInput.TextSize = 14
+    hexInput.TextXAlignment = Enum.TextXAlignment.Center
+    hexInput.ZIndex = 102
+    
+    local hexCorner = Instance.new("UICorner")
+    hexCorner.CornerRadius = UDim.new(0, 6)
+    hexCorner.Parent = hexInput
+    
+    local hexBorder = Instance.new("UIStroke")
+    hexBorder.Color = Color3.fromRGB(80, 80, 80)
+    hexBorder.Thickness = 1
+    hexBorder.Parent = hexInput
+    
+    -- Add focus effects for hex input
+    hexInput.Focused:Connect(function()
+        hexBorder.Color = Color3.fromRGB(120, 120, 120)
+    end)
+    hexInput.FocusLost:Connect(function()
+        hexBorder.Color = Color3.fromRGB(80, 80, 80)
+    end)
+    
+    -- Color picker logic
+    local currentColor = options.DefaultColor or Color3.new(1, 1, 1)
+    local hue = 0
+    local saturation = 0
+    local value = 1
+    local updating = false -- Prevent infinite loops
+    
+    -- Update all UI elements
+    local function updateColor()
+        if updating then return end
+        updating = true
+        
+        -- Convert HSV to RGB
+        local r, g, b = HSVtoRGB(hue, saturation, value)
+        currentColor = Color3.new(r, g, b)
+        
+        -- Update preview
+        colorPreview.BackgroundColor3 = currentColor
+        
+        -- Update saturation/value box background
+        saturationValueBox.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+        
+        -- Update RGB inputs
+        rInput.Text = tostring(math.floor(currentColor.r * 255 + 0.5))
+        gInput.Text = tostring(math.floor(currentColor.g * 255 + 0.5))
+        bInput.Text = tostring(math.floor(currentColor.b * 255 + 0.5))
+        
+        -- Update hex input
+        hexInput.Text = colorToHex(currentColor)
+        
+        -- Update button positions (clamp to prevent overflow)
+        local hueY = math.clamp(hue * 172, 0, 172)
+        local satX = math.clamp(saturation * 168, 0, 168)
+        local valY = math.clamp((1 - value) * 168, 0, 168)
+        
+        hueSliderButton.Position = UDim2.new(0, -4, 0, hueY)
+        saturationValueButton.Position = UDim2.new(0, satX, 0, valY)
+        
+        updating = false
+        
+        -- Call callback
+        if options.ColorCallback then
+            options.ColorCallback(currentColor)
+        end
+    end
+    
+    local function updateFromRGB(color)
+        if updating then return end
+        hue, saturation, value = RGBtoHSV(color.r, color.g, color.b)
+        updateColor()
+    end
+    
+    -- Dragging logic
+    local hueDragging = false
+    local svDragging = false
+    local UserInputService = game:GetService("UserInputService")
+    
+    hueSliderButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            hueDragging = true
+        end
+    end)
+    
+    saturationValueButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            svDragging = true
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            if hueDragging then
+                local yPos = math.clamp(input.Position.Y - hueSlider.AbsolutePosition.Y, 0, 172)
+                hue = yPos / 172
+                updateColor()
+            elseif svDragging then
+                local xPos = math.clamp(input.Position.X - saturationValueBox.AbsolutePosition.X, 0, 168)
+                local yPos = math.clamp(input.Position.Y - saturationValueBox.AbsolutePosition.Y, 0, 168)
+                saturation = xPos / 168
+                value = 1 - (yPos / 168)
+                updateColor()
+            end
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            hueDragging = false
+            svDragging = false
+        end
+    end)
+    
+    -- Click handling for sliders
+    saturationValueBox.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local xPos = math.clamp(input.Position.X - saturationValueBox.AbsolutePosition.X, 0, 168)
+            local yPos = math.clamp(input.Position.Y - saturationValueBox.AbsolutePosition.Y, 0, 168)
+            saturation = xPos / 168
+            value = 1 - (yPos / 168)
+            updateColor()
+            svDragging = true
+        end
+    end)
+    
+    hueSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local yPos = math.clamp(input.Position.Y - hueSlider.AbsolutePosition.Y, 0, 172)
+            hue = yPos / 172
+            updateColor()
+            hueDragging = true
+        end
+    end)
+    
+    -- RGB input handling with validation
+    local function handleRGBInput()
+        local r = math.clamp(tonumber(rInput.Text) or 255, 0, 255) / 255
+        local g = math.clamp(tonumber(gInput.Text) or 255, 0, 255) / 255
+        local b = math.clamp(tonumber(bInput.Text) or 255, 0, 255) / 255
+        updateFromRGB(Color3.new(r, g, b))
+    end
+    
+    rInput.FocusLost:Connect(handleRGBInput)
+    gInput.FocusLost:Connect(handleRGBInput)
+    bInput.FocusLost:Connect(handleRGBInput)
+    
+    -- Hex input handling with validation
+    hexInput.FocusLost:Connect(function()
+        local hex = hexInput.Text:gsub("#", ""):upper()
+        if hex:len() == 6 and hex:match("^%x+$") then
+            local r = tonumber(hex:sub(1, 2), 16)
+            local g = tonumber(hex:sub(3, 4), 16)
+            local b = tonumber(hex:sub(5, 6), 16)
+            if r and g and b then
+                updateFromRGB(Color3.new(r/255, g/255, b/255))
+            end
+        else
+            -- Reset to current color if invalid input
+            hexInput.Text = colorToHex(currentColor)
+        end
+    end)
+    
+    -- Initialize with default color
+    if options.DefaultColor then
+        updateFromRGB(options.DefaultColor)
+    else
+        updateColor()
+    end
+    
+    -- Gear icon click handler (assuming GearIcon is defined elsewhere)
+    if GearIcon then
+        GearIcon.MouseButton1Click:Connect(function()
+            colorPickerWindow.Visible = not colorPickerWindow.Visible
+        end)
+    end
+    
+    -- Close button handler
+    closeButton.MouseButton1Click:Connect(function()
+        colorPickerWindow.Visible = false
+    end)
+    
+    -- Close when clicking outside (improved detection)
+    local clickOutsideConnection
+    clickOutsideConnection = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and colorPickerWindow.Visible then
+            local mousePos = UserInputService:GetMouseLocation()
+            local windowPos = colorPickerWindow.AbsolutePosition
+            local windowSize = colorPickerWindow.AbsoluteSize
+            
+            -- Account for GUI inset
+            local guiInset = game:GetService("GuiService"):GetGuiInset()
+            mousePos = Vector2.new(mousePos.X, mousePos.Y - guiInset.Y)
+            
+            if mousePos.X < windowPos.X or mousePos.X > windowPos.X + windowSize.X or
+               mousePos.Y < windowPos.Y or mousePos.Y > windowPos.Y + windowSize.Y then
+                colorPickerWindow.Visible = false
+            end
+        end
+    end)
+    
+    colorPicker = {
+        ScreenGui = colorPickerScreenGui,
+        Window = colorPickerWindow,
+        SetColor = function(color)
+            updateFromRGB(color)
+        end,
+        GetColor = function()
+            return currentColor
+        end,
+        Show = function()
+            colorPickerWindow.Visible = true
+        end,
+        Hide = function()
+            colorPickerWindow.Visible = false
+        end,
+        Destroy = function()
+            if clickOutsideConnection then
+                clickOutsideConnection:Disconnect()
+            end
+            colorPickerScreenGui:Destroy()
+        end
+    }
+end
 
-                        local element = {
-                            Type = "Toggle",
-                            Frame = ToggleFrame,
-                            SetValue = function(value)
-                                toggled = value
-                                updateToggle()
-                            end,
-                            GetValue = function()
-                                return toggled
-                            end,
-                            ColorPicker = colorPicker
-                        }
+-- Assuming updateToggle() is called after this
+if updateToggle then
+    updateToggle()
+end
 
-                        table.insert(self.Elements, element)
-                        self:UpdateSize()
-                        return element
+local element = {
+    Type = "Toggle",
+    Frame = ToggleFrame, -- Assuming ToggleFrame exists
+    SetValue = function(value)
+        toggled = value
+        if updateToggle then
+            updateToggle()
+        end
+    end,
+    GetValue = function()
+        return toggled
+    end,
+    ColorPicker = colorPicker
+}
+
+-- Assuming self.Elements exists
+if self and self.Elements then
+    table.insert(self.Elements, element)
+    if self.UpdateSize then
+        self:UpdateSize()
+    end
+end
+
+return element
                     end,
                     AddSlider = function(self, id, options)
                         options = options or {}
