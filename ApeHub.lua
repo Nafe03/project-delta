@@ -1478,7 +1478,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.KeyCode == Enum.KeyCode.RightShift then
-        screenui.Enable = not screenui.Enable
+        ScreenGui.Enable = not ScreenGui.Enable
     end
 end)
 
