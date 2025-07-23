@@ -1,11 +1,5 @@
---!strict
--- UILibrary by YourName
--- Version: 1.0.0
--- GitHub: https://github.com/yourusername/uilibrary
-
 local UILibrary = {}
 
--- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -172,6 +166,19 @@ function UILibrary.new(options)
     Window.Theme = options.Theme
     Window.DefaultColor = options.DefaultColor
     Window.TextColor = options.TextColor
+
+    -- Set up toggle key functionality
+    local function handleInput(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == options.ToggleKey then
+            Window:ToggleVisibility()
+        elseif input.KeyCode == options.CloseKey then
+            Window:Destroy()
+        end
+    end
+
+    UserInputService.InputBegan:Connect(handleInput)
 
     function Window:AddTab(name)
         local TabButton = Instance.new("TextButton")
@@ -940,9 +947,9 @@ function UILibrary.new(options)
                     end,
                     AddSlider = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local SliderFrame = Instance.new("Frame")
                         local SliderText = Instance.new("TextLabel")
                         local SliderBackground = Instance.new("Frame")
@@ -959,15 +966,15 @@ function UILibrary.new(options)
                         SliderFrame.LayoutOrder = #self.Elements + 1
 
                         SliderText.Name = "Text"
-    SliderText.Parent = SliderFrame
-    SliderText.BackgroundTransparency = 1
-    SliderText.Position = UDim2.new(0, 0, 0, 0)
-    SliderText.Size = UDim2.new(1, -30, 0, 18)
-    SliderText.Font = Enum.Font.JosefinSans
-    SliderText.Text = options.Text or id
-    SliderText.TextColor3 = options.TextColor -- Now guaranteed to have a value
-    SliderText.TextSize = 12
-    SliderText.TextXAlignment = Enum.TextXAlignment.Left
+                        SliderText.Parent = SliderFrame
+                        SliderText.BackgroundTransparency = 1
+                        SliderText.Position = UDim2.new(0, 0, 0, 0)
+                        SliderText.Size = UDim2.new(1, -30, 0, 18)
+                        SliderText.Font = Enum.Font.JosefinSans
+                        SliderText.Text = options.Text or id
+                        SliderText.TextColor3 = options.TextColor -- Now guaranteed to have a value
+                        SliderText.TextSize = 12
+                        SliderText.TextXAlignment = Enum.TextXAlignment.Left
 
                         SliderBackground.Name = "Background"
                         SliderBackground.Parent = SliderFrame
@@ -1074,9 +1081,9 @@ function UILibrary.new(options)
                     end,
                     AddDropdown = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local DropdownFrame = Instance.new("Frame")
                         local DropdownText = Instance.new("TextLabel")
                         local DropdownButton = Instance.new("TextButton")
@@ -1094,15 +1101,15 @@ function UILibrary.new(options)
                         DropdownFrame.ZIndex = 2
 
                         DropdownText.Name = "Text"
-    DropdownText.Parent = DropdownFrame
-    DropdownText.BackgroundTransparency = 1
-    DropdownText.Position = UDim2.new(0, 0, 0, 0)
-    DropdownText.Size = UDim2.new(1, 0, 0, 18)
-    DropdownText.Font = Enum.Font.JosefinSans
-    DropdownText.Text = options.Text or id
-    DropdownText.TextColor3 = options.TextColor  -- Now guaranteed to have a value
-    DropdownText.TextSize = 12
-    DropdownText.TextXAlignment = Enum.TextXAlignment.Left
+                        DropdownText.Parent = DropdownFrame
+                        DropdownText.BackgroundTransparency = 1
+                        DropdownText.Position = UDim2.new(0, 0, 0, 0)
+                        DropdownText.Size = UDim2.new(1, 0, 0, 18)
+                        DropdownText.Font = Enum.Font.JosefinSans
+                        DropdownText.Text = options.Text or id
+                        DropdownText.TextColor3 = options.TextColor  -- Now guaranteed to have a value
+                        DropdownText.TextSize = 12
+                        DropdownText.TextXAlignment = Enum.TextXAlignment.Left
 
                         DropdownButton.Name = "Button"
                         DropdownButton.Parent = DropdownFrame
@@ -1221,9 +1228,9 @@ function UILibrary.new(options)
                     end,
                     AddButton = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local ButtonFrame = Instance.new("Frame")
                         local Button = Instance.new("TextButton")
                         local ButtonCorner = Instance.new("UICorner")
@@ -1274,9 +1281,9 @@ function UILibrary.new(options)
                     end,
                     AddLabel = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local LabelFrame = Instance.new("Frame")
                         local Label = Instance.new("TextLabel")
 
@@ -1314,9 +1321,9 @@ function UILibrary.new(options)
                     end,
                     AddTextBox = function(self, id, options)
                         options = options or {}
-    -- Ensure required properties have defaults
-    options.DefaultColor = options.DefaultColor or Window.DefaultColor
-    options.TextColor = options.TextColor or Window.TextColor
+                        -- Ensure required properties have defaults
+                        options.DefaultColor = options.DefaultColor or Window.DefaultColor
+                        options.TextColor = options.TextColor or Window.TextColor
                         local TextBoxFrame = Instance.new("Frame")
                         local TextBox = Instance.new("TextBox")
                         local TextBoxCorner = Instance.new("UICorner")
@@ -1435,51 +1442,43 @@ function UILibrary.new(options)
     end
 
     local dragToggle = nil
-local dragSpeed = 0.25
-local dragStart = nil
-local startPos = nil
+    local dragSpeed = 0.25
+    local dragStart = nil
+    local startPos = nil
 
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    local position = UDim2.new(
-        startPos.X.Scale, 
-        startPos.X.Offset + delta.X, 
-        startPos.Y.Scale, 
-        startPos.Y.Offset + delta.Y
-    )
-    TweenService:Create(MainBackGround, TweenInfo.new(dragSpeed), {Position = position}):Play()
-end
-
-MainBackGround.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = MainBackGround.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragToggle = false
-            end
-        end)
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        local position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+        TweenService:Create(MainBackGround, TweenInfo.new(dragSpeed), {Position = position}):Play()
     end
-end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragToggle then
-            updateInput(input)
+    MainBackGround.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = MainBackGround.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragToggle = false
+                end
+            end)
         end
-    end
-end)
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragToggle then
+                updateInput(input)
+            end
+        end
+    end)
 
     return Window
 end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        ScreenGui.Enable = not ScreenGui.Enable
-    end
-end)
 
 return UILibrary
