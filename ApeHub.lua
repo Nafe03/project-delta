@@ -413,6 +413,7 @@ function UILibrary.new(options)
                         end)
                     
                         -- Color picker implementation
+-- Color picker implementation with FIXED hue gradient order
 local colorPicker = nil
 if options.HasColorPicker then
     -- Create dedicated ScreenGui for color picker
@@ -602,7 +603,7 @@ if options.HasColorPicker then
     svButtonBorder.Thickness = 2
     svButtonBorder.Parent = saturationValueButton
     
-    -- Hue slider with better styling
+    -- Hue slider with CORRECTED gradient order (RED AT TOP)
     local hueSlider = Instance.new("Frame")
     hueSlider.Name = "HueSlider"
     hueSlider.Parent = colorPickerFrame
@@ -621,15 +622,16 @@ if options.HasColorPicker then
     hueBorder.Thickness = 1
     hueBorder.Parent = hueSlider
     
+    -- FIXED: Corrected hue gradient order - Red at top (0), progressing down
     local hueSliderGradient = Instance.new("UIGradient")
     hueSliderGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
-        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-        ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
-        ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),    -- Red at TOP
+        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)), -- Yellow
+        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),   -- Green
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),  -- Cyan
+        ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),   -- Blue
+        ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)), -- Magenta
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))       -- Red at BOTTOM
     }
     hueSliderGradient.Rotation = 90
     hueSliderGradient.Parent = hueSlider
