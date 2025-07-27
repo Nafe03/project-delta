@@ -36,16 +36,6 @@ local nojumptilt = false
 local instrelOGfunc = require(game.ReplicatedStorage.Modules.FPS).reload
 local instrelMODfunc -- changed later
 
-local desync = {
-    enabled = false,
-    toggleEnabled = false,
-    mode = "Underground",
-    old_position = CFrame.new(),
-    teleportPosition = Vector3.new(),
-    networkDesyncEnabled = false,
-    fakePositionEnabled = false
-}
-
 -- All variables table
 allvars = allvars or {}
 local aimresolverpos = localplayer.Character.HumanoidRootPart.CFrame
@@ -239,6 +229,7 @@ allvars.tracercolor3 = Color3.new(1, 1, 0)
 allvars.tracertrans = 0.3
 allvars.tracerwidth = 0.1
 allvars.tracerfade = 0.3
+allvars.resolvers = false
 allvars.tracerbloom = true
 allvars.usebeamtracer = true
 allvars.nojumpcd = false
@@ -2050,10 +2041,6 @@ function runhitmark(v140)
         warn("Error in runhitmark: " .. tostring(err))
     end
 end
-if not success then
-    warn("Hitmarker error:", err)
-end
-end
 
 local function playHitSound(hitType)
     if not allvars.hitsoundbool then return end
@@ -3231,115 +3218,143 @@ end
 
 
 local function applyGunMods(gun)
-if not gun:FindFirstChild("SettingsModule") then
-    return
+    if not gun:FindFirstChild("SettingsModule") then
+        return
+    end
+
+    local sett = require(gun.SettingsModule)
+
+    -- Apply rapid fire if enabled
+    if allvars.rapidfire then
+        sett.FireRate = 0.01  -- Much faster fire rate
+        sett.SemiAuto = false  -- Ensure it's not semi-auto locked
+    else
+        -- Reset to reasonable defaults (you may need to adjust these)
+        sett.FireRate = 0.1
+    end
+
+    -- Apply no recoil if enabled
+    if allvars.norecoil then
+        sett.MaxRecoil = 0
+        sett.RecoilReductionMax = 0
+        sett.RecoilTValueMax = 0
+        sett.MaximumKickBack = 0
+        -- Additional recoil settings for complete elimination
+        sett.RecoilMax = 0
+        sett.RecoilMin = 0
+        sett.RecoilPattern = {}
+        sett.CameraRecoil = 0
+        sett.Spread = 0
+        sett.SpreadReduction = 0
+    else
+        -- Reset to defaults
+        sett.MaximumKickBack = 1
+        sett.MaxRecoil = 4
+        sett.RecoilReductionMax = 1
+        sett.RecoilTValueMax = 5
+        sett.Spread = 1
+        sett.SpreadReduction = 1
+    end
+
+    -- Apply fast aim if enabled
+    if allvars.fastaim then
+        sett.AimInSpeed = 0.01  -- Almost instant
+        sett.AimOutSpeed = 0.01  -- Almost instant
+    else
+        sett.AimInSpeed = 0.4
+        sett.AimOutSpeed = 0.4
+    end
+
+    -- Apply no sway if enabled
+    if allvars.noswaybool then
+        sett.weaponOffset = CFrame.new(0, 0, 0)
+        sett.sprintOffset = Vector3.new(0, 0, 0)
+        sett.swayMult = 0
+        sett.IdleSwayModifier = 0
+        sett.WalkSwayModifer = 0
+        sett.SprintSwayModifer = 0
+    else
+        sett.swayMult = 1
+        sett.IdleSwayModifier = 8
+        sett.WalkSwayModifer = 1
+        sett.SprintSwayModifer = 1
+    end
+
+    -- Apply always auto mode if enabled
+    if allvars.alwaysauto then
+        sett.FireMode = "Auto"
+        sett.FireModes = { "Auto" }
+        sett.SemiAuto = false  -- Ensure semi-auto is disabled
+        sett.AutomaticFire = true  -- Force automatic fire
+    else
+        -- Reset to allow both modes
+        sett.FireModes = { "Auto", "Semi" }
+        sett.SemiAuto = false  -- Let the gun decide its default
+    end
+
+    -- Apply instant hit modifications
+    if allvars.instahit then
+        sett.BulletSpeed = 9999999  -- Maximum bullet speed
+        sett.BulletDrop = 0         -- No bullet drop
+        sett.BulletGravity = 0      -- No gravity effect
+    else
+        -- Reset to reasonable defaults (adjust as needed)
+        sett.BulletSpeed = 2000
+        sett.BulletDrop = 1
+        sett.BulletGravity = 1
+    end
+
+    -- Apply disable DOF if enabled
+    if allvars.nodof then
+        sett.useDof = false
+    else
+        sett.useDof = true
+    end
+
+    -- Apply disable aiming if enabled
+    if allvars.noaiming then
+        sett.allowAiming = false
+    else
+        sett.allowAiming = true
+    end
+
+    -- Apply fast reload if enabled
+    if allvars.fastReload then
+        sett.ReloadFadeIn = 0.01
+        sett.ReloadFadeOut = 0.01
+        sett.ReloadTime = 0.1  -- Add instant reload time
+    else
+        sett.ReloadFadeIn = 0.3
+        sett.ReloadFadeOut = 0.3
+        -- Reset reload time to default (adjust as needed)
+    end
+
+    -- Apply faster equip if enabled
+    if allvars.fastequip then
+        sett.EquipTValue = 0.01  -- Almost instant equip
+    else
+        sett.EquipTValue = 0.5  -- Normal equip speed
+    end
+
+    -- Apply extended range if enabled
+    if allvars.extendedrange then
+        sett.ItemLength = 20
+        sett.Range = 9999  -- Extended range
+    else
+        sett.ItemLength = 6
+        sett.Range = 300  -- Default range
+    end
+
+    -- Apply instant recoil reduction if enabled
+    if allvars.instantreduction then
+        sett.ReductionStartTime = 0
+        sett.RecoilReduction = 100  -- Maximum reduction
+    else
+        sett.ReductionStartTime = 15
+        sett.RecoilReduction = 1  -- Default reduction
+    end
 end
 
-local sett = require(gun.SettingsModule)
-
--- Apply rapid fire if enabled
-if allvars.rapidfire then
-    sett.FireRate = 0.05
-else
-    sett.FireRate = 0.1  -- Default from v1
-end
-
--- Apply no recoil if enabled
-if allvars.norecoil then
-    sett.MaxRecoil = 0
-    sett.RecoilReductionMax = 0
-    sett.RecoilTValueMax = 0
-    sett.MaximumKickBack = 0
-    -- Additional recoil settings for complete elimination
-    sett.RecoilMax = 0
-    sett.RecoilMin = 0
-    sett.RecoilPattern = {}
-    sett.CameraRecoil = 0
-    sett.Spread = 0
-    sett.SpreadReduction = 0
-else
-    sett.MaximumKickBack = 1
-    sett.MaxRecoil = 4
-    sett.RecoilReductionMax = 1
-    sett.RecoilTValueMax = 5
-end
-
--- Apply fast aim if enabled
-if allvars.fastaim then
-    sett.AimInSpeed = 0
-    sett.AimOutSpeed = 0
-else
-    sett.AimInSpeed = 0.4
-    sett.AimOutSpeed = 0.4
-end
-
-if allvars.noswaybool then
-	sett.weaponOffset = CFrame.new(0, 0, 0)
-	sett.sprintOffset = Vector3.new(0, 0, 0)
-    sett.swayMult = 0
-    sett.IdleSwayModifier = 0
-    sett.WalkSwayModifer = 0
-    sett.SprintSwayModifer = 0
-else
-    sett.swayMult = 1
-    sett.IdleSwayModifier = 8
-    sett.WalkSwayModifer = 1
-    sett.SprintSwayModifer = 1
-end
-
--- Apply always auto mode if enabled
-if allvars.alwaysauto then
-    sett.FireMode = "Auto"
-    sett.FireModes = { "Auto" }
-else
-    sett.FireMode = "Auto"
-    sett.FireModes = { "Auto", "Semi" }
-end
-
--- Apply disable DOF if enabled
-if allvars.nodof then
-    sett.useDof = false
-else
-    sett.useDof = true
-end
-
--- Apply disable aiming if enabled
-if allvars.noaiming then
-    sett.allowAiming = false
-else
-    sett.allowAiming = true
-end
-
--- Apply fast reload if enabled
-if allvars.fastReload then
-    sett.ReloadFadeIn = 0.01
-    sett.ReloadFadeOut = 0.01
-else
-    sett.ReloadFadeIn = 0.3
-    sett.ReloadFadeOut = 0.3
-end
-
--- Apply faster equip if enabled
-if allvars.fastequip then
-    sett.EquipTValue = -1
-else
-    sett.EquipTValue = -12
-end
-
--- Apply extended range if enabled
-if allvars.extendedrange then
-    sett.ItemLength = 20
-else
-    sett.ItemLength = 6
-end
-
--- Apply instant recoil reduction if enabled
-if allvars.instantreduction then
-    sett.ReductionStartTime = 0
-else
-    sett.ReductionStartTime = 15
-end
-end
 
 -- Function to modify ammunition for instant hit
 local function applyAmmoMods()
@@ -3484,6 +3499,32 @@ equippedConnection = localplayer.Character.ChildAdded:Connect(function(child)
     end
 end)
 end
+
+localplayer.CharacterAdded:Connect(function(character)
+    characterspawned = tick()
+    
+    -- Wait for character to fully load
+    character:WaitForChild("Humanoid")
+    character:WaitForChild("HumanoidRootPart")
+    
+    -- Add small delay to ensure everything is properly initialized
+    task.wait(0.1)
+    
+    if allvars.invisbool then
+        for i, track in pairs(character.Humanoid.Animator:GetPlayingAnimationTracks()) do
+            if track.Animation.AnimationId == "rbxassetid://15609995579" then
+                track:Stop()
+                track:Destroy()
+            end
+        end
+        
+        -- Load new animation
+        invistrack = character.Humanoid.Animator:LoadAnimation(invisanim)
+        if allvars.desyncbool then
+            invistrack:Play(.01, 1, 0)
+        end
+    end
+end)
 
 -- Monitor character respawning
 if localplayer then
@@ -4538,136 +4579,6 @@ WorldStuff:AddToggle('No Clouds', {
     end
 })
 
-DesyncBox:AddToggle('DesyncToggle', {
-    Text = 'Anti Aim',
-    Default = false,
-    Callback = function(state)
-        desync.toggleEnabled = state
-        if state then
-            Library:Notify("Anti Aim Enabled ZestHub.lol $" .. desync.mode)
-        else
-            Library:Notify("Anti Aim Disabled ZestHub.lol $" .. desync.mode)
-            toggleDesync(false)
-        end
-    end,
-}):AddKeyPicker('DesyncKeybind', {
-    Default = 'V',
-    Text = 'Desync',
-    Mode = 'Toggle',
-    Callback = function(state)
-        if not desync.toggleEnabled or UserInputService:GetFocusedTextBox() then return end
-        toggleDesync(not desync.enabled)
-
-        -- Notification logic when keybind is pressed
-        if desync.enabled then
-            Library:Notify("Anti Aim Enabled ZestHub.lol $" .. desync.mode)
-        else
-            Library:Notify("Anti Aim Disabled ZestHub.lol $" .. desync.mode)
-        end
-    end,
-})
-
--- Initialize variables to prevent nil errors
-local desync = desync or {
-    enabled = false,
-    mode = "Void",
-    old_position = CFrame.new(),
-    teleportPosition = Vector3.new()
-}
-
-local networkDesync = networkDesync or {
-    enabled = false,
-    networkTimer = 0,
-    networkDelay = 0.1
-}
-
-local fakePosition = fakePosition or {
-    enabled = false
-}
-
--- Make sure other required variables exist
-local RunService = game:GetService("RunService")
-local workspace = game:GetService("Workspace")
-
-
--- Function to set desync mode
-function setDesyncMode(mode)
-    if desync then
-        desync.mode = mode
-    end
-end
-
--- Function to perform network desync
-function performNetworkDesync()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local rootPart = LocalPlayer.Character.HumanoidRootPart
-    end
-end
-
--- Function to apply fake position
-function applyFakePosition()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local rootPart = LocalPlayer.Character.HumanoidRootPart
-    end
-end
-
-
--- Main Desync Logic
-RunService.Heartbeat:Connect(function()
-    -- Check if desync exists and is enabled
-    if desync and desync.enabled and LocalPlayer.Character then
-        local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            desync.old_position = rootPart.CFrame
-
-            if desync.mode == "Destroy Cheaters" then
-                desync.teleportPosition = Vector3.new(11223344556677889900, 1, 1)
-
-            elseif desync.mode == "Underground" then
-                desync.teleportPosition = rootPart.Position - Vector3.new(0, 12, 0)
-
-            elseif desync.mode == "Void Spam" then
-                desync.teleportPosition = math.random(1, 2) == 1 and desync.old_position.Position or Vector3.new(
-                    math.random(10000, 50000),
-                    math.random(10000, 50000),
-                    math.random(10000, 50000)
-                )
-
-            elseif desync.mode == "Void" then
-                desync.teleportPosition = Vector3.new(
-                    rootPart.Position.X + math.random(-444444, 444444),
-                    rootPart.Position.Y + math.random(-444444, 444444),
-                    rootPart.Position.Z + math.random(-44444, 44444)
-                )
-                
-            elseif desync.mode == "Network Chaos" then
-                -- Advanced network manipulation
-                desync.teleportPosition = Vector3.new(
-                    rootPart.Position.X + math.random(-999999, 999999),
-                    rootPart.Position.Y + math.random(-999999, 999999),
-                    rootPart.Position.Z + math.random(-999999, 999999)
-                )
-            end
-
-            if desync.mode ~= "Rotation" then
-                rootPart.CFrame = CFrame.new(desync.teleportPosition)
-                
-                -- Make sure desync_setback exists before using it
-                if desync_setback then
-                    workspace.CurrentCamera.CameraSubject = desync_setback
-                    
-                    RunService.RenderStepped:Wait()
-                    
-                    desync_setback.CFrame = desync.old_position * CFrame.new(0, rootPart.Size.Y / 2 + 0.5, 0)
-                end
-                
-                rootPart.CFrame = desync.old_position
-            end
-        end
-    end
-end)
-
-
 getgenv().FlightKeybind = Enum.KeyCode.X
 getgenv().FlySpeed = 10
 getgenv().FlightEnabled = false
@@ -4882,48 +4793,50 @@ runs.Heartbeat:Connect(function(dt)
     end
 end)
 
--- Force Underground Fix
 uhhh:AddToggle('Force Underground', {
     Text = 'Force underground',
     Default = false,
     Tooltip = 'Desync underground mode',
     Callback = function(v)
         allvars.invisbool = v
-        invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
-    
-        if allvars.desyncbool and v then
-           invistrack:Play(.01, 1, 0)
-        end
-    
-        if not v and invistrack then
-            invistrack:Stop()
-            invistrack:Destroy()
-            for i,v in localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks() do
-                if v.Animation.AnimationId == "rbxassetid://15609995579" then
-                    v:Stop()
+        
+        if v then
+            -- Only proceed if character exists and is alive
+            if not localplayer.Character or not localplayer.Character:FindFirstChild("Humanoid") then
+                return
+            end
+            
+            -- Clean up any existing animation tracks first
+            for i, track in pairs(localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
+                if track.Animation.AnimationId == "rbxassetid://15609995579" then
+                    track:Stop()
+                    track:Destroy()
                 end
             end
-        end
-    end
-})
-uhhh:AddToggle('Resolver', {
-    Text = 'Resolver underground',
-    Default = false,
-    Tooltip = 'Resolver',
-    Callback = function(v)
-        allvars.invisbool = v
-        invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
-    
-        if allvars.desyncbool and v then
-           invistrack:Play(.01, 1, 0)
-        end
-    
-        if not v and invistrack then
-            invistrack:Stop()
-            invistrack:Destroy()
-            for i,v in localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks() do
-                if v.Animation.AnimationId == "rbxassetid://15609995579" then
-                    v:Stop()
+            
+            -- Wait a frame to ensure cleanup is complete
+            task.wait()
+            
+            -- Load and play the animation
+            invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
+            if allvars.desyncbool then
+                invistrack:Play(.01, 1, 0)
+            end
+        else
+            -- Turning off underground mode
+            if invistrack then
+                invistrack:Stop()
+                invistrack:Destroy()
+                invistrack = nil
+            end
+            
+            -- Clean up any remaining animation tracks
+            if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
+                for i, track in pairs(localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
+                    if track.Animation.AnimationId == "rbxassetid://15609995579" then
+                        track:Stop()
+                        track:Destroy()
+                    end
                 end
             end
         end
@@ -5039,47 +4952,57 @@ runs.Heartbeat:Connect(function(delta) --desync
         if localplayer.Character.Humanoid.Health <= 0 then return end
         if (tick() - characterspawned) < 1 then return end
     
+        -- Store original position and velocity
         desynctable[1] = localplayer.Character.HumanoidRootPart.CFrame
         desynctable[2] = localplayer.Character.HumanoidRootPart.AssemblyLinearVelocity
-        if allvars.invisbool and invistrack then --underground update
+        
+        local cf = localplayer.Character.HumanoidRootPart.CFrame
+        local posoffset, rotoffset, spoofedcf
+        
+        -- Determine which desync mode to use
+        if allvars.invisbool and invistrack then 
+            -- Underground mode (Force Underground toggle)
             invistrack:Stop()
             invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
             invistrack:Play(.01, 1, 0)
             invistrack.TimePosition = invisnum
 
-            local cf = localplayer.Character.HumanoidRootPart.CFrame
-            local posoffset = Vector3.new(0,-2.55,0)
-            local rotoffset = Vector3.new(90,0,0)
-            local spoofedcf = cf
-                * CFrame.new(posoffset) 
-                * CFrame.Angles(math.rad(rotoffset.X), math.rad(rotoffset.Y), math.rad(rotoffset.Z))
-            desynctable[3] = spoofedcf
+            posoffset = Vector3.new(0, -2.55, 0)
+            rotoffset = Vector3.new(90, 0, 0)
+            
+        elseif allvars.resolvers then 
+            -- Resolver mode (deeper underground)
+            if not invistrack then
+                invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
+            end
+            invistrack:Stop()
+            invistrack:Play(.01, 1, 0)
+            invistrack.TimePosition = invisnum
 
-            localplayer.Character.HumanoidRootPart.CFrame = spoofedcf
-            runs.RenderStepped:Wait()
-            localplayer.Character.HumanoidRootPart.CFrame = desynctable[1]
-            localplayer.Character.HumanoidRootPart.AssemblyLinearVelocity = desynctable[2]
-        else --default desync
-            local cf = localplayer.Character.HumanoidRootPart.CFrame
-            local posoffset = allvars.desyncPos and Vector3.new(allvars.desynXp, allvars.desynYp, allvars.desynZp) or Vector3.new(0,0,0)
-            local rotoffset = allvars.desyncOr and Vector3.new(allvars.desynXo, allvars.desynYo, allvars.desynZo) or Vector3.new(0,0,0)
-            local spoofedcf = cf
-                * CFrame.new(posoffset) 
-                * CFrame.Angles(math.rad(rotoffset.X), math.rad(rotoffset.Y), math.rad(rotoffset.Z))
-            desynctable[3] = spoofedcf
-
-            localplayer.Character.HumanoidRootPart.CFrame = spoofedcf
-            runs.RenderStepped:Wait()
-            localplayer.Character.HumanoidRootPart.CFrame = desynctable[1]
-            localplayer.Character.HumanoidRootPart.AssemblyLinearVelocity = desynctable[2]
+            posoffset = Vector3.new(0, -6.55, 0)
+            rotoffset = Vector3.new(90, 0, 0)
+            
+        else 
+            -- Default desync mode
+            posoffset = allvars.desyncPos and Vector3.new(allvars.desynXp, allvars.desynYp, allvars.desynZp) or Vector3.new(0, 0, 0)
+            rotoffset = allvars.desyncOr and Vector3.new(allvars.desynXo, allvars.desynYo, allvars.desynZo) or Vector3.new(0, 0, 0)
         end
+        
+        -- Apply the desync transformation
+        spoofedcf = cf
+            * CFrame.new(posoffset) 
+            * CFrame.Angles(math.rad(rotoffset.X), math.rad(rotoffset.Y), math.rad(rotoffset.Z))
+        desynctable[3] = spoofedcf
+
+        -- Perform the desync
+        localplayer.Character.HumanoidRootPart.CFrame = spoofedcf
+        runs.RenderStepped:Wait()
+        localplayer.Character.HumanoidRootPart.CFrame = desynctable[1]
+        localplayer.Character.HumanoidRootPart.AssemblyLinearVelocity = desynctable[2]
     end
 end)
-
--- Character added event to handle respawns
 localplayer.CharacterAdded:Connect(function()
     characterspawned = tick()
-    -- Re-enable underground if it was active
     if allvars.invisbool then
         invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
         if allvars.desyncbool then
@@ -5087,14 +5010,12 @@ localplayer.CharacterAdded:Connect(function()
         end
     end
 end)
--- Variables for FOV protection
 local camera = workspace.CurrentCamera
 local originalFOV = camera.FieldOfView
 local protectedFOV = originalFOV
 local zoomEnabled = false
 local connection
 
--- Variables for no slowdown protection
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local minWalkSpeed = 18
