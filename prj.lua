@@ -49,155 +49,16 @@ local player = game.Players.LocalPlayer
 local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 
-local MOVE_SPEED = 16
-local LOOK_SENSITIVITY = 0.002
-local FAST_SPEED_MULTIPLIER = 3
+getgenv().MOVE_SPEED = 16
+getgenv().LOOK_SENSITIVITY = 0.002
+getgenv().FAST_SPEED_MULTIPLIER = 3
 
 -- Camera rotation tracking
-local cameraAngles = Vector2.new(0, 0)
-local mouseConnection = nil
+getgenv().cameraAngles = Vector2.new(0, 0)
+getgenv().mouseConnection = nil
+getgenv().cameraAngles = Vector2.new(0, 0)
 
-local cameraAngles = Vector2.new(0, 0)
-
-
--- Create the free cam part
-local function createFreeCamPart()
-    if freeCamPart then
-        freeCamPart:Destroy()
-    end
-    
-    freeCamPart = Instance.new("Part")
-    freeCamPart.Name = "FreeCamPart"
-    freeCamPart.Size = Vector3.new(1, 1, 1)
-    freeCamPart.Material = Enum.Material.ForceField
-    freeCamPart.Anchored = true
-    freeCamPart.CanCollide = false
-    freeCamPart.Transparency = 1
-    freeCamPart.Parent = workspace
-    
-    -- Position the part at current camera location
-    freeCamPart.CFrame = camera.CFrame
-    
-    return freeCamPart
-end
--- Movement function
-local function updateFreeCam()
-    if not freeCam or not freeCamPart then return end
-    
-    local currentCFrame = freeCamPart.CFrame
-    local moveVector = Vector3.new()
-    local speed = MOVE_SPEED
-    
-    -- Check for speed modifier
-    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-        speed = speed * FAST_SPEED_MULTIPLIER
-    end
-    
-    -- Movement input
-    if userInputService:IsKeyDown(Enum.KeyCode.W) then
-        moveVector = moveVector + currentCFrame.LookVector
-    end
-    if userInputService:IsKeyDown(Enum.KeyCode.S) then
-        moveVector = moveVector - currentCFrame.LookVector
-    end
-    if userInputService:IsKeyDown(Enum.KeyCode.A) then
-        moveVector = moveVector - currentCFrame.RightVector
-    end
-    if userInputService:IsKeyDown(Enum.KeyCode.D) then
-        moveVector = moveVector + currentCFrame.RightVector
-    end
-    if userInputService:IsKeyDown(Enum.KeyCode.Q) or userInputService:IsKeyDown(Enum.KeyCode.Space) then
-        moveVector = moveVector + currentCFrame.UpVector
-    end
-    if userInputService:IsKeyDown(Enum.KeyCode.E) or userInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-        moveVector = moveVector - currentCFrame.UpVector
-    end
-    
-    -- Apply movement
-    if moveVector.Magnitude > 0 then
-        moveVector = moveVector.Unit * speed * (1/60) -- Normalize for framerate
-        freeCamPart.CFrame = currentCFrame + moveVector
-    end
-    
-    -- Update camera to follow the part with rotation
-    local rotationCFrame = CFrame.Angles(cameraAngles.Y, cameraAngles.X, 0)
-    camera.CFrame = CFrame.new(freeCamPart.Position) * rotationCFrame
-end
-
--- Mouse look function
-local function onMouseMoved(input)
-    if not freeCam or input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-    
-    local delta = input.Delta
-    cameraAngles = cameraAngles + Vector2.new(-delta.X * LOOK_SENSITIVITY, -delta.Y * LOOK_SENSITIVITY)
-    
-    -- Clamp vertical rotation to prevent flipping
-    cameraAngles = Vector2.new(
-        cameraAngles.X,
-        math.clamp(cameraAngles.Y, -math.pi/2 + 0.1, math.pi/2 - 0.1)
-    )
-end
-
--- Toggle free cam function
-local function toggleFreeCam(enabled)
-    freeCam = enabled
-    
-    if enabled then
-        -- Store original camera settings
-        originalCFrame = camera.CFrame
-        camera.CameraType = Enum.CameraType.Scriptable
-        
-        -- Create and position the free cam part
-        createFreeCamPart()
-        
-        -- Initialize camera angles based on current camera orientation
-        local cf = camera.CFrame
-        local x, y, z = cf:ToEulerAnglesYXZ()
-        cameraAngles = Vector2.new(-y, x)
-        
-        -- Lock mouse to center for mouse look (with error handling)
-        pcall(function()
-            userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-        end)
-        
-        -- Connect update function
-        runService:BindToRenderStep("FreeCamUpdate", Enum.RenderPriority.Camera.Value, updateFreeCam)
-        
-        -- Connect mouse input with error handling
-        if mouseConnection then
-            mouseConnection:Disconnect()
-        end
-        mouseConnection = userInputService.InputChanged:Connect(onMouseMoved)
-    else
-        -- Restore original camera
-        camera.CameraType = Enum.CameraType.Custom
-        if originalCFrame then
-            camera.CFrame = originalCFrame
-        end
-        
-        -- Restore mouse behavior (with error handling)
-        pcall(function()
-            userInputService.MouseBehavior = Enum.MouseBehavior.Default
-        end)
-        
-        -- Clean up connections
-        runService:UnbindFromRenderStep("FreeCamUpdate")
-        
-        if mouseConnection then
-            mouseConnection:Disconnect()
-            mouseConnection = nil
-        end
-        
-        if freeCamPart then
-            freeCamPart:Destroy()
-            freeCamPart = nil
-        end
-        
-    end
-end
-
-
-allvars.instaequip = false
+allvars.Zestequip = false
 allvars.instareload = false
 allvars.noswaybool = false
 allvars.viewmodoffset = false
@@ -214,7 +75,7 @@ allvars.traccolor = Color3.fromRGB(255,255,255)
 allvars.tractexture = nil
 
 -- Hitmarker settings
-allvars.hitmarkbool = true
+allvars.hitmarkbool = false
 allvars.hitmarkcolor = Color3.new(1, 0, 0) -- Red
 allvars.hitmarkfade = 0.5 -- Fade time in seconds
 allvars.camthirdp = false
@@ -233,24 +94,23 @@ allvars.resolvers = false
 allvars.tracerbloom = true
 allvars.usebeamtracer = true
 allvars.nojumpcd = false
-
+--["Bubble"]    = "rbxassetid://198598793",
+--["Quake"]     = "rbxassetid://1455817260",
+--["Among-Us"]  = "rbxassetid://7227567562",
+--["Ding"]      = "rbxassetid://2868331684",
 allvars.hitsoundbool = false
 allvars.hitsoundhead = "Ding"
 allvars.hitsoundbody = "Blackout"
 local hitsoundlib = {
     ["TF2"]       = "rbxassetid://8255306220",
-    ["Gamesense"] = "rbxassetid://4817809188",
+    ["Skeet"] = "rbxassetid://4817809188",
     ["Rust"]      = "rbxassetid://1255040462",
     ["Neverlose"] = "rbxassetid://8726881116",
-    ["Bubble"]    = "rbxassetid://198598793",
-    ["Quake"]     = "rbxassetid://1455817260",
-    ["Among-Us"]  = "rbxassetid://7227567562",
-    ["Ding"]      = "rbxassetid://2868331684",
     ["Minecraft"] = "rbxassetid://6361963422",
     ["Blackout"]  = "rbxassetid://3748776946",
-    ["Osu!"]      = "rbxassetid://7151989073",
+    ["Ouz"]      = "rbxassetid://7151989073",
 }
-local hitsoundlibUI = {}
+getgenv().hitsoundlibUI = {}
 for i,v in hitsoundlib do
     table.insert(hitsoundlibUI, i)
 end
@@ -288,29 +148,29 @@ local terrainmats = {
 }
 
 allvars.aimbool = false
-allvars.aimbots = true
-allvars.aimvischeck = true
-allvars.aimdistcheck = true
-allvars.aimbang = true
+allvars.aimbots = false
+allvars.aimvischeck = false
+allvars.aimdistcheck = false
+allvars.aimbang = false
 allvars.aimtrigger = false
 
 allvars.undergroundResolver = false
-local aimtarget = nil
-local aimtargetpart = nil
-local aimpretarget = nil
-allvars.showfov = true
+getgenv().aimtarget = nil
+getgenv().aimtargetpart = nil
+getgenv().aimpretarget = nil
+allvars.showfov = false
 allvars.aimfovcolor = Color3.fromRGB(255,255,255)
 allvars.showname = false
 allvars.showhp = false
 allvars.aimdynamicfov = false
 allvars.aimpart = "Head"
-local invisanim = Instance.new("Animation")
+getgenv().invisanim = Instance.new("Animation")
 invisanim.AnimationId = "rbxassetid://15609995579"
-local invisnum = 2.35
+getgenv().invisnum = 2.35
 local invistrack
 
-local desynctable = {}
-local desyncvis = nil
+getgenv().desynctable = {}
+getgenv().desyncvis = nil
 allvars.desyncbool = false
 allvars.invisbool = false
 allvars.desyncPos = false
@@ -321,22 +181,20 @@ allvars.desyncOr = false
 allvars.desynXo = 0
 allvars.desynYo = 0
 allvars.desynZo = 0
-local visdesync = false
-local desynccolor = Color3.fromRGB(255,0,0)
-local desynctrans = 1
-local blinkbool = false
-local blinktemp = false
-local blinkstop = false
-local blinknoclip = false
-local blinktable = {}
+getgenv().visdesync = false
+getgenv().desynccolor = Color3.fromRGB(255,0,0)
+getgenv().desynctrans = 1
+getgenv().blinkbool = false
+getgenv().blinktemp = false
+getgenv().blinkstop = false
+getgenv().blinknoclip = false
+getgenv().blinktable = {}
 allvars.aimfov = 150
-allvars.aimdistance = 800 -- meters
+allvars.aimdistance = 800
 allvars.aimchance = 100
 allvars.predictionStrength = 1
 local aimignoreparts = {}
 
-
--- Create FOV Circle
 local aimfovcircle = Drawing.new("Circle")
 aimfovcircle.Visible = allvars.showfov
 aimfovcircle.Radius = allvars.aimfov
@@ -346,7 +204,6 @@ aimfovcircle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, wo
 aimfovcircle.Filled = false
 aimfovcircle.Transparency = 1
 
--- Update FOV Circle
 RunService.RenderStepped:Connect(function()
 aimfovcircle.Visible = allvars.showfov and allvars.aimbool
 aimfovcircle.Radius = allvars.aimfov
@@ -355,24 +212,25 @@ aimfovcircle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, wo
 end)
 
 -- CamLock Variables
-local camLockEnabled = false
-local camLockTarget = nil
-local smoothness = 0.5
-local aimPart = "Head"
-local fovRadius = 100
-local showFovCircle = true
-local fovCircle = nil
-local prediction = 0.1
-local wallCheck = true
-local knockCheckEnabled = true
-local nojumptilt = false
-local a1table = nil
-local joindetect = true
-local leavedetect = true
-allvars.doublejump = true
-local candbjump = false
-local dbjumplast = 0
-local dbjumpdelay = 0.2
+getgenv().camLockEnabled = false
+getgenv().camLockTarget = nil
+getgenv().smoothness = 0.5
+getgenv().aimPart = "Head"
+getgenv().fovRadius = 100
+getgenv().showFovCircle = false
+getgenv().fovCircle = nil
+getgenv().prediction = 0.1
+getgenv().wallCheck = false
+getgenv().knockCheckEnabled = false
+getgenv().nojumptilt = false
+getgenv().a1table = nil
+getgenv().joindetect = false
+getgenv().leavedetect = false
+allvars.doublejump = false
+allvars.instaequip = false
+getgenv().candbjump = false
+getgenv().dbjumplast = 0
+getgenv().dbjumpdelay = 0.2
 
 
 -------------------double jump---------------------
@@ -500,157 +358,6 @@ meleeray = hookmetamethod(game, "__namecall", function(self, ...)
 
     return meleeray(self, ...)
 end)
-
----------------------------------------
-task.spawn(function() -- slow
-while wait(1) do
-    invchecktext.Position = Vector2.new(30, (wcamera.ViewportSize.Y / 2) - 360) --on screen stuff
-
-    if scselected ~= nil and scgui ~= nil then
-        scgui.SkinsLabel.Text = "Available skins (For ".. scselected.Name.." ) : "
-    else
-        scgui.SkinsLabel.Text = "Available skins (For None) : "
-    end
-
-    local function handleModDetect()
-        if allvars.detectmods then
-            for _, player in pairs(game.Players:GetPlayers()) do
-                if detectedmods[player.Name] ~= nil then continue end
-
-                local pinfo = game.ReplicatedStorage.Players:FindFirstChild(player.Name)
-                if not pinfo then continue end
-                local status = pinfo:FindFirstChild("Status")
-                if not status then continue end
-                if not status:FindFirstChild("UAC") then continue end
-                if not status:FindFirstChild("GameplayVariables") then continue end
-
-                local function detectmod(plrname, reason)
-                    detectedmods[plrname] = true
-                    if mdetect == true then return end
-                    mdetect = true
-
-                    Library:Notify("Mod Detected, reason : ".. reason.. ", moderator : "..plrname, 60)
-                    local notsound = Instance.new("Sound")
-                    notsound.SoundId = "rbxassetid://1841354443"
-                    notsound.Parent = workspace
-                    notsound:Play()
-                    
-                    allvars.espexit = true
-                    safesetvalue(false, Toggles.Extract)
-                    Library:Notify("Extract ESP Enabled due to moderator", 4)
-                end
-
-                if status.UAC:GetAttribute("Enabled") == true then
-                    detectmod(player.Name, "uac enabled")
-                    continue
-                elseif status.GameplayVariables:GetAttribute("Godmode") == true then
-                    detectmod(player.Name, "godmode enabled")
-                    continue
-                elseif status.GameplayVariables:GetAttribute("PremiumLevel") >= 4 then
-                    detectmod(player.Name, "premium level >= 4")
-                    continue
-                elseif status.UAC:GetAttribute("A1Detected") == true then
-                    detectmod(player.Name, "A1Detected")
-                    continue
-                elseif status.UAC:GetAttribute("A2Detected") == true then
-                    detectmod(player.Name, "A2Detected")
-                    continue
-                elseif status.UAC:GetAttribute("A3Detected") == true then
-                    detectmod(player.Name, "A3Detected")
-                    continue
-                end
-            end
-        end
-    end
-
-    local function handleAntiMask()
-        if allvars.antimaskbool == true then
-            game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.HelmetMask.TitanShield.Size = UDim2.new(0,0,1,0)
-            game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Mask.GP5.Size = UDim2.new(0,0,1,0)
-            for i,v in pairs(game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Visor:GetChildren()) do
-                v.Size = UDim2.new(0,0,1,0)
-            end
-        else
-            game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.HelmetMask.TitanShield.Size = UDim2.new(1,0,1,0)
-            game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Mask.GP5.Size = UDim2.new(1,0,1,0)
-            for i,v in pairs(game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Visor:GetChildren()) do
-                v.Size = UDim2.new(1,0,1,0)
-            end
-        end
-    end
-
-    local function handleRespawn()
-        if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") and localplayer.Character.Humanoid.Health <= 0 and allvars.instantrespawn == true then
-            localplayer.PlayerGui.RespawnMenu.Enabled = false
-            game.ReplicatedStorage.Remotes.SpawnCharacter:InvokeServer()
-        elseif allvars.instantrespawn == false and localplayer.Character.Humanoid.Health <= 0 then
-            localplayer.PlayerGui.RespawnMenu.Enabled = true
-        else
-            localplayer.PlayerGui.RespawnMenu.Enabled = false
-            game.ReplicatedStorage.Remotes.SpawnCharacter:InvokeServer()
-        end
-    end
-
-    local function handleFoliage()
-        if not folcheck then return end 
-        for _, v in pairs(folcheck.Foliage:GetDescendants()) do
-            if v:FindFirstChildOfClass("SurfaceAppearance") then
-                v.Transparency = allvars.worldleaves and 1 or 0
-            end
-        end
-    end
-
-    local function handleInventory()
-        if not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then return end
-
-        local offset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
-        if not offset then return end
-
-        local inv = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Inventory
-        local eq = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Equipment
-        local cloth = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Clothing
-        if not inv then return end
-        if not eq then return end
-        if not cloth then return end
-
-        for _, v in pairs(inv:GetChildren()) do
-            if not v:FindFirstChild("SettingsModule") then return end
-            local sett = require(v.SettingsModule)
-            if allvars.viewmodoffset then
-                sett.weaponOffSet = offset
-            end
-            if allvars.rapidfire then
-                sett.FireRate = allvars.crapidfire and allvars.crapidfirenum or 0.001
-            end
-            if allvars.unlockmodes then
-                sett.FireModes = {"Auto", "Semi"}
-            end
-        end
-
-        for _, v in pairs(eq:GetChildren()) do
-            if not v:FindFirstChild("SettingsModule") then return end
-            local sett = require(v.SettingsModule)
-            if allvars.viewmodoffset then
-                sett.weaponOffSet = offset
-            end
-        end
-    end
-
-    if visdesync and desyncvis then
-        desyncvis.Color = desynccolor
-        desyncvis.Transparency = desynctrans
-    elseif desyncvis then
-        desyncvis.Transparency = 1
-    end
-
-    handleRespawn()
-    handleFoliage()
-    handleInventory()
-    handleAntiMask()
-    handleViewModel()
-    handleModDetect()
-end
-end)
 task.spawn(function() --underground users
 while wait(0.1) do
     for i,v in ipairs(undergroundusers) do
@@ -700,34 +407,13 @@ if modelmanip then
 end
 end)
 
-local fpsrequired = require(game.ReplicatedStorage.Modules.FPS)
-runs.Heartbeat:Connect(function(delta) --silent aim + trigger bot fast cycle
-if not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") or not localplayer.Character:FindFirstChild("Humanoid") then
-    return
-end
 
-choosetarget() --aim part
 
-local function hasWallBetween(startPos, endPos, target)
-    if not target or not target.Character then return false end
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, target.Character}
-    
-    local direction = (endPos - startPos)
-    local raycastResult = workspace:Raycast(startPos, direction.Unit * direction.Magnitude, raycastParams)
-    
-    if raycastResult then
-        -- Check if we hit something that isn't the target character
-        local hitPart = raycastResult.Instance
-        if hitPart and not hitPart:IsDescendantOf(target.Character) then
-            return true
-        end
-    end
-    
-    return false
-end
+--if allvars.aimtrigger and aimtarget and not hasWallBetween(startPos, endPos, aimtarget) then    fpsrequired.action(getgenv().a1table, true)
+--    wait()
+--    fpsrequired.action(getgenv().a1table, false)
+--end
+
 
 function startnojumpcd()
     while allvars.nojumpcd do
@@ -741,16 +427,212 @@ function startnojumpcd()
 end 
 
 
+getgenv().whisperESPEnabled = true
+getgenv().whisperColor = Color3.new(1, 0, 0) -- Red color for Whisper
+getgenv().whisperBoxESPEnabled = true
+getgenv().whisperNameESPEnabled = true
+getgenv().whisperDistanceESPEnabled = true
+getgenv().whisperHealthBarESP = true
 
-if allvars.aimtrigger and aimtarget and not hasWallBetween(startPos, endPos, aimtarget) then    fpsrequired.action(a1table, true)
-    wait()
-    fpsrequired.action(a1table, false)
+-- Whisper ESP Objects storage
+local WhisperESPObjects = {}
+
+-- Function to completely destroy Whisper ESP objects
+local function DestroyWhisperESP()
+    if WhisperESPObjects.Box then WhisperESPObjects.Box:Remove() end
+    if WhisperESPObjects.BoxOutline then WhisperESPObjects.BoxOutline:Remove() end
+    if WhisperESPObjects.Name then WhisperESPObjects.Name:Remove() end
+    if WhisperESPObjects.Distance then WhisperESPObjects.Distance:Remove() end
+    if WhisperESPObjects.HealthBarBackground then WhisperESPObjects.HealthBarBackground:Remove() end
+    if WhisperESPObjects.HealthBar then WhisperESPObjects.HealthBar:Remove() end
+    if WhisperESPObjects.HealthBarOutline then WhisperESPObjects.HealthBarOutline:Remove() end
+    WhisperESPObjects = {}
 end
+
+-- Function to create Whisper ESP
+local function CreateWhisperESP()
+    if not getgenv().whisperESPEnabled then return end
+    
+    DestroyWhisperESP()
+    
+    -- Create box ESP
+    if getgenv().whisperBoxESPEnabled then
+        WhisperESPObjects.Box = Drawing.new("Square")
+        WhisperESPObjects.Box.Thickness = 1
+        WhisperESPObjects.Box.Filled = false
+        WhisperESPObjects.Box.Color = getgenv().whisperColor
+        WhisperESPObjects.Box.Visible = false
+        WhisperESPObjects.Box.ZIndex = 2
+        
+        -- Create box outline
+        WhisperESPObjects.BoxOutline = Drawing.new("Square")
+        WhisperESPObjects.BoxOutline.Thickness = 3
+        WhisperESPObjects.BoxOutline.Filled = false
+        WhisperESPObjects.BoxOutline.Color = Color3.new(0, 0, 0)
+        WhisperESPObjects.BoxOutline.Visible = false
+        WhisperESPObjects.BoxOutline.ZIndex = 1
+    end
+    
+    -- Create name text if enabled
+    if getgenv().whisperNameESPEnabled then
+        WhisperESPObjects.Name = Drawing.new("Text")
+        WhisperESPObjects.Name.Size = 14
+        WhisperESPObjects.Name.Center = true
+        WhisperESPObjects.Name.Color = getgenv().whisperColor
+        WhisperESPObjects.Name.Visible = false
+        WhisperESPObjects.Name.Outline = true
+        WhisperESPObjects.Name.OutlineColor = Color3.new(0, 0, 0)
+    end
+    
+    -- Create distance text if enabled
+    if getgenv().whisperDistanceESPEnabled then
+        WhisperESPObjects.Distance = Drawing.new("Text")
+        WhisperESPObjects.Distance.Size = 14
+        WhisperESPObjects.Distance.Center = true
+        WhisperESPObjects.Distance.Color = getgenv().whisperColor
+        WhisperESPObjects.Distance.Visible = false
+        WhisperESPObjects.Distance.Outline = true
+        WhisperESPObjects.Distance.OutlineColor = Color3.new(0, 0, 0)
+    end
+    
+    -- Create health bar if enabled
+    if getgenv().whisperHealthBarESP then
+        WhisperESPObjects.HealthBarBackground = Drawing.new("Square")
+        WhisperESPObjects.HealthBarBackground.Thickness = 1
+        WhisperESPObjects.HealthBarBackground.Filled = true
+        WhisperESPObjects.HealthBarBackground.Color = Color3.new(0.2, 0.2, 0.2)
+        WhisperESPObjects.HealthBarBackground.Visible = false
+        WhisperESPObjects.HealthBarBackground.ZIndex = 0
+
+        WhisperESPObjects.HealthBar = Drawing.new("Square")
+        WhisperESPObjects.HealthBar.Thickness = 1
+        WhisperESPObjects.HealthBar.Filled = true
+        WhisperESPObjects.HealthBar.Color = getgenv().whisperColor
+        WhisperESPObjects.HealthBar.Visible = false
+        WhisperESPObjects.HealthBar.ZIndex = 1
+
+        WhisperESPObjects.HealthBarOutline = Drawing.new("Square")
+        WhisperESPObjects.HealthBarOutline.Thickness = 1
+        WhisperESPObjects.HealthBarOutline.Filled = false
+        WhisperESPObjects.HealthBarOutline.Color = Color3.new(0, 0, 0)
+        WhisperESPObjects.HealthBarOutline.Visible = false
+        WhisperESPObjects.HealthBarOutline.ZIndex = 2
+    end
+end
+
+-- Function to update Whisper ESP
+local function UpdateWhisperESP()
+    if not getgenv().whisperESPEnabled then 
+        DestroyWhisperESP()
+        return 
+    end
+    
+    local localCharacter = LocalPlayer.Character
+    if not localCharacter or not localCharacter:FindFirstChild("HumanoidRootPart") then 
+        DestroyWhisperESP()
+        return 
+    end
+    local localPosition = localCharacter.HumanoidRootPart.Position
+    
+    -- Check if Whisper exists
+    local whisper = workspace:FindFirstChild("AiZones") and workspace.AiZones:FindFirstChild("Whisper") and workspace.AiZones.Whisper:FindFirstChild("Whisper")
+    if not whisper or not whisper:FindFirstChild("HumanoidRootPart") then
+        DestroyWhisperESP()
+        return
+    end
+    
+    -- Create ESP if it doesn't exist
+    if not WhisperESPObjects.Box and getgenv().whisperBoxESPEnabled then
+        CreateWhisperESP()
+    end
+    
+    -- Calculate distance
+    local distance = (localPosition - whisper.HumanoidRootPart.Position).Magnitude
+    
+    -- Convert position to screen space
+    local whisperPosition, onScreen = Camera:WorldToViewportPoint(whisper.HumanoidRootPart.Position)
+    
+    if onScreen then
+        -- Calculate box size based on distance
+        local boxSize = Vector2.new(40, 60) * (1 - math.clamp(distance / 500, 0, 0.8))
+        
+        -- Update box ESP
+        if WhisperESPObjects.Box then
+            WhisperESPObjects.Box.Position = Vector2.new(whisperPosition.X - boxSize.X/2, whisperPosition.Y - boxSize.Y/2)
+            WhisperESPObjects.Box.Size = boxSize
+            WhisperESPObjects.Box.Color = getgenv().whisperColor
+            WhisperESPObjects.Box.Visible = true
+            
+            WhisperESPObjects.BoxOutline.Position = WhisperESPObjects.Box.Position
+            WhisperESPObjects.BoxOutline.Size = WhisperESPObjects.Box.Size
+            WhisperESPObjects.BoxOutline.Visible = true
+        end
+        
+        -- Update name ESP
+        if WhisperESPObjects.Name then
+            WhisperESPObjects.Name.Position = Vector2.new(whisperPosition.X, whisperPosition.Y - boxSize.Y/2 - 15)
+            WhisperESPObjects.Name.Text = "Whisper"
+            WhisperESPObjects.Name.Color = getgenv().whisperColor
+            WhisperESPObjects.Name.Visible = true
+        end
+        
+        -- Update distance ESP
+        if WhisperESPObjects.Distance then
+            WhisperESPObjects.Distance.Position = Vector2.new(whisperPosition.X, whisperPosition.Y + boxSize.Y/2 + 5)
+            WhisperESPObjects.Distance.Text = string.format("%.1fm", distance * 0.28)
+            WhisperESPObjects.Distance.Visible = true
+            WhisperESPObjects.Distance.Color = getgenv().whisperColor
+        end
+        
+        -- Update health bar ESP
+        if WhisperESPObjects.HealthBar and whisper:FindFirstChildOfClass("Humanoid") then
+            local humanoid = whisper:FindFirstChildOfClass("Humanoid")
+            local healthRatio = humanoid.Health / humanoid.MaxHealth
+            local barWidth = 3
+            local barHeight = boxSize.Y * healthRatio
+            
+            -- Health bar background
+            WhisperESPObjects.HealthBarBackground.Position = Vector2.new(whisperPosition.X - boxSize.X/2 - barWidth - 2, whisperPosition.Y - boxSize.Y/2)
+            WhisperESPObjects.HealthBarBackground.Size = Vector2.new(barWidth, boxSize.Y)
+            WhisperESPObjects.HealthBarBackground.Visible = true
+            
+            -- Health bar
+            WhisperESPObjects.HealthBar.Position = Vector2.new(whisperPosition.X - boxSize.X/2 - barWidth - 2, whisperPosition.Y - boxSize.Y/2 + (boxSize.Y - barHeight))
+            WhisperESPObjects.HealthBar.Size = Vector2.new(barWidth, barHeight)
+            WhisperESPObjects.HealthBar.Visible = true
+            
+            -- Health bar outline
+            WhisperESPObjects.HealthBarOutline.Position = WhisperESPObjects.HealthBarBackground.Position
+            WhisperESPObjects.HealthBarOutline.Size = WhisperESPObjects.HealthBarBackground.Size
+            WhisperESPObjects.HealthBarOutline.Visible = true
+        end
+    else
+        -- Hide all ESP elements if off-screen
+        if WhisperESPObjects.Box then WhisperESPObjects.Box.Visible = false end
+        if WhisperESPObjects.BoxOutline then WhisperESPObjects.BoxOutline.Visible = false end
+        if WhisperESPObjects.Name then WhisperESPObjects.Name.Visible = false end
+        if WhisperESPObjects.Distance then WhisperESPObjects.Distance.Visible = false end
+        if WhisperESPObjects.HealthBarBackground then WhisperESPObjects.HealthBarBackground.Visible = false end
+        if WhisperESPObjects.HealthBar then WhisperESPObjects.HealthBar.Visible = false end
+        if WhisperESPObjects.HealthBarOutline then WhisperESPObjects.HealthBarOutline.Visible = false end
+    end
+end
+
+-- Function to apply Whisper ESP settings
+function applyWhisperESP()
+    if not getgenv().whisperESPEnabled then
+        DestroyWhisperESP()
+        return
+    end
+    
+    CreateWhisperESP()
+end
+
+RunService.RenderStepped:Connect(function()
+    UpdateWhisperESP()
 end)
--------------------ESP-----------------
+-------------------LOOT ESP-----------------
 -- Configuration
-----------------------
--- Add these to your existing getgenv() settings at the top
 getgenv().lootESPEnabled = true
 getgenv().lootColor = Color3.new(1, 0, 1) -- Default magenta color for loot
 getgenv().lootMaxDistance = 500
@@ -758,6 +640,250 @@ getgenv().lootNameEnabled = true
 getgenv().lootDistanceEnabled = true
 getgenv().lootHighlightEnabled = false
 getgenv().lootHighlightColor = Color3.new(1, 0, 1)
+
+-- Loot ESP Objects storage
+getgenv().LootESPObjects = {}
+getgenv().LootHighlightObjects = {}
+
+-- Function to completely destroy Loot ESP objects
+local function DestroyLootESP(item)
+    if LootESPObjects[item] then
+        if LootESPObjects[item].Box then LootESPObjects[item].Box:Remove() end
+        if LootESPObjects[item].BoxOutline then LootESPObjects[item].BoxOutline:Remove() end
+        if LootESPObjects[item].Name then LootESPObjects[item].Name:Remove() end
+        if LootESPObjects[item].Distance then LootESPObjects[item].Distance:Remove() end
+        LootESPObjects[item] = nil
+    end
+    
+    if LootHighlightObjects[item] then
+        LootHighlightObjects[item]:Destroy()
+        LootHighlightObjects[item] = nil
+    end
+end
+
+-- Function to create Loot ESP
+local function CreateLootESP(item)
+    if not getgenv().lootESPEnabled then return end
+    
+    DestroyLootESP(item)
+    
+    getgenv().objects = {}
+    
+    -- Create box ESP
+    objects.Box = Drawing.new("Square")
+    objects.Box.Thickness = 1
+    objects.Box.Filled = false
+    objects.Box.Color = getgenv().lootColor
+    objects.Box.Visible = false
+    objects.Box.ZIndex = 2
+    
+    -- Create box outline
+    objects.BoxOutline = Drawing.new("Square")
+    objects.BoxOutline.Thickness = 3
+    objects.BoxOutline.Filled = false
+    objects.BoxOutline.Color = Color3.new(0, 0, 0)
+    objects.BoxOutline.Visible = false
+    objects.BoxOutline.ZIndex = 1
+    
+    -- Create name text if enabled
+    if getgenv().lootNameEnabled then
+        objects.Name = Drawing.new("Text")
+        objects.Name.Size = 14
+        objects.Name.Center = true
+        objects.Name.Color = getgenv().lootColor
+        objects.Name.Visible = false
+        objects.Name.Outline = true
+        objects.Name.OutlineColor = Color3.new(0, 0, 0)
+    end
+    
+    -- Create distance text if enabled
+    if getgenv().lootDistanceEnabled then
+        objects.Distance = Drawing.new("Text")
+        objects.Distance.Size = 14
+        objects.Distance.Center = true
+        objects.Distance.Color = getgenv().lootColor
+        objects.Distance.Visible = false
+        objects.Distance.Outline = true
+        objects.Distance.OutlineColor = Color3.new(0, 0, 0)
+    end
+    
+    LootESPObjects[item] = objects
+    
+    -- Create highlight if enabled
+    if getgenv().lootHighlightEnabled then
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = getgenv().lootHighlightColor
+        highlight.OutlineColor = Color3.new(0, 0, 0)
+        highlight.FillTransparency = 0.8
+        highlight.OutlineTransparency = 0.5
+        highlight.Parent = item
+        LootHighlightObjects[item] = highlight
+    end
+end
+
+-- Function to update Loot ESP
+local function UpdateLootESP()
+    if not getgenv().lootESPEnabled then return end
+    
+    local localCharacter = LocalPlayer.Character
+    if not localCharacter or not localCharacter:FindFirstChild("HumanoidRootPart") then return end
+    local localPosition = localCharacter.HumanoidRootPart.Position
+    
+    -- Get all items in DroppedItems folder
+    local droppedItems = workspace:FindFirstChild("DroppedItems")
+    if not droppedItems then return end
+    
+    -- First pass: Remove ESP for items that no longer exist
+    for item, _ in pairs(LootESPObjects) do
+        if not item or not item.Parent or item.Parent ~= droppedItems then
+            DestroyLootESP(item)
+        end
+    end
+    
+    -- Second pass: Update existing or create new ESP
+    for _, item in pairs(droppedItems:GetChildren()) do
+        -- Only process items with a primary part (visible in workspace)
+        if item:IsA("Model") and item.PrimaryPart then
+            -- Create ESP if it doesn't exist
+            if not LootESPObjects[item] then
+                CreateLootESP(item)
+            end
+            
+            local objects = LootESPObjects[item]
+            if not objects then return end
+            
+            -- Calculate distance
+            local distance = (localPosition - item.PrimaryPart.Position).Magnitude
+            
+            -- Check max distance
+            if distance > getgenv().lootMaxDistance then
+                objects.Box.Visible = false
+                objects.BoxOutline.Visible = false
+                if objects.Name then objects.Name.Visible = false end
+                if objects.Distance then objects.Distance.Visible = false end
+                if LootHighlightObjects[item] then
+                    LootHighlightObjects[item].Enabled = false
+                end
+                continue
+            end
+            
+            -- Convert position to screen space
+            local itemPosition, onScreen = Camera:WorldToViewportPoint(item.PrimaryPart.Position)
+            
+            if onScreen then
+                -- Calculate box size based on distance (smaller when farther away)
+                local boxSize = Vector2.new(30, 30) * (1 - math.clamp(distance / getgenv().lootMaxDistance, 0, 0.8))
+                
+                -- Update box ESP
+                objects.Box.Position = Vector2.new(itemPosition.X - boxSize.X/2, itemPosition.Y - boxSize.Y/2)
+                objects.Box.Size = boxSize
+                objects.Box.Color = getgenv().lootColor
+                objects.Box.Visible = true
+                
+                objects.BoxOutline.Position = objects.Box.Position
+                objects.BoxOutline.Size = objects.Box.Size
+                objects.BoxOutline.Visible = true
+                
+                -- Update name ESP
+                if objects.Name then
+                    objects.Name.Position = Vector2.new(itemPosition.X, itemPosition.Y - boxSize.Y/2 - 15)
+                    objects.Name.Text = item.Name
+					objects.Name.Color = getgenv().lootColor
+                    objects.Name.Visible = true
+                end
+                
+                -- Update distance ESP
+                if objects.Distance then
+                    objects.Distance.Position = Vector2.new(itemPosition.X, itemPosition.Y + boxSize.Y/2 + 5)
+                    objects.Distance.Text = string.format("%.1fm", distance * 0.28) -- Convert to meters
+                    objects.Distance.Visible = true
+					objects.Distance.Color = getgenv().lootColor
+                end
+                
+                -- Update highlight
+                if LootHighlightObjects[item] then
+                    LootHighlightObjects[item].Enabled = true
+                end
+            else
+                -- Hide ESP if off-screen
+                objects.Box.Visible = false
+                objects.BoxOutline.Visible = false
+                if objects.Name then objects.Name.Visible = false end
+                if objects.Distance then objects.Distance.Visible = false end
+                if LootHighlightObjects[item] then
+                    LootHighlightObjects[item].Enabled = false
+                end
+            end
+        end
+    end
+end
+
+-- Function to apply Loot ESP settings
+function applyLootESP()
+    if not getgenv().lootESPEnabled then
+        -- Destroy all Loot ESP when disabled
+        for item, _ in pairs(LootESPObjects) do
+            DestroyLootESP(item)
+        end
+        return
+    end
+    
+    -- Create ESP for all existing items
+    local droppedItems = workspace:FindFirstChild("DroppedItems")
+    if droppedItems then
+        for _, item in pairs(droppedItems:GetChildren()) do
+            if item:IsA("Model") and item.PrimaryPart then
+                CreateLootESP(item)
+            end
+        end
+    end
+end
+
+-- Function to apply Loot Highlight settings
+function applyLootHighlight()
+    for item, _ in pairs(LootHighlightObjects) do
+        if item and item.Parent then
+            if getgenv().lootHighlightEnabled then
+                LootHighlightObjects[item].Enabled = true
+                LootHighlightObjects[item].FillColor = getgenv().lootHighlightColor
+            else
+                LootHighlightObjects[item].Enabled = false
+            end
+        end
+    end
+end
+
+-- Track DroppedItems folder for changes
+local function monitorDroppedItems()
+    while wait(1) do
+        local droppedItems = workspace:FindFirstChild("DroppedItems")
+        if droppedItems then
+            -- Set up connection for new items
+            droppedItems.ChildAdded:Connect(function(item)
+                if item:IsA("Model") and item.PrimaryPart then
+                    CreateLootESP(item)
+                end
+            end)
+            
+            -- Set up connection for removed items
+            droppedItems.ChildRemoved:Connect(function(item)
+                DestroyLootESP(item)
+            end)
+            
+            -- Break the loop once connections are set up
+            break
+        end
+    end
+end
+
+-- Initialize Loot ESP
+spawn(monitorDroppedItems)
+
+-- Update Loot ESP on every frame
+RunService.RenderStepped:Connect(function()
+    UpdateLootESP()
+end)
+
 ----------------------
 getgenv().espEnabled = true
 getgenv().espColor = Color3.new(1, 1, 1)
@@ -788,8 +914,8 @@ getgenv().healthSmoothness = 0.1
 getgenv().highlightEnabled = false
 getgenv().highlightFillColor = Color3.new(1, 1, 1)
 getgenv().highlightOutlineColor = Color3.new(0, 0, 0)
-getgenv().highlightFillTransparency = 0.8 -- NEW: Highlight fill transparency
-getgenv().highlightOutlineTransparency = 0.5 -- NEW: Highlight outline transparency
+getgenv().highlightFillTransparency = 0 -- NEW: Highlight fill transparency
+getgenv().highlightOutlineTransparency = 1 -- NEW: Highlight outline transparency
 getgenv().maxDistance = 1000
 getgenv().maxDistanceEnabled = false
 
@@ -891,19 +1017,7 @@ local RunService = game:GetService("RunService")
 
 
 
-local fontMap = {
-    ["SourceSans"] = 0,
-    ["SourceSansBold"] = 1,
-    ["SourceSansItalic"] = 2,
-    ["SourceSansLight"] = 3,
-    ["SourceSansSemibold"] = 4,
-    ["Gotham"] = 5,
-    ["GothamBold"] = 6,
-    ["GothamMedium"] = 7,
-    ["GothamSemibold"] = 8,
-    ["Minecraft"] = 9,
-    ["MinecraftBold"] = 10
-}
+
 
 -- ESP Objects storage
 local ESPObjects = {}
@@ -1032,9 +1146,36 @@ local function DestroyESP(player)
     end
     DestroyHighlight(player)
     DisconnectCharacterConnections(player)
-    
-    -- Remove from cached players
     cachedPlayers[player] = nil
+end
+
+local function SetupCharacterMonitoring(player)
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    if not CharacterConnections[player] then
+        CharacterConnections[player] = {}
+    end
+    
+    -- Clear existing connections
+    DisconnectCharacterConnections(player)
+    
+    -- Add new connections
+    local diedConnection = humanoid.Died:Connect(function()
+        DestroyESP(player)
+    end)
+    
+    local ancestryConnection = character.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            DestroyESP(player)
+        end
+    end)
+    
+    table.insert(CharacterConnections[player], diedConnection)
+    table.insert(CharacterConnections[player], ancestryConnection)
 end
 
 -- Function to setup character monitoring
@@ -1063,9 +1204,7 @@ local function SetupCharacterMonitoring(player)
     table.insert(CharacterConnections[player], ancestryConnection)
 end
 
--- Function to create ESP for a player (OPTIMIZED WITH FILLED BOX)
 local function CreateESP(player)
-    -- Only create ESP if enabled
     if not getgenv().espEnabled then
         return
     end
@@ -1114,7 +1253,6 @@ local function CreateESP(player)
         objects.Username.Center = true
         objects.Username.Color = getgenv().nameColor
         objects.Username.Visible = false
-        objects.Username.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
         objects.Username.Outline = getgenv().outlineEnabled
         objects.Username.OutlineColor = Color3.new(0, 0, 0)
     end
@@ -1125,7 +1263,6 @@ local function CreateESP(player)
         objects.Distance.Center = true
         objects.Distance.Color = getgenv().distanceColor
         objects.Distance.Visible = false
-        objects.Distance.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
         objects.Distance.Outline = getgenv().outlineEnabled
         objects.Distance.OutlineColor = Color3.new(0, 0, 0)
     end
@@ -1160,7 +1297,6 @@ local function CreateESP(player)
         objects.Weapon.Center = true
         objects.Weapon.Color = getgenv().weaponColor
         objects.Weapon.Visible = false
-        objects.Weapon.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
         objects.Weapon.Outline = getgenv().outlineEnabled
         objects.Weapon.OutlineColor = Color3.new(0, 0, 0)
     end
@@ -1221,7 +1357,9 @@ end
 -- Function to handle character respawn
 local function OnCharacterAdded(player, character)
     wait(0.5)
-    CreateESP(player)
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        CreateESP(player)
+    end
 end
 
 local function UpdateESP()
@@ -1248,6 +1386,12 @@ local function UpdateESP()
         if character and character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer then
             local rootPart = character.HumanoidRootPart
             local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            DestroyESP(player)
+            continue
+        end
 
             if humanoid and humanoid.Health > 0 then
                 -- Calculate distance first for max distance check
@@ -1341,7 +1485,6 @@ local function UpdateESP()
                         objects.Username.Position = Vector2.new(rootPosition.X, headPosition.Y - 15)
                         objects.Username.Text = displayName
                         objects.Username.Size = getgenv().nameTextSize
-                        objects.Username.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
                         objects.Username.Visible = true
                         objects.Username.Color = getgenv().nameColor
                         objects.Username.Outline = getgenv().outlineEnabled
@@ -1355,7 +1498,6 @@ local function UpdateESP()
                         objects.Distance.Position = Vector2.new(rootPosition.X, footPosition.Y + 5)
                         objects.Distance.Text = distanceText
                         objects.Distance.Size = getgenv().distanceTextSize
-                        objects.Distance.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
                         objects.Distance.Visible = true
                         objects.Distance.Color = getgenv().distanceColor
                         objects.Distance.Outline = getgenv().outlineEnabled
@@ -1414,7 +1556,6 @@ local function UpdateESP()
             objects.Weapon.Position = Vector2.new(rootPosition.X, footPosition.Y + 20)
             objects.Weapon.Text = table.concat(inventoryItems, ", ") -- Join all items with commas
             objects.Weapon.Size = getgenv().nameTextSize
-            objects.Weapon.Font = fontMap[getgenv().textStyle] or fontMap["SourceSans"]
             objects.Weapon.Visible = true
             objects.Weapon.Color = getgenv().weaponColor
             objects.Weapon.Outline = getgenv().outlineEnabled
@@ -1583,72 +1724,70 @@ RunService.RenderStepped:Connect(function()
 end)
 
 function isonscreen(object)
-if not object or not object.Position then
-    return false
-end
-local _, bool = wcamera:WorldToScreenPoint(object.Position)
-return bool
+    if not object or not object.Position then
+        return false
+    end
+    local _, bool = wcamera:WorldToScreenPoint(object.Position)
+    return bool
 end
 
 function isvisible(char, object)
-if not localplayer or not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then
-   return false
-end
-
-if not char or not object or not object.Position then
-    return false
-end
-
-if allvars.aimvischeck == false then
-    return true
-end
-
-
-local origin = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
-if allvars.desyncbool and desynctable and desynctable[3] and desynctable[3].Position then
-    origin = desynctable[3].Position + Vector3.new(0, 1.5, 0)
-end
-local pos = object.Position
-local dir = pos - origin
-local dist = dir.Magnitude + 2500
-local penetrated = true
-dir = dir.Unit
-
-local params = RaycastParams.new()
-params.IgnoreWater = true
-params.CollisionGroup = "WeaponRay"
-params.FilterDescendantsInstances = {
-    localplayer.Character,
-    wcamera,
-    globalist11,
-    aimignoreparts,
-}
-
-local ray = workspace:Raycast(origin, dir * dist, params)
-if ray and ray.Instance and char and ray.Instance:IsDescendantOf(char) then
-    return true
-elseif ray and ray.Instance and ray.Instance.Name ~= "Terrain" and not ray.Instance:GetAttribute("NoPen") then
-    local armorpen4 = 10
-    if globalammo then
-        armorpen4 = globalammo:GetAttribute("ArmorPen") or 10
+    if not localplayer or not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then
+       return false
     end
 
-    local FunctionLibraryExtension = require(game.ReplicatedStorage.Modules.FunctionLibraryExtension)
-    local armorpen1, newpos2 = FunctionLibraryExtension.Penetration(FunctionLibraryExtension, ray.Instance, ray.Position, dir, armorpen4)
-    if armorpen1 == nil or newpos2 == nil then
+    if not char or not object or not object.Position then
         return false
     end
 
-    local neworigin = ray.Position + dir * 0.01
-    local newray = workspace:Raycast(neworigin, dir * (dist - (neworigin - origin).Magnitude), params)
-    if newray and newray.Instance and char and newray.Instance:IsDescendantOf(char) then
+    if allvars.aimvischeck == false then
         return true
     end
-end
 
-return false
-end
+    local origin = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+    if allvars.desyncbool and desynctable and desynctable[3] and desynctable[3].Position then
+        origin = desynctable[3].Position + Vector3.new(0, 1.5, 0)
+    end
+    local pos = object.Position
+    local dir = pos - origin
+    local dist = dir.Magnitude + 2500
+    local penetrated = true
+    dir = dir.Unit
 
+    local params = RaycastParams.new()
+    params.IgnoreWater = true
+    params.CollisionGroup = "WeaponRay"
+    params.FilterDescendantsInstances = {
+        localplayer.Character,
+        wcamera,
+        globalist11,
+        aimignoreparts,
+    }
+
+    local ray = workspace:Raycast(origin, dir * dist, params)
+    if ray and ray.Instance and char and ray.Instance:IsDescendantOf(char) then
+        return true
+    elseif ray and ray.Instance and ray.Instance.Name ~= "Terrain" and not ray.Instance:GetAttribute("NoPen") then
+        local armorpen4 = 10
+        if globalammo then
+            armorpen4 = globalammo:GetAttribute("ArmorPen") or 10
+        end
+
+        local FunctionLibraryExtension = require(game.ReplicatedStorage.Modules.FunctionLibraryExtension)
+        local armorpen1, newpos2 = FunctionLibraryExtension.Penetration(FunctionLibraryExtension, ray.Instance, ray.Position, dir, armorpen4)
+        if armorpen1 == nil or newpos2 == nil then
+            return false
+        end
+
+        local neworigin = ray.Position + dir * 0.01
+        local newray = workspace:Raycast(neworigin, dir * (dist - (neworigin - origin).Magnitude), params)
+        if newray and newray.Instance and char and newray.Instance:IsDescendantOf(char) then
+            return true
+        end
+    end
+
+    return false
+end
 
 function isValidTarget(target)
     if not target then return false end
@@ -1671,11 +1810,28 @@ function isValidTarget(target)
     return true
 end
 
-function choosetarget()
-    if not wcamera or not wcamera.ViewportSize then
-        return
-    end
+local fpsrequired = require(game.ReplicatedStorage.Modules.FPS)
 
+if runs and runs.Heartbeat then
+    runs.Heartbeat:Connect(function(delta)
+        if not localplayer or not localplayer.Character or 
+           not localplayer.Character:FindFirstChild("HumanoidRootPart") or 
+           not localplayer.Character:FindFirstChild("Humanoid") then
+            return
+        end
+
+        if choosetarget then
+            choosetarget()
+        end
+
+        if allvars.aimtrigger and aimtarget and getgenv().a1table then
+            fpsrequired.action(getgenv().a1table, true)
+            fpsrequired.action(getgenv().a1table, false)
+        end
+    end)
+end
+
+function choosetarget()
     local cent = Vector2.new(wcamera.ViewportSize.X / 2, wcamera.ViewportSize.Y / 2)
     local cdist = math.huge
     local ctar = nil
@@ -1685,20 +1841,7 @@ function choosetarget()
 
     local ammodistance = 999999999
     if allvars.aimdistcheck and globalammo then
-        ammodistance = globalammo:GetAttribute("MuzzleVelocity") or 999999999
-    end
-
-    local function isVisible(target, part)
-        if not allvars.aimvischeck then 
-            return true 
-        end
-        
-        local origin = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
-        if allvars.desyncbool and desynctable and desynctable[3] and desynctable[3].Position then
-            origin = desynctable[3].Position + Vector3.new(0, 1.5, 0)
-        end
-        
-        return not hasWallBetween(origin, part.Position, target)
+        ammodistance = globalammo:GetAttribute("MuzzleVelocity")
     end
 
     local bparts = {
@@ -1722,8 +1865,6 @@ function choosetarget()
     }
 
     local function chooseTpart(charact)
-        if not charact then return nil end
-        
         if allvars.aimpart == "Head" then
             return charact:FindFirstChild("Head")
         elseif allvars.aimpart == "HeadTop" then
@@ -1735,7 +1876,7 @@ function choosetarget()
         elseif allvars.aimpart == "Scripted" then
             local head = charact:FindFirstChild("Head")
             local upperTorso = charact:FindFirstChild("UpperTorso")
-            if head and not isvisible(charact, head) then
+            if not isvisible(charact, head) then
                 return upperTorso
             else
                 return head
@@ -1743,50 +1884,42 @@ function choosetarget()
         elseif allvars.aimpart == "Random" then
             return charact:FindFirstChild(bparts[math.random(1, #bparts)])
         end
-        return nil
     end
 
-    if allvars.aimbots and workspace:FindFirstChild("AiZones") then --priority 2 (bots)
+    if allvars.aimbots then --priority 2 (bots)
         for _, botfold in pairs(workspace.AiZones:GetChildren()) do
-            if botfold then
-                for _, bot in pairs(botfold:GetChildren()) do
-                    if bot and bot:IsA("Model") and bot:FindFirstChild("Humanoid") and bot.Humanoid.Health > 0 then
-                        if allvars.friendlistbots and allvars.aimFRIENDLIST then
-                            if allvars.friendlistmode == "Blacklist" then 
-                                if table.find(allvars.aimFRIENDLIST, bot.Name) ~= nil then
-                                    continue
-                                end
-                            elseif allvars.friendlistmode == "Whitelist" then 
-                                if table.find(allvars.aimFRIENDLIST, bot.Name) == nil then
-                                    continue
-                                end
+            for _, bot in pairs(botfold:GetChildren()) do
+                if bot:IsA("Model") and bot:FindFirstChild("Humanoid") and bot.Humanoid.Health > 0 then
+                    if allvars.friendlistbots then
+                        if allvars.friendlistmode == "Blacklist" then 
+                            if table.find(allvars.aimFRIENDLIST, bot.Name) ~= nil then
+                                continue
+                            end
+                        elseif allvars.friendlistmode == "Whitelist" then 
+                            if table.find(allvars.aimFRIENDLIST, bot.Name) == nil then
+                                continue
                             end
                         end
+                    end
 
-                        local potroot = chooseTpart(bot)
-                        if potroot and potroot.Position and localplayer.Character and localplayer.Character.PrimaryPart then
-                            local success, spoint = pcall(function()
-                                return wcamera:WorldToViewportPoint(potroot.Position)
-                            end)
-                            
-                            if success and spoint then
-                                local optpoint = Vector2.new(spoint.X, spoint.Y)
-                                local dist = (optpoint - cent).Magnitude
-                                
-                                local betweendist = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude * 0.3336
-                                local betweendistSTUDS = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude
-                                if aimfovcircle and dist <= aimfovcircle.Radius and dist < cdist and betweendist < (allvars.aimdistance or math.huge) and betweendistSTUDS < ammodistance and isonscreen(potroot) then
-                                    local canvis = isvisible(bot, potroot)
-                                    if canvis then
-                                        cdist = dist
-                                        ctar = bot
-                                        cpart = potroot
-                                    end
-                                    if dist < predist then
-                                        predist = dist
-                                        restar = bot
-                                    end
-                                end
+                    local potroot = chooseTpart(bot)
+                    if potroot and localplayer.Character and localplayer.Character.PrimaryPart then -- Fixed: Added PrimaryPart check
+                        local spoint = wcamera:WorldToViewportPoint(potroot.Position)
+                        local optpoint = Vector2.new(spoint.X, spoint.Y)
+                        local dist = (optpoint - cent).Magnitude
+                        
+                        local betweendist = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude * 0.3336
+                        local betweendistSTUDS = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude
+                        if dist <= aimfovcircle.Radius and dist < cdist and betweendist < allvars.aimdistance and betweendistSTUDS < ammodistance and isonscreen(potroot) then
+                            local canvis = isvisible(bot, potroot)
+                            if canvis then
+                                cdist = dist
+                                ctar = bot
+                                cpart = potroot
+                            end
+                            if dist < predist then
+                                predist = dist
+                                restar = bot
                             end
                         end
                     end
@@ -1795,45 +1928,36 @@ function choosetarget()
         end
     end
 
-    if game.Players then
-        for _, pottar in pairs(game.Players:GetPlayers()) do --priority 1 (players)
-            if pottar and pottar ~= localplayer and pottar.Character and localplayer.Character and localplayer.Character.PrimaryPart then
-                if allvars.friendlistmode and allvars.aimFRIENDLIST then
-                    if allvars.friendlistmode == "Blacklist" then 
-                        if table.find(allvars.aimFRIENDLIST, pottar.Name) ~= nil then
-                            continue
-                        end
-                    elseif allvars.friendlistmode == "Whitelist" then 
-                        if table.find(allvars.aimFRIENDLIST, pottar.Name) == nil then
-                            continue
-                        end
-                    end
+    for _, pottar in pairs(game.Players:GetPlayers()) do --priority 1 (players)
+        if pottar ~= localplayer and pottar.Character and localplayer.Character and localplayer.Character.PrimaryPart ~= nil then -- Fixed: Added checks
+            if allvars.friendlistmode == "Blacklist" then 
+                if table.find(allvars.aimFRIENDLIST, pottar.Name) ~= nil then
+                    continue
                 end
+            elseif allvars.friendlistmode == "Whitelist" then 
+                if table.find(allvars.aimFRIENDLIST, pottar.Name) == nil then
+                    continue
+                end
+            end
 
-                local potroot = chooseTpart(pottar.Character)
-                if potroot and potroot.Position then
-                    local success, spoint = pcall(function()
-                        return wcamera:WorldToViewportPoint(potroot.Position)
-                    end)
-                    
-                    if success and spoint then
-                        local optpoint = Vector2.new(spoint.X, spoint.Y)
-                        local dist = (optpoint - cent).Magnitude
-                        
-                        local betweendist = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude * 0.3336
-                        local betweendistSTUDS = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude
-                        if aimfovcircle and dist <= aimfovcircle.Radius and dist < cdist and betweendist < (allvars.aimdistance or math.huge) and betweendistSTUDS < ammodistance and isonscreen(potroot) then
-                            local canvis = isvisible(pottar.Character, potroot)
-                            if canvis then
-                                cdist = dist
-                                ctar = pottar
-                                cpart = potroot
-                            end
-                            if dist < predist then
-                                predist = dist
-                                restar = pottar
-                            end
-                        end
+            local potroot = chooseTpart(pottar.Character)
+            if potroot then
+                local spoint = wcamera:WorldToViewportPoint(potroot.Position)
+                local optpoint = Vector2.new(spoint.X, spoint.Y)
+                local dist = (optpoint - cent).Magnitude
+                
+                local betweendist = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude * 0.3336
+                local betweendistSTUDS = (localplayer.Character.PrimaryPart.Position - potroot.Position).Magnitude
+                if dist <= aimfovcircle.Radius and dist < cdist and betweendist < allvars.aimdistance and betweendistSTUDS < ammodistance and isonscreen(potroot) then
+                    local canvis = isvisible(pottar.Character, potroot)
+                    if canvis then
+                        cdist = dist
+                        ctar = pottar
+                        cpart = potroot
+                    end
+                    if dist < predist then
+                        predist = dist
+                        restar = pottar
                     end
                 end
             end
@@ -2042,8 +2166,14 @@ function runhitmark(v140)
     end
 end
 
+-- Fixed hit sound function
 local function playHitSound(hitType)
     if not allvars.hitsoundbool then return end
+    
+    -- Initialize hitsoundlib if it doesn't exist
+    local hitsoundlib = hitsoundlib or {
+        ["Ding"] = "rbxassetid://131961136"
+    }
     
     local soundId = hitsoundlib[allvars["hitsound"..hitType]] or hitsoundlib["Ding"] -- Default to Ding if not found
     if not soundId then return end
@@ -2059,201 +2189,201 @@ end
 
 -- Fixed beam-based tracer (performance friendly)
 function runBeamTracer(startPos, endPos)
-if not allvars or not allvars.tracbool then return end
-if not startPos or not endPos then return end
+    if not allvars or not allvars.tracbool then return end
+    if not startPos or not endPos then return end
 
-local success, err = pcall(function()
-    -- Create attachment points
-    local startAttachment = Instance.new("Attachment")
-    local endAttachment = Instance.new("Attachment")
-    
-    local startPart = Instance.new("Part")
-    startPart.Transparency = 1
-    startPart.CanCollide = false
-    startPart.CanQuery = false
-    startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    startPart.Anchored = true
-    startPart.Position = startPos
-    startPart.Parent = workspace
-    
-    local endPart = Instance.new("Part")
-    endPart.Transparency = 1
-    endPart.CanCollide = false
-    endPart.CanQuery = false
-    endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    endPart.Anchored = true
-    endPart.Position = endPos
-    endPart.Parent = workspace
-    
-    startAttachment.Parent = startPart
-    endAttachment.Parent = endPart
-    
-    -- Create beam
-    local beam = Instance.new("Beam")
-    beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
-    beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
-    beam.Width0 = allvars.tracerwidth or 0.2
-    beam.Width1 = allvars.tracerwidth or 0.2
-    beam.Attachment0 = startAttachment
-    beam.Attachment1 = endAttachment
-    beam.FaceCamera = true
-    beam.Parent = startPart
-    
-    -- Manual fade animation using NumberSequence
-    local fadeTime = allvars.tracerfade or 0.3
-    local startTime = tick()
-    local initialTrans = allvars.tracertrans or 0.3
-    local initialWidth = allvars.tracerwidth or 0.2
-    
-    local connection
-    connection = game:GetService("RunService").Heartbeat:Connect(function()
-        local elapsed = tick() - startTime
-        local progress = math.min(elapsed / fadeTime, 1)
+    local success, err = pcall(function()
+        -- Create attachment points
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
         
-        -- Smooth easing (quad out)
-        local easedProgress = 1 - (1 - progress) ^ 2
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
         
-        -- Update transparency
-        local currentTrans = initialTrans + (1 - initialTrans) * easedProgress
-        beam.Transparency = NumberSequence.new(currentTrans)
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
         
-        -- Update width
-        local currentWidth = initialWidth * (1 - easedProgress)
-        beam.Width0 = currentWidth
-        beam.Width1 = currentWidth
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
         
-        -- Cleanup when done
-        if progress >= 1 then
-            connection:Disconnect()
-            if startPart and startPart.Parent then startPart:Destroy() end
-            if endPart and endPart.Parent then endPart:Destroy() end
-        end
+        -- Create beam
+        local beam = Instance.new("Beam")
+        beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
+        beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
+        beam.Width0 = allvars.tracerwidth or 0.2
+        beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Attachment0 = startAttachment
+        beam.Attachment1 = endAttachment
+        beam.FaceCamera = true
+        beam.Parent = startPart
+        
+        -- Manual fade animation using NumberSequence
+        local fadeTime = allvars.tracerfade or 0.3
+        local startTime = tick()
+        local initialTrans = allvars.tracertrans or 0.3
+        local initialWidth = allvars.tracerwidth or 0.2
+        
+        local connection
+        connection = game:GetService("RunService").Heartbeat:Connect(function()
+            local elapsed = tick() - startTime
+            local progress = math.min(elapsed / fadeTime, 1)
+            
+            -- Smooth easing (quad out)
+            local easedProgress = 1 - (1 - progress) ^ 2
+            
+            -- Update transparency
+            local currentTrans = initialTrans + (1 - initialTrans) * easedProgress
+            beam.Transparency = NumberSequence.new(currentTrans)
+            
+            -- Update width
+            local currentWidth = initialWidth * (1 - easedProgress)
+            beam.Width0 = currentWidth
+            beam.Width1 = currentWidth
+            
+            -- Cleanup when done
+            if progress >= 1 then
+                connection:Disconnect()
+                if startPart and startPart.Parent then startPart:Destroy() end
+                if endPart and endPart.Parent then endPart:Destroy() end
+            end
+        end)
+        
+        -- Safety cleanup
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.5)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.5)
     end)
-    
-    -- Safety cleanup
-    game:GetService("Debris"):AddItem(startPart, fadeTime + 0.5)
-    game:GetService("Debris"):AddItem(endPart, fadeTime + 0.5)
-end)
 
-if not success then
-    warn("Beam tracer error:", err)
-end
+    if not success then
+        warn("Beam tracer error:", err)
+    end
 end
 
 -- Alternative: Beam tracer with width-only animation (simpler)
 function runBeamTracerWidthOnly(startPos, endPos)
-if not allvars or not allvars.tracbool then return end
-if not startPos or not endPos then return end
+    if not allvars or not allvars.tracbool then return end
+    if not startPos or not endPos then return end
 
-local success, err = pcall(function()
-    local startAttachment = Instance.new("Attachment")
-    local endAttachment = Instance.new("Attachment")
-    
-    local startPart = Instance.new("Part")
-    startPart.Transparency = 1
-    startPart.CanCollide = false
-    startPart.CanQuery = false
-    startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    startPart.Anchored = true
-    startPart.Position = startPos
-    startPart.Parent = workspace
-    
-    local endPart = Instance.new("Part")
-    endPart.Transparency = 1
-    endPart.CanCollide = false
-    endPart.CanQuery = false
-    endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    endPart.Anchored = true
-    endPart.Position = endPos
-    endPart.Parent = workspace
-    
-    startAttachment.Parent = startPart
-    endAttachment.Parent = endPart
-    
-    local beam = Instance.new("Beam")
-    beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
-    beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
-    beam.Width0 = allvars.tracerwidth or 0.2
-    beam.Width1 = allvars.tracerwidth or 0.2
-    beam.Attachment0 = startAttachment
-    beam.Attachment1 = endAttachment
-    beam.FaceCamera = true
-    beam.Parent = startPart
-    
-    -- Tween only the width (this works fine)
-    local fadeTime = allvars.tracerfade or 0.3
-    local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    
-    local fadeTween = game:GetService("TweenService"):Create(beam, tweenInfo, {
-        Width0 = 0,
-        Width1 = 0
-    })
-    
-    fadeTween:Play()
-    
-    fadeTween.Completed:Connect(function()
-        if startPart and startPart.Parent then startPart:Destroy() end
-        if endPart and endPart.Parent then endPart:Destroy() end
+    local success, err = pcall(function()
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
+        
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
+        
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
+        
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
+        
+        local beam = Instance.new("Beam")
+        beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
+        beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
+        beam.Width0 = allvars.tracerwidth or 0.2
+        beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Attachment0 = startAttachment
+        beam.Attachment1 = endAttachment
+        beam.FaceCamera = true
+        beam.Parent = startPart
+        
+        -- Tween only the width (this works fine)
+        local fadeTime = allvars.tracerfade or 0.3
+        local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        
+        local fadeTween = game:GetService("TweenService"):Create(beam, tweenInfo, {
+            Width0 = 0,
+            Width1 = 0
+        })
+        
+        fadeTween:Play()
+        
+        fadeTween.Completed:Connect(function()
+            if startPart and startPart.Parent then startPart:Destroy() end
+            if endPart and endPart.Parent then endPart:Destroy() end
+        end)
+        
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.1)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.1)
     end)
-    
-    game:GetService("Debris"):AddItem(startPart, fadeTime + 0.1)
-    game:GetService("Debris"):AddItem(endPart, fadeTime + 0.1)
-end)
 
-if not success then
-    warn("Width-only beam tracer error:", err)
-end
+    if not success then
+        warn("Width-only beam tracer error:", err)
+    end
 end
 
 -- Most performance-friendly: Simple beam with timer cleanup
 function runBeamTracerSimplest(startPos, endPos)
-if not allvars or not allvars.tracbool then return end
-if not startPos or not endPos then return end
+    if not allvars or not allvars.tracbool then return end
+    if not startPos or not endPos then return end
 
-local success, err = pcall(function()
-    local startAttachment = Instance.new("Attachment")
-    local endAttachment = Instance.new("Attachment")
-    
-    local startPart = Instance.new("Part")
-    startPart.Transparency = 1
-    startPart.CanCollide = false
-    startPart.CanQuery = false
-    startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    startPart.Anchored = true
-    startPart.Position = startPos
-    startPart.Parent = workspace
-    
-    local endPart = Instance.new("Part")
-    endPart.Transparency = 1
-    endPart.CanCollide = false
-    endPart.CanQuery = false
-    endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-    endPart.Anchored = true
-    endPart.Position = endPos
-    endPart.Parent = workspace
-    
-    startAttachment.Parent = startPart
-    endAttachment.Parent = endPart
-    
-    local beam = Instance.new("Beam")
-    beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
-    beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
-    beam.Width0 = allvars.tracerwidth or 0.2
-    beam.Width1 = allvars.tracerwidth or 0.2
-    beam.Attachment0 = startAttachment
-    beam.Attachment1 = endAttachment
-    beam.FaceCamera = true
-    beam.Parent = startPart
-    
-    -- Simple cleanup after delay
-    local fadeTime = allvars.tracerfade or 0.3
-    game:GetService("Debris"):AddItem(startPart, fadeTime)
-    game:GetService("Debris"):AddItem(endPart, fadeTime)
-end)
+    local success, err = pcall(function()
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
+        
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
+        
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
+        
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
+        
+        local beam = Instance.new("Beam")
+        beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
+        beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
+        beam.Width0 = allvars.tracerwidth or 0.2
+        beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Attachment0 = startAttachment
+        beam.Attachment1 = endAttachment
+        beam.FaceCamera = true
+        beam.Parent = startPart
+        
+        -- Simple cleanup after delay
+        local fadeTime = allvars.tracerfade or 0.3
+        game:GetService("Debris"):AddItem(startPart, fadeTime)
+        game:GetService("Debris"):AddItem(endPart, fadeTime)
+    end)
 
-if not success then
-    warn("Simple beam tracer error:", err)
-end
+    if not success then
+        warn("Simple beam tracer error:", err)
+    end
 end
 
 -- Modified CreateTracer function to use the dropdown selection
@@ -2303,474 +2433,284 @@ local function CreateTracer(startPos, endPos)
     end
 end
 
-
+-- Fixed main aimbot function
 local aimogfunc = require(game.ReplicatedStorage.Modules.FPS.Bullet).CreateBullet
 local aimmodfunc
 
 aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
-local v_u_6 = game.ReplicatedStorage.Remotes.VisualProjectile
-local v_u_108 = 1
-local v_u_106 = 0
-local v_u_7 = game.ReplicatedStorage.Remotes.FireProjectile
-local target = aimtarget
-local target_part = aimtargetpart
-local v_u_4 = require(game.ReplicatedStorage.Modules:WaitForChild("FunctionLibraryExtension"))
-local v_u_103
-local v_u_114
-local v_u_16 = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name)
-local v_u_64 = v_u_16 and v_u_16.Status.GameplayVariables:GetAttribute("EquipId")
-local v_u_13 = game.ReplicatedStorage:WaitForChild("VFX")
-local v_u_2 = require(game.ReplicatedStorage.Modules:WaitForChild("VFX"))
-local v3 = require(game.ReplicatedStorage.Modules:WaitForChild("UniversalTables"))
-local v_u_5 = game.ReplicatedStorage.Remotes.ProjectileInflict
-local v_u_10 = game:GetService("ReplicatedStorage")
-local v_u_12 = v_u_10:WaitForChild("RangedWeapons")
-local v_u_17 = game.ReplicatedStorage.Temp
-local v_u_56 = localplayer.Character
-local v135 = 500000
-local v_u_18 = v3.ReturnTable("GlobalIgnoreListProjectile")
-local v_u_115 = v_u_56 and v_u_56:FindFirstChild("HumanoidRootPart") and v_u_56.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0) or Vector3.new(0, 0, 0)
-
--- Validate target before proceeding
-if not isValidTarget(target) then
-    target = nil
-    target_part = nil
-end
-
--- Start snap line if enabled and target exists
-if allvars.snaplinebool and target and target_part then
-    startSnapLine()
-else
-    stopSnapLine()
-end
-
--- Target prediction logic (Fixed)
-if target and target_part and target_part.Position and allvars.aimfakewait then
-    local ammoType = v_u_10.AmmoTypes:FindFirstChild(p52)
-    if ammoType then
-        local bulletSpeed = ammoType:GetAttribute("MuzzleVelocity") or 999999999
-        if bulletSpeed and bulletSpeed > 0 then
-            local distance = (target_part.Position - v_u_115).Magnitude
-            local travelTime = distance / bulletSpeed
-            
-            -- Predict target movement
-            local targetVelocity = Vector3.new(0, 0, 0)
-            local targetRoot = nil
-            if target:IsA("Model") and target:FindFirstChild("HumanoidRootPart") then
-                targetRoot = target.HumanoidRootPart
-            elseif target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                targetRoot = target.Character.HumanoidRootPart
-            end
-            
-            if targetRoot then
-                targetVelocity = targetRoot.Velocity
-            end
-            
-            -- Adjust aim point based on prediction
-            local predictedPosition = target_part.Position + (targetVelocity * travelTime)
-            v_u_103 = (predictedPosition - v_u_115).Unit
-        end
+    local v_u_6 = game.ReplicatedStorage.Remotes.VisualProjectile
+    local v_u_108 = 1
+    local v_u_106 = 0
+    local v_u_7 = game.ReplicatedStorage.Remotes.FireProjectile
+    local target = aimtarget
+    local target_part
+    local v_u_4 = require(game.ReplicatedStorage.Modules:WaitForChild("FunctionLibraryExtension"))
+    local v_u_103
+    local v_u_114
+    local v_u_16 = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name)
+    local v_u_64 = v_u_16.Status.GameplayVariables:GetAttribute("EquipId")
+    local v_u_13 = game.ReplicatedStorage:WaitForChild("VFX")
+    local v_u_2 = require(game.ReplicatedStorage.Modules:WaitForChild("VFX"))
+    local v3 = require(game.ReplicatedStorage.Modules:WaitForChild("UniversalTables"))
+    local v_u_5 = game.ReplicatedStorage.Remotes.ProjectileInflict
+    local v_u_10 = game:GetService("ReplicatedStorage")
+    local v_u_12 = v_u_10:WaitForChild("RangedWeapons")
+    local v_u_17 = game.ReplicatedStorage.Temp
+    local v_u_56 = localplayer.Character
+    local v135 = 500000
+    local v_u_18 = v3.ReturnTable("GlobalIgnoreListProjectile")
+    local v_u_115 = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+    if allvars.desyncbool and desynctable[3] then
+        v_u_115 = desynctable[3].Position + Vector3.new(0, 1.5, 0)
     end
-else
-    if target_part and target_part.Position then
-        v_u_103 = (target_part.Position - v_u_115).Unit
-    elseif aimpart and aimpart.Position then
-        v_u_103 = (aimpart.Position - v_u_115).Unit
-    else
-        v_u_103 = Vector3.new(0, 0, 1) -- Default direction
-    end
-end
-
-v_u_114 = v_u_103
-
--- Handle desync positioning (Fixed)
-if allvars.desyncbool and desynctable and desynctable[3] and desynctable[3].Position then
-    v_u_115 = desynctable[3].Position + Vector3.new(0, 1.5, 0)
-end
-
-local hittick = tick()
-local v65 = v_u_10.AmmoTypes:FindFirstChild(p52)
-local v_u_74 = v65 and v65:GetAttribute("Pellets") or 1
-local v60 = p50 and p50.ItemRoot
-local v61 = p49 and p49.ItemProperties
-local v62 = v_u_12:FindFirstChild(p49 and p49.Name)
-local v63 = v61 and v61:FindFirstChild("SpecialProperties")
-local v_u_66 = (v63 and v63:GetAttribute("TracerColor")) or (v62 and v62:GetAttribute("ProjectileColor"))
-local itemprop = v_u_16 and v_u_16.Inventory:FindFirstChild(p49 and p49.Name) and require(v_u_16.Inventory:FindFirstChild(p49.Name).SettingsModule)
-local bulletspeed = v65 and v65:GetAttribute("MuzzleVelocity") or 9999999
-local armorpen4 = v65 and v65:GetAttribute("ArmorPen") or 0
-local tracerendpos = Vector3.zero
-
-local v79 = {
-    ["x"] = {
-        ["Value"] = 0
-    },
-    ["y"] = {
-        ["Value"] = 0
+    local hittick = tick()
+    local v65 = v_u_10.AmmoTypes:FindFirstChild(p52)
+    local v_u_74 = v65:GetAttribute("Pellets")
+    local v60 = p50.ItemRoot
+    local v61 = p49.ItemProperties
+    local v62 = v_u_12:FindFirstChild(p49.Name)
+    local v63 = v61:FindFirstChild("SpecialProperties")
+    local v_u_66 = v63 and v63:GetAttribute("TracerColor") or v62:GetAttribute("ProjectileColor")
+    local itemprop = require(v_u_16.Inventory:FindFirstChild(p49.Name).SettingsModule)
+    local bulletspeed = v65:GetAttribute("MuzzleVelocity")
+    local armorpen4 = v65:GetAttribute("ArmorPen")
+    local tracerendpos = Vector3.zero
+    local v79 = {
+        ["x"] = {
+            ["Value"] = 0
+        },
+        ["y"] = {
+            ["Value"] = 0
+        }
     }
-}
 
--- Main weapon logic (Fixed)
-if v_u_56 and v_u_56:FindFirstChild(p49 and p49.Name) then
-    local v83 = 0.001 
-    local v82 = 0.001
-    local v81 = (v61 and v61.Tool:GetAttribute("MuzzleDevice")) or "Default"
-    v_u_108 = math.random(-100000, 100000)
-    
-    -- Sound handling (Fixed)
-    if v61 and v60 then
-        if (v61.Tool:GetAttribute("MuzzleDevice")) == "Suppressor" then
-            if v60.Sounds and v60.Sounds.FireSoundSupressed then
-                if tick() - p53 < 0.8 then
-                    v_u_4:PlaySoundV2(v60.Sounds.FireSoundSupressed, v60.Sounds.FireSoundSupressed.TimeLength, v_u_17)
-                else
-                    v_u_4:PlaySoundV2(v60.Sounds.FireSoundSupressed, v60.Sounds.FireSoundSupressed.TimeLength, v_u_17)
-                end
-            end
-        elseif v60.Sounds and v60.Sounds.FireSound then
+    if v_u_56:FindFirstChild(p49.Name) then
+        local v83 = 0.001 
+        local v82 = 0.001
+        local v81 = v61.Tool:GetAttribute("MuzzleDevice") or "Default"
+        v_u_108 = math.random(-100000, 100000)
+        
+        if v61.Tool:GetAttribute("MuzzleDevice") or "Default" == "Suppressor" then
             if tick() - p53 < 0.8 then
-                v_u_4:PlaySoundV2(v60.Sounds.FireSound, v60.Sounds.FireSound.TimeLength, v_u_17)
+                v_u_4:PlaySoundV2(v60.Sounds.FireSoundSupressed, v60.Sounds.FireSoundSupressed.TimeLength, v_u_17)
             else
-                v_u_4:PlaySoundV2(v60.Sounds.FireSound, v60.Sounds.FireSound.TimeLength, v_u_17)
+                v_u_4:PlaySoundV2(v60.Sounds.FireSoundSupressed, v60.Sounds.FireSoundSupressed.TimeLength, v_u_17)
             end
+        elseif tick() - p53 < 0.8 then
+            v_u_4:PlaySoundV2(v60.Sounds.FireSound, v60.Sounds.FireSound.TimeLength, v_u_17)
+        else
+            v_u_4:PlaySoundV2(v60.Sounds.FireSound, v60.Sounds.FireSound.TimeLength, v_u_17)
         end
-    end
-    
-    -- Barrel detection (Fixed)
-    local v_u_59
-    if p_u_51 and p_u_51.Item then
-        if p_u_51.Item.Attachments and p_u_51.Item.Attachments:FindFirstChild("Front") then
-            local frontChildren = p_u_51.Item.Attachments.Front:GetChildren()
-            if frontChildren[1] and frontChildren[1]:FindFirstChild("Barrel") then
-                v_u_59 = frontChildren[1].Barrel
-            end
-        elseif p_u_51.Item:FindFirstChild("Barrel") then
+        
+        local v_u_59
+        if p_u_51.Item.Attachments:FindFirstChild("Front") then
+            v_u_59 = p_u_51.Item.Attachments.Front:GetChildren()[1].Barrel
+        else
             v_u_59 = p_u_51.Item.Barrel
         end
-    end
 
-    -- Target aiming (Fixed)
-    if target ~= nil and aimtargetpart ~= nil and aimtargetpart.Position then
-        target_part = aimtargetpart
-        v_u_103 = CFrame.new(v_u_115, target_part.Position).LookVector
-        v_u_114 = v_u_103
-    else
-        if aimpart and aimpart.Position then
+        if target ~= nil and aimtargetpart ~= nil then
+            target_part = aimtargetpart
+            v_u_103 = CFrame.new(v_u_115, target_part.Position).LookVector
+            v_u_114 = v_u_103
+        else
             target_part = aimpart
             v_u_103 = CFrame.new(v_u_115, localplayer:GetMouse().Hit.Position).LookVector
             v_u_114 = v_u_103
         end
-    end
 
-    -- Main raycast function (Fixed)
-    function v185()
-        local v_u_110 = RaycastParams.new()
-        v_u_110.FilterType = Enum.RaycastFilterType.Exclude
-        local v_u_111 = { v_u_56, p_u_51, v_u_18 }
-        if aimignoreparts then
-            for _, part in pairs(aimignoreparts) do
-                table.insert(v_u_111, part)
-            end
-        end
-        v_u_110.FilterDescendantsInstances = v_u_111
-        v_u_110.CollisionGroup = "WeaponRay"
-        v_u_110.IgnoreWater = true
+        local function v185()
+            local v_u_110 = RaycastParams.new()
+            v_u_110.FilterType = Enum.RaycastFilterType.Exclude
+            local v_u_111 = { v_u_56, p_u_51, v_u_18, aimignoreparts}
+            v_u_110.FilterDescendantsInstances = v_u_111
+            v_u_110.CollisionGroup = "WeaponRay"
+            v_u_110.IgnoreWater = true
 
-        v_u_106 = v_u_106 + 1
-        local usethisvec = v_u_114
+            v_u_106 = v_u_106 + 1
 
-        -- Fire projectile (Fixed)
-        if v_u_106 == 1 then
-            task.spawn(function()
-                local multitaps = allvars.multitaps or 1
-                for i = 1, multitaps do
-                    if v_u_7 then
-                        local success, result = pcall(function()
-                            return v_u_7:InvokeServer(usethisvec, v_u_108, 0)
-                        end)
-                        
-                        if not success or not result then 
-                            if game.ReplicatedStorage.Modules.FPS.Binds.AdjustBullets and v_u_64 then
-                                game.ReplicatedStorage.Modules.FPS.Binds.AdjustBullets:Fire(v_u_64, 1)
-                            end
+            local usethisvec = v_u_114
+
+            if v_u_106 == 1 then
+                task.spawn(function()
+                    for i=1, allvars.multitaps or 1 do -- Fixed: Added default value
+                        if not v_u_7:InvokeServer(usethisvec, v_u_108, 0) then 
+                            game.ReplicatedStorage.Modules.FPS.Binds.AdjustBullets:Fire(v_u_64, 1)
                         end
                     end
-                end
-            end)
-        elseif 1 < v_u_106 then
-            local multitaps = allvars.multitaps or 1
-            for i = 1, multitaps do
-                if v_u_6 then
-                    pcall(function()
-                        v_u_6:FireServer(usethisvec, v_u_108)
-                    end)
+                end)
+            elseif 1 < v_u_106 then
+                for i=1, allvars.multitaps or 1 do -- Fixed: Added default value
+                    v_u_6:FireServer(usethisvec, v_u_108)
                 end
             end
-        end
 
-        local v_u_131 = nil
-        local v_u_132 = 0
-        local v_u_133 = 0
+            local v_u_131 = nil
+            local v_u_132 = 0
+            local v_u_133 = 0
 
-        -- Fake wait for target prediction (Fixed)
-        if allvars.aimfakewait and target ~= nil and bulletspeed > 0 then
-            local tpart 
-            if target:IsA("Model") and target:FindFirstChild("HumanoidRootPart") then
-                tpart = target.HumanoidRootPart
-            elseif target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                tpart = target.Character.HumanoidRootPart
-            end
-            
-            if tpart and wcamera then
+            if allvars.aimfakewait and target ~= nil then
+                local tpart 
+                if target:IsA("Model") then
+                    tpart = target.HumanoidRootPart
+                else
+                    tpart = target.Character.HumanoidRootPart
+                end
                 local velocity = tpart.Velocity
                 local distance = (wcamera.CFrame.Position - tpart.CFrame.Position).Magnitude
                 local tth = (distance / bulletspeed)
-                task.wait(math.min(tth + 0.01, 0.1)) -- Cap wait time
+                task.wait(tth + 0.01)
             end
-        end
 
-        local penetrated = false
+            local penetrated = false
 
-        -- Hit detection function (Fixed)
-        function v184(p134)
-            v_u_132 = v_u_132 + p134
-            if true then
-                v_u_133 = v_u_133 + v_u_132
-                local v136 = workspace:Raycast(v_u_115, v_u_114 * v135, v_u_110)
-                local v137 = nil
-                local v138 = nil
-                local v139 = nil
-                local v140
-                
-                if v136 then
-                    v137 = v136.Instance
-                    v140 = v136.Position
-                    v138 = v136.Normal
-                    v139 = v136.Material
-                else
-                    v140 = v_u_115 + v_u_114 * v135
-                end
-
-                if v137 == nil then
-                    if v_u_131 then
-                        v_u_131:Disconnect()
-                    end
-                    return
-                end
-
-                tracerendpos = v140
-
-				task.spawn(function()
-    local startPos = nil
-    if wcamera and wcamera.ViewModel and wcamera.ViewModel.Item and wcamera.ViewModel.Item.ItemRoot then
-        startPos = wcamera.ViewModel.Item.ItemRoot.Position
-    elseif localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart") then
-        startPos = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
-    end
-    
-    if startPos and tracerendpos and tracerendpos ~= Vector3.zero then
-        CreateTracer(startPos, tracerendpos)
-    end
-end)
-
-                local v171 = v_u_4:FindDeepAncestor(v137, "Model")
-                
-                -- Hit humanoid target (Fixed)
-                if v171 and v171:FindFirstChild("Humanoid") then
-                    local ran = math.random(1, 100)
-                    local ranbool = ran <= (allvars.aimchance or 100)
-                    if v137.Name == "Head" or v137.Name == "HeadTopHitBox" or v137.Name == "FaceHitBox" then
-                        playHitSound("head")
+            local function v184(p134)
+                v_u_132 = v_u_132 + p134
+                if true then
+                    v_u_133 = v_u_133 + v_u_132
+                    local v136 = workspace:Raycast(v_u_115, v_u_114 * v135, v_u_110)
+                    local v137 = nil
+                    local v138 = nil
+                    local v139 = nil
+                    local v140
+                    if v136 then
+                        v137 = v136.Instance
+                        v140 = v136.Position
+                        v138 = v136.Normal
+                        v139 = v136.Material
                     else
-                        playHitSound("body")
+                        v140 = v_u_115 + v_u_114 * v135
                     end
-                    
-                    if ranbool then
-                        local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
 
-                        if target_part and target_part.CFrame and penetrated == false then
-                            if v_u_5 then
-                                pcall(function()
-                                    v_u_5:FireServer(target_part, v175, v_u_108, hittick)
-                                end)
+                    if v137 == nil then
+                        if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                        return
+                    end
+
+                    tracerendpos = v140
+
+                    local v171 = v_u_4:FindDeepAncestor(v137, "Model")
+                    if v171 and v171:FindFirstChild("Humanoid") then -- Fixed: Added nil check
+                        local ran = math.random(1, 100)
+                        local ranbool = ran <= (allvars.aimchance or 100) -- Fixed: Added default value
+                        if ranbool then
+                            local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
+
+                            if target_part and penetrated == false then
+                                v_u_5:FireServer(target_part, v175, v_u_108, hittick)
+                            else
+                                v_u_5:FireServer(v137, v175, v_u_108, hittick)
                             end
                         else
-                            if v_u_5 then
-                                pcall(function()
-                                    v_u_5:FireServer(v137, v175, v_u_108, hittick)
-                                end)
-                            end
-                        end
-                    else
-                        if aimpart and aimpart.CFrame then
                             local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
-                            if v_u_5 then
-                                pcall(function()
-                                    v_u_5:FireServer(aimpart, v175, v_u_108, hittick)
-                                end)
-                            end
+                            v_u_5:FireServer(aimpart, v175, v_u_108, hittick)
                         end
-                    end
 
-                    task.spawn(function()
-                        if runhitmark then
+                        task.spawn(function()
                             runhitmark(v140)
-                        end
-                    end)
-                    
-                -- Hit terrain (Fixed)
-                elseif v137.Name == "Terrain" then
-                    local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
-                    if v_u_5 then
-                        pcall(function()
-                            v_u_5:FireServer(v137, v175, v_u_108, hittick)
                         end)
-                    end
-
-                    if v_u_2 and v_u_2.Impact then
-                        pcall(function()
-                            v_u_2.Impact(v137, v140, v138, v139, v_u_114, "Ranged", true)
-                        end)
-                    end
-
-                    task.spawn(function()
-                        if runhitmark then
-                            runhitmark(v140)
-                        end
-                    end)
-                    
-                -- Hit other objects - try penetration (Fixed)
-                else
-                    if v_u_2 and v_u_2.Impact then
-                        pcall(function()
-                            v_u_2.Impact(v137, v140, v138, v139, v_u_114, "Ranged", true)
-                        end)
-                    end
-
-                    task.spawn(function()
-                        if runhitmark then
-                            runhitmark(v140)
-                        end
-                    end)
-
-                    local success, arg1, arg2, arg3 = pcall(function()
-                        return v_u_4.Penetration(v_u_4, v137, v140, v_u_114, armorpen4)
-                    end)
-                    
-                    if not success or arg1 == nil or arg2 == nil then
+                    elseif v137.Name == "Terrain" then -- if hit terrain
                         local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
-                        if v_u_5 then
-                            pcall(function()
-                                v_u_5:FireServer(v137, v175, v_u_108, hittick)
-                            end)
+                        v_u_5:FireServer(v137, v175, v_u_108, hittick)
+
+                        v_u_2.Impact(v137, v140, v138, v139, v_u_114, "Ranged", true)
+
+                        task.spawn(function()
+                            runhitmark(v140)
+                        end)
+                    else -- if hit not target then try wallpen
+                        v_u_2.Impact(v137, v140, v138, v139, v_u_114, "Ranged", true)
+
+                        task.spawn(function()
+                            runhitmark(v140)
+                        end)
+
+                        local arg1, arg2, arg3 = v_u_4.Penetration(v_u_4, v137, v140, v_u_114, armorpen4)
+                        if arg1 == nil or arg2 == nil then
+                            local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
+                            v_u_5:FireServer(v137, v175, v_u_108, hittick)
+                            if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                            return
                         end
-                        if v_u_131 then
-                            v_u_131:Disconnect()
+
+                        armorpen4 = arg1
+                        if armorpen4 > 0 then
+                            v_u_115 = arg2
+                            v_u_2.Impact(unpack(arg3))
+                            penetrated = true
+                            return
                         end
+
+                        if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
                         return
                     end
-
-                    armorpen4 = arg1
-                    if armorpen4 > 0 then
-                        v_u_115 = arg2
-                        if v_u_2 and v_u_2.Impact and arg3 then
-                            pcall(function()
-                                v_u_2.Impact(unpack(arg3))
-                            end)
-                        end
-                        penetrated = true
-                        return
-                    end
-
-                    if v_u_131 then
-                        v_u_131:Disconnect()
-                    end
-                    return
                 end
-            end
 
-            if v_u_131 then
-                v_u_131:Disconnect()
+                if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                return
             end
+            v_u_131 = game:GetService("RunService").RenderStepped:Connect(v184)
             return
         end
-        
-        -- Connect the hit detection (Fixed)
-        if game:GetService("RunService") then
-            v_u_131 = game:GetService("RunService").RenderStepped:Connect(v184)
-        end
-        return
-    end
 
-    -- Handle multiple pellets (Fixed)
-    if v_u_74 == nil or v_u_74 <= 0 then
-        task.spawn(v185)
-    else
-        for i = 1, math.min(v_u_74, 20) do -- Limit pellets for performance
+        if v_u_74 == nil then
             task.spawn(v185)
+        else
+            for i = 1, v_u_74 do
+                task.spawn(v185)
+            end
         end
-    end
 
-    -- Tracer rendering (Fixed)
-    if allvars.tracbool then
-        task.spawn(function()
-            task.wait(0.05)
-            if tracerendpos == Vector3.zero then return end
-            
-            local startPos = nil
-            if wcamera and wcamera.ViewModel and wcamera.ViewModel.Item and wcamera.ViewModel.Item.ItemRoot then
-                startPos = wcamera.ViewModel.Item.ItemRoot.Position
-            elseif localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart") then
-                startPos = localplayer.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
-            end
-            
-            if startPos then
-                -- Use either the cylinder tracer or beam tracer
-                if allvars.usebeamtracer then
-                    runBeamTracer(startPos, tracerendpos)
-                else
-                    runtracer(startPos, tracerendpos)
-                end
-            end
-        end)
+        if allvars.tracbool then
+            task.spawn(function()
+                task.wait(0.05)
+                if tracerendpos == Vector3.zero then return end
+                -- Fixed: Use proper tracer function
+                CreateTracer(wcamera.ViewModel.Item.ItemRoot.Position, tracerendpos)
+            end)
+        end
+        return v83, v82, v81, v79
     end
-end -- Fixed the missing 'end' that was causing syntax error
 end
+
 -- Additional utility functions for snap line customization
 function setSnapLineSettings(settings)
-allvars = allvars or {}
-allvars.snaplinebool = settings.enabled or false
-allvars.snaplinecolor = settings.color or Color3.new(1, 0, 0)
-allvars.snaplinewidth = settings.width or 2
+    allvars = allvars or {}
+    allvars.snaplinebool = settings.enabled or false
+    allvars.snaplinecolor = settings.color or Color3.new(1, 0, 0)
+    allvars.snaplinewidth = settings.width or 2
 
-if snapLine then
-    snapLine.BackgroundColor3 = allvars.snaplinecolor
-end
+    if snapLine then
+        snapLine.BackgroundColor3 = allvars.snaplinecolor
+    end
 end
 
 -- Function to clean up snap line resources
 function cleanupSnapLine()
-stopSnapLine()
+    stopSnapLine()
 
-if snapLineGui then
-    snapLineGui:Destroy()
-    snapLineGui = nil
-    snapLine = nil
-end
+    if snapLineGui then
+        snapLineGui:Destroy()
+        snapLineGui = nil
+        snapLine = nil
+    end
 end
 
 -- Function to toggle snap line
 function toggleSnapLine()
-allvars.snaplinebool = not allvars.snaplinebool
+    allvars.snaplinebool = not allvars.snaplinebool
 
-if allvars.snaplinebool then
-    startSnapLine()
-else
-    stopSnapLine()
-end
+    if allvars.snaplinebool then
+        startSnapLine()
+    else
+        stopSnapLine()
+    end
 end
 
-require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.TransparencyController).Update = function(a1, a2) -- transparency = allvars.camthirdp and 1 or 0
+-- Fixed transparency controller
+local thirdpshow = true -- Initialize missing variable
+
+require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.TransparencyController).Update = function(a1, a2)
     local v14_3_ = workspace
     local v14_2_ = v14_3_.CurrentCamera
 
@@ -2825,141 +2765,25 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                 v14_5_ = true
                 a1.transparencyDirty = v14_5_
             end
-            v14_7_ = v0_2_
-            v14_7_ = v14_4_
-            local v14_8_ = 2
-            v14_7_ = 0
-            v14_8_ = 1
-            v14_4_ = v14_5_
+            
+            v14_4_ = setto -- Fixed: Use setto variable
             v14_5_ = a1.transparencyDirty
             if not v14_5_ then
                 v14_5_ = a1.lastTransparency
                 if v14_5_ ~= v14_4_ then
-                    v14_5_ = pairs
-                    v14_6_ = a1.cachedParts
-                    v14_5_, v14_6_, v14_7_ = v14_5_(v14_6_)
-                    for v14_8_, v14_9_ in v14_5_, v14_6_, v14_7_ do
-                        local v14_11_ = v0_0_
-                        local v14_10_ = false
-                        if v14_10_ then
-                            v14_11_ = v0_0_
-                            v14_10_ = v14_11_.AvatarGestures
-                            if v14_10_ then
-                                v14_10_ = {}
-                                local Hat = Enum.AccessoryType.Hat
-                                local v14_12_ = true
-                                v14_10_[Hat] = v14_12_
-                                local Hair = Enum.AccessoryType.Hair
-                                v14_12_ = true
-                                v14_10_[Hair] = v14_12_
-                                local Face = Enum.AccessoryType.Face
-                                v14_12_ = true
-                                v14_10_[Face] = v14_12_
-                                local Eyebrow = Enum.AccessoryType.Eyebrow
-                                v14_12_ = true
-                                v14_10_[Eyebrow] = v14_12_
-                                local Eyelash = Enum.AccessoryType.Eyelash
-                                v14_12_ = true
-                                v14_10_[Eyelash] = v14_12_
-                                v14_11_ = v14_8_.Parent
-                                local v14_13_ = "Accessory"
-                                v14_11_ = v14_11_:IsA(v14_13_)
-                                if v14_11_ then
-                                    v14_13_ = v14_8_.Parent
-                                    v14_12_ = v14_13_.AccessoryType
-                                    v14_11_ = v14_10_[v14_12_]
-                                    if not v14_11_ then
-                                        v14_11_ = v14_8_.Name
-                                        if v14_11_ == "Head" then
-                                            v14_8_.LocalTransparencyModifier = setto
-                                        else
-                                            v14_11_ = 0
-                                            v14_8_.LocalTransparencyModifier = setto
-                                            v14_8_.LocalTransparencyModifier = setto
-                                        end
-                                    end
-                                end
-                                v14_11_ = v14_8_.Name
-                                if v14_11_ == "Head" then
-                                    v14_8_.LocalTransparencyModifier = setto
-                                else
-                                    v14_11_ = 0
-                                    v14_8_.LocalTransparencyModifier = setto
-                                    v14_8_.LocalTransparencyModifier = setto
-                                end
-                            else
-                                v14_8_.LocalTransparencyModifier = setto
-                            end
-                        else
-                            v14_8_.LocalTransparencyModifier = setto
-                        end
+                    for v14_8_, v14_9_ in pairs(a1.cachedParts) do -- Fixed: Simplified loop
+                        v14_8_.LocalTransparencyModifier = setto
                     end
-                    v14_5_ = false
-                    a1.transparencyDirty = v14_5_
+                    a1.transparencyDirty = false
                     a1.lastTransparency = setto
                 end
             end
-            v14_5_ = pairs
-            v14_6_ = a1.cachedParts
-            v14_5_, v14_6_, v14_7_ = v14_5_(v14_6_)
-            for v14_8_, v14_9_ in v14_5_, v14_6_, v14_7_ do
-                local v14_11_ = v0_0_
-                local v14_10_ = false
-                if v14_10_ then
-                    v14_11_ = v0_0_
-                    v14_10_ = v14_11_.AvatarGestures
-                    if v14_10_ then
-                        v14_10_ = {}
-                        local Hat = Enum.AccessoryType.Hat
-                        local v14_12_ = true
-                        v14_10_[Hat] = v14_12_
-                        local Hair = Enum.AccessoryType.Hair
-                        v14_12_ = true
-                        v14_10_[Hair] = v14_12_
-                        local Face = Enum.AccessoryType.Face
-                        v14_12_ = true
-                        v14_10_[Face] = v14_12_
-                        local Eyebrow = Enum.AccessoryType.Eyebrow
-                        v14_12_ = true
-                        v14_10_[Eyebrow] = v14_12_
-                        local Eyelash = Enum.AccessoryType.Eyelash
-                        v14_12_ = true
-                        v14_10_[Eyelash] = v14_12_
-                        v14_11_ = v14_8_.Parent
-                        local v14_13_ = "Accessory"
-                        v14_11_ = v14_11_:IsA(v14_13_)
-                        if v14_11_ then
-                            v14_13_ = v14_8_.Parent
-                            v14_12_ = v14_13_.AccessoryType
-                            v14_11_ = v14_10_[v14_12_]
-                            if not v14_11_ then
-                                v14_11_ = v14_8_.Name
-                                if v14_11_ == "Head" then
-                                    v14_8_.LocalTransparencyModifier = setto
-                                else
-                                    v14_11_ = 0
-                                    v14_8_.LocalTransparencyModifier = setto
-                                    v14_8_.LocalTransparencyModifier = setto
-                                end
-                            end
-                        end
-                        v14_11_ = v14_8_.Name
-                        if v14_11_ == "Head" then
-                            v14_8_.LocalTransparencyModifier = setto
-                        else
-                            v14_11_ = 0
-                            v14_8_.LocalTransparencyModifier = setto
-                            v14_8_.LocalTransparencyModifier = setto
-                        end
-                    else
-                        v14_8_.LocalTransparencyModifier = setto
-                    end
-                else
-                    v14_8_.LocalTransparencyModifier = setto
-                end
+            
+            -- Simplified transparency setting
+            for v14_8_, v14_9_ in pairs(a1.cachedParts) do
+                v14_8_.LocalTransparencyModifier = setto
             end
-            v14_5_ = false
-            a1.transparencyDirty = v14_5_
+            a1.transparencyDirty = false
             a1.lastTransparency = setto
         end
     end
@@ -2967,123 +2791,107 @@ end
 
 -- Enhanced target distance calculation for snap line color coding
 function getTargetDistance()
-if not aimtarget or not aimtargetpart or not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then
-    return nil
-end
+    if not aimtarget or not aimtargetpart or not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
 
-local distance = (aimtargetpart.Position - localplayer.Character.HumanoidRootPart.Position).Magnitude
-return distance
+    local distance = (aimtargetpart.Position - localplayer.Character.HumanoidRootPart.Position).Magnitude
+    return distance
 end
 
 -- Function to update snap line color based on distance
 function updateSnapLineColorByDistance()
-if not snapLine then return end
+    if not snapLine then return end
 
-local distance = getTargetDistance()
-if not distance then return end
+    local distance = getTargetDistance()
+    if not distance then return end
 
--- Color coding based on distance
-if distance < 50 then
-    snapLine.BackgroundColor3 = Color3.new(1, 0, 0) -- Red for close
-elseif distance < 100 then
-    snapLine.BackgroundColor3 = Color3.new(1, 1, 0) -- Yellow for medium
-elseif distance < 200 then
-    snapLine.BackgroundColor3 = Color3.new(0, 1, 0) -- Green for far
-else
-    snapLine.BackgroundColor3 = Color3.new(0, 0, 1) -- Blue for very far
-end
+    -- Color coding based on distance
+    if distance < 50 then
+        snapLine.BackgroundColor3 = Color3.new(1, 0, 0) -- Red for close
+    elseif distance < 100 then
+        snapLine.BackgroundColor3 = Color3.new(1, 1, 0) -- Yellow for medium
+    elseif distance < 200 then
+        snapLine.BackgroundColor3 = Color3.new(0, 1, 0) -- Green for far
+    else
+        snapLine.BackgroundColor3 = Color3.new(0, 0, 1) -- Blue for very far
+    end
 end
 
 -- Function to add target info display near snap line
 function createTargetInfoDisplay()
-if not snapLineGui or not aimtarget then return end
+    if not snapLineGui or not aimtarget then return end
 
-local existingInfo = snapLineGui:FindFirstChild("TargetInfo")
-if existingInfo then existingInfo:Destroy() end
+    local existingInfo = snapLineGui:FindFirstChild("TargetInfo")
+    if existingInfo then existingInfo:Destroy() end
 
-local targetInfo = Instance.new("TextLabel")
-targetInfo.Name = "TargetInfo"
-targetInfo.Size = UDim2.new(0, 200, 0, 50)
-targetInfo.Position = UDim2.new(0.5, -100, 0, 10)
-targetInfo.BackgroundTransparency = 0.7
-targetInfo.BackgroundColor3 = Color3.new(0, 0, 0)
-targetInfo.TextColor3 = Color3.new(1, 1, 1)
-targetInfo.TextScaled = true
-targetInfo.Font = Enum.Font.SourceSansBold
-targetInfo.Parent = snapLineGui
+    local targetInfo = Instance.new("TextLabel")
+    targetInfo.Name = "TargetInfo"
+    targetInfo.Size = UDim2.new(0, 200, 0, 50)
+    targetInfo.Position = UDim2.new(0.5, -100, 0, 10)
+    targetInfo.BackgroundTransparency = 0.7
+    targetInfo.BackgroundColor3 = Color3.new(0, 0, 0)
+    targetInfo.TextColor3 = Color3.new(1, 1, 1)
+    targetInfo.TextScaled = true
+    targetInfo.Font = Enum.Font.SourceSansBold
+    targetInfo.Parent = snapLineGui
 
--- Update target info
-local targetName = "Unknown"
-local targetHealth = "Unknown"
-local targetDistance = "Unknown"
+    -- Update target info
+    local targetName = "Unknown"
+    local targetHealth = "Unknown"
+    local targetDistance = "Unknown"
 
-if aimtarget:IsA("Model") then
-    targetName = aimtarget.Name
-    if aimtarget:FindFirstChild("Humanoid") then
-        targetHealth = math.floor(aimtarget.Humanoid.Health) .. "/" .. math.floor(aimtarget.Humanoid.MaxHealth)
+    if aimtarget:IsA("Model") then
+        targetName = aimtarget.Name
+        if aimtarget:FindFirstChild("Humanoid") then
+            targetHealth = math.floor(aimtarget.Humanoid.Health) .. "/" .. math.floor(aimtarget.Humanoid.MaxHealth)
+        end
+    elseif aimtarget.Name then
+        targetName = aimtarget.Name
+        if aimtarget.Character and aimtarget.Character:FindFirstChild("Humanoid") then
+            targetHealth = math.floor(aimtarget.Character.Humanoid.Health) .. "/" .. math.floor(aimtarget.Character.Humanoid.MaxHealth)
+        end
     end
-elseif aimtarget.Name then
-    targetName = aimtarget.Name
-    if aimtarget.Character and aimtarget.Character:FindFirstChild("Humanoid") then
-        targetHealth = math.floor(aimtarget.Character.Humanoid.Health) .. "/" .. math.floor(aimtarget.Character.Humanoid.MaxHealth)
+
+    local distance = getTargetDistance()
+    if distance then
+        targetDistance = math.floor(distance) .. " studs"
     end
-end
 
-local distance = getTargetDistance()
-if distance then
-    targetDistance = math.floor(distance) .. " studs"
-end
-
-targetInfo.Text = string.format("Target: %s\nHealth: %s\nDistance: %s", targetName, targetHealth, targetDistance)
+    targetInfo.Text = string.format("Target: %s\nHealth: %s\nDistance: %s", targetName, targetHealth, targetDistance)
 end
 
 -- Function to remove target info display
 function removeTargetInfoDisplay()
-if snapLineGui then
-    local existingInfo = snapLineGui:FindFirstChild("TargetInfo")
-    if existingInfo then existingInfo:Destroy() end
-end
+    if snapLineGui then
+        local existingInfo = snapLineGui:FindFirstChild("TargetInfo")
+        if existingInfo then existingInfo:Destroy() end
+    end
 end
 
 -- Enhanced update function that includes target info
 local originalUpdateSnapLine = updateSnapLine
 updateSnapLine = function()
-originalUpdateSnapLine()
+    originalUpdateSnapLine()
 
-if allvars.snaplinebool and allvars.showtargetinfo and aimtarget and aimtargetpart then
-    createTargetInfoDisplay()
-    updateSnapLineColorByDistance()
-else
-    removeTargetInfoDisplay()
-end
-end
-
-
-if fpsrequired then
-fpsrequired = require(game.ReplicatedStorage.Modules.FPS)
-end
-
-if runs and runs.Heartbeat then
-runs.Heartbeat:Connect(function(delta) --silent aim + trigger bot fast cycle
-    if not localplayer or not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") or not localplayer.Character:FindFirstChild("Humanoid") then
-        return
+    if allvars.snaplinebool and allvars.showtargetinfo and aimtarget and aimtargetpart then
+        createTargetInfoDisplay()
+        updateSnapLineColorByDistance()
+    else
+        removeTargetInfoDisplay()
     end
-
-    if choosetarget then -- Add nil check
-        choosetarget() --aim part
-    end
-
-    if allvars.aimtrigger and aimtarget and not hasWallBetween(startPos, endPos, aimtarget) and fpsrequired and a1table then --trigger bot
-        fpsrequired.action(a1table, true)
-        wait()
-        fpsrequired.action(a1table, false)
-    end
-end)
 end
 
-
-
-
+-- Fixed FOV Circle variables
+local fovCircle = nil
+local fovRadius = 100
+local showFovCircle = false
+local camLockEnabled = false
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local aimPart = "Head"
+local knockCheckEnabled = false
 
 -- FOV Circle Creation
 local function createFovCircle()
@@ -3206,16 +3014,29 @@ local function hasWallBetween(startPos, endPos, target)
     local raycastResult = workspace:Raycast(startPos, (endPos - startPos), raycastParams)
     return raycastResult ~= nil
 end
--- Ensure localplayer is properly defined
-local localplayer = game.Players.LocalPlayer or game.Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
 
 -- Store original function before modification
 local instrelOGfunc = require(game.ReplicatedStorage.Modules.FPS).reload
 
 local function instrelMODfunc()
+    -- Empty function
 end
 
-
+-- Fixed equipment animation
+workspace.Camera.ChildAdded:Connect(function(ch)
+    if allvars.instaequip and ch:IsA("Model") then
+        task.wait(0.015)
+        local humanoid = ch:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Animator then
+            for i,v in pairs(humanoid.Animator:GetPlayingAnimationTracks()) do
+                if v.Animation and v.Animation.Name == "Equip" then
+                    v:AdjustSpeed(15)
+                    v.TimePosition = v.Length - 0.01
+                end
+            end
+        end
+    end
+end)
 
 local function applyGunMods(gun)
     if not gun:FindFirstChild("SettingsModule") then
@@ -3592,7 +3413,7 @@ Text = 'Instant Equip',
 Default = false,
 Tooltip = 'Enables instant equip',
 Callback = function(v)
-    allvars.instaequip = v
+    allvars.Zestequip = v
 end
 })
 
@@ -3636,6 +3457,15 @@ Callback = function(v)
     applyToAllGuns()
     monitorEquippedGun()
 end
+})
+
+gunmods:AddToggle('Instant Equip', {
+    Text = 'Instant Equip',
+    Default = false,
+    Tooltip = 'Enables instant equip',
+    Callback = function(v)
+        allvars.instaequip = v
+    end
 })
 
 -- HITMARKER SECTION
@@ -3787,38 +3617,127 @@ gunmods2:AddToggle('TracerBloom', {
     end
 })
 
-aim:AddToggle('ActivateResolver',{
-    Text = "Activate",
-    Default = false,
-    Tooltip = "Activates resolver",
-    Callback = function()
-        if scriptloading then return end
-        if cfgloading then return end
+-- Create the UI (add this near the top of your script)
+local targetItemsUI = Instance.new("ScreenGui")
+targetItemsUI.Name = "TargetItemsUI"
+targetItemsUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+targetItemsUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-        if tick() > aimresolvertime then
-            aimresolvertime = tick() + 0.5 + allvars.resolvertimeout
+-- Create item slots
+local function createItemSlot(name, position)
+    local slot = Instance.new("Frame")
+    slot.Name = name
+    slot.Parent = targetItemsUI
+    slot.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    slot.BackgroundTransparency = 0.15
+    slot.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    slot.BorderSizePixel = 2
+    slot.Position = position
+    slot.Size = UDim2.new(0, 100, 0, 100)
+    slot.Visible = false
     
-            if allvars.desyncbool then
-                localplayer.Character.HumanoidRootPart.CFrame = desynctable[1]
-            end
+    -- Add item image
+    local itemImage = Instance.new("ImageLabel")
+    itemImage.Name = "ItemImage"
+    itemImage.Parent = slot
+    itemImage.BackgroundTransparency = 1
+    itemImage.Position = UDim2.new(0.1, 0, 0.1, 0)
+    itemImage.Size = UDim2.new(0.8, 0, 0.6, 0)
+    itemImage.Image = ""
     
-            aimresolverpos = localplayer.Character.HumanoidRootPart.CFrame
-            aimresolver = true
-            task.wait(0.5)
-            aimresolver = false
-            localplayer.Character.HumanoidRootPart.Anchored = false
-            localplayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-            --localplayer.Character.HumanoidRootPart.CFrame = aimresolverpos
-        end
-        safesetvalue(false, Toggles.ActivateResolver)
+    -- Add item name label
+    local itemName = Instance.new("TextLabel")
+    itemName.Name = "ItemName"
+    itemName.Parent = slot
+    itemName.BackgroundTransparency = 1
+    itemName.Position = UDim2.new(0, 0, 0.75, 0)
+    itemName.Size = UDim2.new(1, 0, 0.2, 0)
+    itemName.Font = Enum.Font.GothamBold
+    itemName.TextColor3 = Color3.new(1, 1, 1)
+    itemName.TextSize = 14
+    itemName.Text = ""
+    
+    return slot
+end
+
+-- Create 3 item slots
+local itemSlots = {
+    createItemSlot("Item1", UDim2.new(0.36, 0, 0, 0)),
+    createItemSlot("Item2", UDim2.new(0.457, 0, 0, 0)),
+    createItemSlot("Item3", UDim2.new(0.555, 0, 0, 0))
+}
+
+local function getFirstThreeItems(inventory)
+    local items = {}
+    for _, item in ipairs(inventory:GetChildren()) do
+        if #items >= 3 then break end
+        table.insert(items, item)
     end
-}):AddKeyPicker('ResolverToggle', {
-    Default = 'P',
-    SyncToggleState = true,
-    Mode = 'Toggle', --Always, Toggle, Hold
-    Text = 'Resolver',
-    NoUI = false, 
+    return items
+end
+
+local function updateTargetItems(target)
+    for _, slot in ipairs(itemSlots) do
+        slot.Visible = false
+    end
+    
+    if not target or not target:IsA("Player") then return end
+    
+    local targetInventory = game:GetService("ReplicatedStorage").Players:FindFirstChild(target.Name)
+    if not targetInventory or not targetInventory:FindFirstChild("Inventory") then return end
+    
+    local inventory = targetInventory.Inventory
+    local items = getFirstThreeItems(inventory)
+    
+    -- Display items
+    for i, item in ipairs(items) do
+        local slot = itemSlots[i]
+        local itemImage = slot:FindFirstChild("ItemImage")
+        local itemName = slot:FindFirstChild("ItemName")
+        
+        itemName.Text = item.Name
+        
+        if item:FindFirstChild("ItemProperties") then
+            local itemIcon = item.ItemProperties:FindFirstChild("ItemIcon")
+            if itemIcon and itemIcon:IsA("ImageLabel") then
+                itemImage.Image = itemIcon.Image
+            else
+                itemImage.Image = ""
+            end
+        else
+            itemImage.Image = ""
+        end
+        
+        slot.Visible = true
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local shouldShow = allvars.aimbool and aimtarget ~= nil and allvars.showitems
+    
+    targetItemsUI.Enabled = shouldShow
+    
+    if shouldShow then
+        if aimtarget:IsA("Player") then
+            updateTargetItems(aimtarget)
+        else
+            for _, slot in ipairs(itemSlots) do
+                slot.Visible = false
+            end
+        end
+    end
+end)
+
+-- Add this toggle to your aim groupbox
+aim:AddToggle('ShowTargetItems', {
+    Text = 'Show Target Items',
+    Default = false,
+    Tooltip = 'Shows the items in the target\'s inventory',
+    Callback = function(v)
+        allvars.showitems = v
+    end
 })
+
 -- Toggle Silent Aim
 aim:AddToggle('SilentAimToggle', {
 Text = 'Silent Aim',
@@ -3839,6 +3758,16 @@ Mode = 'Toggle',
 Text = 'Silent Aim',
 NoUI = false,
 })
+
+aim:AddToggle('SilentAimToggle2', {
+Text = 'Target Ais',
+Default = false,
+Tooltip = 'Target Ais',
+Callback = function(v)
+    allvars.aimbots = v
+end
+})
+
 
 -- Silent Aim Settings
 aim:AddSlider('AimFOV', {
@@ -4269,14 +4198,109 @@ espUI:AddDropdown("TextStyle", {
     end
 })
 
+espUI2:AddToggle('LootESPEnabled', {
+    Text = 'Loot ESP',
+    Default = false,
+    Tooltip = 'Enable ESP for loot items',
+    Callback = function(value)
+        getgenv().lootESPEnabled = value
+        applyLootESP()
+    end
+})
+
+espUI2:AddToggle('LootNameEnabled', {
+    Text = 'Show Loot Names',
+    Default = true,
+    Tooltip = 'Show names of loot items',
+    Callback = function(value)
+        getgenv().lootNameEnabled = value
+        applyLootESP()
+    end
+})
+
+espUI2:AddToggle('LootDistanceEnabled', {
+    Text = 'Show Loot Distance',
+    Default = true,
+    Tooltip = 'Show distance to loot items',
+    Callback = function(value)
+        getgenv().lootDistanceEnabled = value
+        applyLootESP()
+    end
+})
+
+espUI2:AddToggle('LootHighlightEnabled', {
+    Text = 'Loot Highlight',
+    Default = false,
+    Tooltip = 'Highlight loot items in the world',
+    Callback = function(value)
+        getgenv().lootHighlightEnabled = value
+        applyLootHighlight()
+    end
+})
+
+espUI2:AddLabel("LootColor"):AddColorPicker('LootColor', {
+    Title = 'Loot ESP Color',
+    Default = Color3.new(1, 0, 1),
+    Callback = function(value)
+        getgenv().lootColor = value
+    end
+})
+
+espUI2:AddLabel("LootHighlight"):AddColorPicker('LootHighlightColor', {
+    Title = 'Loot Highlight Color',
+    Default = Color3.new(1, 0, 1),
+    Callback = function(value)
+        getgenv().lootHighlightColor = value
+        applyLootHighlight()
+    end
+})
+
+espUI2:AddSlider('LootMaxDistance', {
+    Text = 'Loot Max Distance',
+    Default = 500,
+    Min = 50,
+    Max = 1000,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(value)
+        getgenv().lootMaxDistance = value
+    end
+})
+
 
 -- Variables to store connections and states
 local timeConnection = nil
 local ambientConnection = nil
 local armsForceFieldConnection = nil
-local currentTimeOfDay = game:GetService("Lighting").TimeOfDay
-local currentOutdoorAmbient = game:GetService("Lighting").OutdoorAmbient
+local fogConnection = nil
+local atmosphereConnection = nil
+local brightnessConnection = nil
+local shadowConnection = nil
+local bloomConnection = nil
+local inventoryBlurConnection = nil
+
+-- Store original values
+local originalTimeOfDay = game:GetService("Lighting").TimeOfDay
+local originalOutdoorAmbient = game:GetService("Lighting").OutdoorAmbient
+local originalAmbient = game:GetService("Lighting").Ambient
+local originalBrightness = game:GetService("Lighting").Brightness
+local originalGlobalShadows = game:GetService("Lighting").GlobalShadows
+
+-- Current state variables
+local currentTimeOfDay = originalTimeOfDay
+local currentOutdoorAmbient = originalOutdoorAmbient
+local currentAmbient = originalAmbient
+local currentBrightness = originalBrightness
 local currentArmsColor = Color3.fromRGB(255, 255, 255)
+
+-- Fog state variables
+local fogRemoved = false
+local originalFogSettings = {
+    atmosphereOffset = game:GetService("Lighting").Atmosphere and game:GetService("Lighting").Atmosphere.Offset or 0.3,
+    atmosphereDensity = game:GetService("Lighting").Atmosphere and game:GetService("Lighting").Atmosphere.Density or 0.3,
+    fogEnd = game:GetService("Lighting").FogEnd,
+    fogStart = game:GetService("Lighting").FogStart
+}
 
 -- Initialize allvars if not exists
 if not allvars then
@@ -4288,28 +4312,71 @@ WorldStuff:AddToggle('Remove SunRays', {
     Text = "Remove SunRays",
     Default = false,
     Callback = function(v)
-        if v then
-            game:GetService("Lighting").SunRays.Enabled = false
-        else
-            game:GetService("Lighting").SunRays.Enabled = true
+        local sunRays = game:GetService("Lighting"):FindFirstChild("SunRays")
+        if sunRays then
+            sunRays.Enabled = not v
         end
     end
 })
 
+-- Enhanced fog removal with automatic protection
 WorldStuff:AddToggle('Remove Fog', {
     Text = "Remove Fog",
     Default = false,
     Callback = function(v)
+        fogRemoved = v
+        local lighting = game:GetService("Lighting")
+        
         if v then
-            game:GetService("Lighting").Atmosphere.Offset = 0
-            game:GetService("Lighting").Atmosphere.Density = 0
-            game:GetService("Lighting").FogEnd = 10000000
-            game:GetService("Lighting").FogStart = 1000000
+            -- Remove fog
+            if lighting.Atmosphere then
+                lighting.Atmosphere.Offset = 0
+                lighting.Atmosphere.Density = 0
+            end
+            lighting.FogEnd = 10000000
+            lighting.FogStart = 1000000
+            
+            -- Auto-lock fog settings
+            fogConnection = lighting.Changed:Connect(function(property)
+                if fogRemoved then
+                    if property == "FogEnd" and lighting.FogEnd < 10000000 then
+                        lighting.FogEnd = 10000000
+                    elseif property == "FogStart" and lighting.FogStart < 1000000 then
+                        lighting.FogStart = 1000000
+                    end
+                end
+            end)
+            
+            -- Monitor Atmosphere changes
+            if lighting.Atmosphere then
+                atmosphereConnection = lighting.Atmosphere.Changed:Connect(function(property)
+                    if fogRemoved then
+                        if property == "Offset" and lighting.Atmosphere.Offset > 0 then
+                            lighting.Atmosphere.Offset = 0
+                        elseif property == "Density" and lighting.Atmosphere.Density > 0 then
+                            lighting.Atmosphere.Density = 0
+                        end
+                    end
+                end)
+            end
         else
-            game:GetService("Lighting").Atmosphere.Offset = 0.3
-            game:GetService("Lighting").Atmosphere.Density = 0.3
-            game:GetService("Lighting").FogEnd = 10000
-            game:GetService("Lighting").FogStart = 0
+            -- Restore fog and remove protection
+            if lighting.Atmosphere then
+                lighting.Atmosphere.Offset = originalFogSettings.atmosphereOffset
+                lighting.Atmosphere.Density = originalFogSettings.atmosphereDensity
+            end
+            lighting.FogEnd = originalFogSettings.fogEnd
+            lighting.FogStart = originalFogSettings.fogStart
+            
+            -- Disconnect fog protection
+            if fogConnection then
+                fogConnection:Disconnect()
+                fogConnection = nil
+            end
+            if atmosphereConnection then
+                atmosphereConnection:Disconnect()
+                atmosphereConnection = nil
+            end
         end
     end
 })
@@ -4318,34 +4385,86 @@ WorldStuff:AddSlider("Brightness", {
     Text = "Brightness",
     Min = 0,
     Max = 10,
-    Default = game:GetService("Lighting").Brightness,
+    Default = originalBrightness,
     Rounding = 1,
     Callback = function(value)
+        currentBrightness = value
         game:GetService("Lighting").Brightness = value
+        
+        -- Auto-lock brightness when changed
+        if brightnessConnection then
+            brightnessConnection:Disconnect()
+        end
+        brightnessConnection = game:GetService("Lighting").Changed:Connect(function(property)
+            if property == "Brightness" and game:GetService("Lighting").Brightness ~= currentBrightness then
+                game:GetService("Lighting").Brightness = currentBrightness
+            end
+        end)
     end
 })
 
 WorldStuff:AddToggle("Shadows", {
     Text = "Shadows",
-    Default = game:GetService("Lighting").GlobalShadows,
+    Default = originalGlobalShadows,
     Callback = function(value)
         game:GetService("Lighting").GlobalShadows = value
+        if value ~= originalGlobalShadows then
+            if shadowConnection then
+                shadowConnection:Disconnect()
+            end
+            shadowConnection = game:GetService("Lighting").Changed:Connect(function(property)
+                if property == "GlobalShadows" and game:GetService("Lighting").GlobalShadows ~= value then
+                    game:GetService("Lighting").GlobalShadows = value
+                end
+            end)
+        else
+            if shadowConnection then
+                shadowConnection:Disconnect()
+                shadowConnection = nil
+            end
+        end
     end
 })
 
 WorldStuff:AddToggle("Bloom", {
     Text = "Bloom",
-    Default = game:GetService("Lighting").Bloom.Enabled,
+    Default = game:GetService("Lighting").Bloom and game:GetService("Lighting").Bloom.Enabled or false,
     Callback = function(value)
-        game:GetService("Lighting").Bloom.Enabled = value
+        local bloom = game:GetService("Lighting"):FindFirstChild("Bloom")
+        if bloom then
+            bloom.Enabled = value
+            
+            -- Auto-lock bloom
+            if bloomConnection then
+                bloomConnection:Disconnect()
+            end
+            bloomConnection = bloom.Changed:Connect(function(property)
+                if property == "Enabled" and bloom.Enabled ~= value then
+                    bloom.Enabled = value
+                end
+            end)
+        end
     end
 })
 
 WorldStuff:AddToggle("InventoryBlur", {
     Text = "InventoryBlur",
-    Default = game:GetService("Lighting").InventoryBlur.Enabled,
+    Default = game:GetService("Lighting").InventoryBlur and game:GetService("Lighting").InventoryBlur.Enabled or false,
     Callback = function(value)
-        game:GetService("Lighting").InventoryBlur.Enabled = value
+        local inventoryBlur = game:GetService("Lighting"):FindFirstChild("InventoryBlur")
+        if inventoryBlur then
+            inventoryBlur.Enabled = value
+            
+            -- Auto-lock inventory blur
+            if inventoryBlurConnection then
+                inventoryBlurConnection:Disconnect()
+            end
+            inventoryBlurConnection = inventoryBlur.Changed:Connect(function(property)
+                if property == "Enabled" and inventoryBlur.Enabled ~= value then
+                    inventoryBlur.Enabled = value
+                end
+            end)
+        end
     end
 })
 
@@ -4354,76 +4473,49 @@ WorldStuff:AddSlider("Time of Day", {
     Text = "Time of Day",
     Min = 0,
     Max = 24,
-    Default = tonumber(string.match(game:GetService("Lighting").TimeOfDay, "(%d+)")),
+    Default = tonumber(string.match(originalTimeOfDay, "(%d+)")) or 12,
     Rounding = 1,
     Callback = function(value)
-        currentTimeOfDay = value .. ":00:00"
-        if not timeConnection then -- Only set if not locked
-            game:GetService("Lighting").TimeOfDay = currentTimeOfDay
+        currentTimeOfDay = string.format("%02d:00:00", value)
+        game:GetService("Lighting").TimeOfDay = currentTimeOfDay
+        
+        -- Auto-lock time when changed
+        if timeConnection then
+            timeConnection:Disconnect()
         end
-    end
-})
-
-WorldStuff:AddToggle("Lock Time", {
-    Text = "Lock Time",
-    Default = false,
-    Tooltip = "Prevents scripts from changing the time",
-    Callback = function(value)
-        if value then
-            -- Create connection to prevent time changes
-            timeConnection = game:GetService("Lighting").Changed:Connect(function(property)
-                if property == "TimeOfDay" then
-                    game:GetService("Lighting").TimeOfDay = currentTimeOfDay
-                end
-            end)
-        else
-            -- Disconnect the time lock
-            if timeConnection then
-                timeConnection:Disconnect()
-                timeConnection = nil
+        timeConnection = game:GetService("Lighting").Changed:Connect(function(property)
+            if property == "TimeOfDay" and game:GetService("Lighting").TimeOfDay ~= currentTimeOfDay then
+                game:GetService("Lighting").TimeOfDay = currentTimeOfDay
             end
-        end
+        end)
     end
 })
 
 -- AMBIENT LIGHTING CONTROLS
 WorldStuff:AddLabel('OutdoorAmbient'):AddColorPicker('OutdoorAmbient', {
-    Default = game:GetService("Lighting").OutdoorAmbient,
+    Default = originalOutdoorAmbient,
     Title = 'OutdoorAmbient',
     Callback = function(Value)
         currentOutdoorAmbient = Value
-        if not ambientConnection then -- Only set if not locked
-            game:GetService("Lighting").OutdoorAmbient = Value
+        game:GetService("Lighting").OutdoorAmbient = Value
+        
+        -- Auto-lock outdoor ambient when changed
+        if ambientConnection then
+            ambientConnection:Disconnect()
         end
-    end
-})
-
-WorldStuff:AddToggle("Lock OutdoorAmbient", {
-    Text = "Lock OutdoorAmbient",
-    Default = false,
-    Tooltip = "Prevents scripts from changing OutdoorAmbient",
-    Callback = function(value)
-        if value then
-            -- Create connection to prevent ambient changes
-            ambientConnection = game:GetService("Lighting").Changed:Connect(function(property)
-                if property == "OutdoorAmbient" then
-                    game:GetService("Lighting").OutdoorAmbient = currentOutdoorAmbient
-                end
-            end)
-        else
-            -- Disconnect the ambient lock
-            if ambientConnection then
-                ambientConnection:Disconnect()
-                ambientConnection = nil
+        ambientConnection = game:GetService("Lighting").Changed:Connect(function(property)
+            if property == "OutdoorAmbient" and game:GetService("Lighting").OutdoorAmbient ~= currentOutdoorAmbient then
+                game:GetService("Lighting").OutdoorAmbient = currentOutdoorAmbient
             end
-        end
+        end)
     end
 })
 
 WorldStuff:AddLabel('Ambient'):AddColorPicker('Ambient', {
-    Default = game:GetService("Lighting").Ambient,
+    Default = originalAmbient,
     Title = 'Ambient',
     Callback = function(Value)
+        currentAmbient = Value
         game:GetService("Lighting").Ambient = Value
     end
 })
@@ -4432,7 +4524,6 @@ WorldStuff:AddLabel('Ambient'):AddColorPicker('Ambient', {
 local function applyArmsForceField()
     local viewModel = workspace.Camera:FindFirstChild("ViewModel")
     if viewModel then
-        -- Get all arm parts
         local armParts = {
             viewModel:FindFirstChild("LeftHand"),
             viewModel:FindFirstChild("RightHand"),
@@ -4443,18 +4534,15 @@ local function applyArmsForceField()
         }
         
         local Shirt = viewModel:FindFirstChild("WastelandShirt")
-        
-        -- Remove shirt if it exists
         if Shirt then
             Shirt:Destroy()
         end
         
-        -- Apply forcefield to all arm parts
         for _, part in pairs(armParts) do
             if part then
                 part.Material = Enum.Material.ForceField
                 part.Transparency = 0.7
-                part.Color = currentArmsColor -- Apply current arms color
+                part.Color = currentArmsColor
             end
         end
     end
@@ -4476,7 +4564,7 @@ local function removeArmsForceField()
             if part then
                 part.Material = Enum.Material.Plastic
                 part.Transparency = 0
-                part.Color = Color3.fromRGB(255, 255, 255) -- Reset to default color
+                part.Color = Color3.fromRGB(255, 255, 255)
             end
         end
     end
@@ -4494,7 +4582,6 @@ local function updateArmsColor()
             viewModel:FindFirstChild("RightUpperArm")
         }
         
-        -- Only change color if arms are in ForceField material
         for _, part in pairs(armParts) do
             if part and part.Material == Enum.Material.ForceField then
                 part.Color = currentArmsColor
@@ -4508,10 +4595,9 @@ WorldStuff:AddToggle("Arms ForceField", {
     Default = false,	
     Callback = function(value)
         if value then 
-            -- Apply initially
+            -- Enable and auto-protect arms
             applyArmsForceField()
             
-            -- Monitor for ViewModel changes
             armsForceFieldConnection = workspace.Camera.ChildAdded:Connect(function(child)
                 if child.Name == "ViewModel" then
                     wait(0.1)
@@ -4519,7 +4605,7 @@ WorldStuff:AddToggle("Arms ForceField", {
                 end
             end)
         else
-            -- Reset arms to normal
+            -- Disable and remove protection
             removeArmsForceField()
             
             if armsForceFieldConnection then
@@ -4535,7 +4621,7 @@ WorldStuff:AddLabel('Arms Color'):AddColorPicker('ArmsColor', {
     Title = 'Arms Color',
     Callback = function(Value)
         currentArmsColor = Value
-        updateArmsColor() -- Update the arms color immediately
+        updateArmsColor()
     end
 })
 
@@ -4546,7 +4632,9 @@ WorldStuff:AddToggle('Disable Grass', {
     Tooltip = 'Disables grass rendering',
     Callback = function(v)
         allvars.worldgrass = v
-        sethiddenproperty(workspace.Terrain, "Decoration", not v)
+        pcall(function()
+            sethiddenproperty(workspace.Terrain, "Decoration", not v)
+        end)
     end
 })
 
@@ -4555,13 +4643,15 @@ WorldStuff:AddToggle('Disable Trees', {
     Default = false,
     Tooltip = 'Disable tree rendering',
     Callback = function(v)
-        local trees = workspace.SpawnerZones:FindFirstChild("Foliage")
-        if trees then
-            if v then
-                -- Move trees to ReplicatedStorage to hide them
-                trees.Parent = game:GetService("ReplicatedStorage")
-            else 
-                trees.Parent = workspace.SpawnerZones
+        local spawnerZones = workspace:FindFirstChild("SpawnerZones")
+        if spawnerZones then
+            local trees = spawnerZones:FindFirstChild("Foliage")
+            if trees then
+                if v then
+                    trees.Parent = game:GetService("ReplicatedStorage")
+                else 
+                    trees.Parent = spawnerZones
+                end
             end
         end
     end
@@ -4573,8 +4663,9 @@ WorldStuff:AddToggle('No Clouds', {
     Tooltip = 'Disables clouds',
     Callback = function(v)
         allvars.worldcloud = v
-        if workspace.Terrain:FindFirstChild("Clouds") then
-            workspace.Terrain.Clouds.Enabled = not v
+        local clouds = workspace.Terrain:FindFirstChild("Clouds")
+        if clouds then
+            clouds.Enabled = not v
         end
     end
 })
@@ -4793,54 +4884,18 @@ runs.Heartbeat:Connect(function(dt)
     end
 end)
 
-uhhh:AddToggle('Force Underground', {
-    Text = 'Force underground',
+uhhh:AddToggle('ActivateResolver',{
+    Text = "Activate",
     Default = false,
-    Tooltip = 'Desync underground mode',
+   Tooltip = "Activates resolver",
     Callback = function(v)
-        allvars.invisbool = v
-        
-        if v then
-            -- Only proceed if character exists and is alive
-            if not localplayer.Character or not localplayer.Character:FindFirstChild("Humanoid") then
-                return
-            end
-            
-            -- Clean up any existing animation tracks first
-            for i, track in pairs(localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
-                if track.Animation.AnimationId == "rbxassetid://15609995579" then
-                    track:Stop()
-                    track:Destroy()
-                end
-            end
-            
-            -- Wait a frame to ensure cleanup is complete
-            task.wait()
-            
-            -- Load and play the animation
-            invistrack = localplayer.Character.Humanoid.Animator:LoadAnimation(invisanim)
-            if allvars.desyncbool then
-                invistrack:Play(.01, 1, 0)
-            end
-        else
-            -- Turning off underground mode
-            if invistrack then
-                invistrack:Stop()
-                invistrack:Destroy()
-                invistrack = nil
-            end
-            
-            -- Clean up any remaining animation tracks
-            if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
-                for i, track in pairs(localplayer.Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
-                    if track.Animation.AnimationId == "rbxassetid://15609995579" then
-                        track:Stop()
-                        track:Destroy()
-                    end
-                end
-            end
-        end
+       allvars.resolvers = v
     end
+}):AddKeyPicker('ResolverToggle', {
+    Default = 'P',
+    Mode = 'Toggle', --Always, Toggle, Hold
+    Text = 'Resolver',
+    NoUI = false, 
 })
 
 uhhh:AddToggle('Desync', {
@@ -4874,7 +4929,6 @@ uhhh:AddToggle('Desync', {
     end
 }):AddKeyPicker('H', {
     Default = 'H',
-    SyncToggleState = true,
     Mode = 'Toggle',
     Text = 'Desync',
     NoUI = false,
@@ -4898,7 +4952,6 @@ uhhh:AddToggle('ThirdPerson', {
     end
 }):AddKeyPicker('ThirdPerson', {
     Default = 'KeypadSix',
-    SyncToggleState = true,
     Mode = 'Toggle', --Always, Toggle, Hold
     Text = 'Third Person',
     NoUI = false, 
@@ -5098,6 +5151,196 @@ local function toggleNoSlowdown(enabled)
     end
 end
 
+-- Complete FOV System with CameraSystem integration
+local CameraSystem = require(game:GetService("ReplicatedStorage").Modules.CameraSystem)
+local RunService = game:GetService("RunService")
+
+-- FOV Variables
+local baseFOV = 100
+local zoomFOV = 15
+local fovConnection = nil
+local renderConnection = nil
+local isZooming = false
+local customFOVEnabled = true
+
+-- Override the CameraSystem module functions
+local originalSetZoomTarget = CameraSystem.SetZoomTarget
+local originalSetSprintTarget = CameraSystem.SetSprintTarget
+local originalSetDialogueTarget = CameraSystem.SetDialogueTarget
+
+-- Function to apply custom FOV
+local function applyCustomFOV()
+    local targetFOV = isZooming and zoomFOV or baseFOV
+    local camera = workspace.CurrentCamera
+    if camera and customFOVEnabled then
+        camera.FieldOfView = targetFOV
+    end
+end
+
+-- Function to start aggressive FOV locking
+local function startFOVLock()
+    -- Stop existing connections
+    if fovConnection then fovConnection:Disconnect() end
+    if renderConnection then renderConnection:Disconnect() end
+    
+    if customFOVEnabled then
+        -- Heartbeat connection for normal FOV enforcement
+        fovConnection = RunService.Heartbeat:Connect(function()
+            applyCustomFOV()
+        end)
+        
+        -- RenderStepped connection for extra aggressive enforcement
+        renderConnection = RunService.RenderStepped:Connect(function()
+            applyCustomFOV()
+        end)
+    end
+end
+
+-- Function to stop FOV lock
+local function stopFOVLock()
+    if fovConnection then
+        fovConnection:Disconnect()
+        fovConnection = nil
+    end
+    if renderConnection then
+        renderConnection:Disconnect()
+        renderConnection = nil
+    end
+end
+
+-- Function to toggle custom FOV system
+local function toggleCustomFOV(enabled)
+    customFOVEnabled = enabled
+    
+    if enabled then
+        startFOVLock()
+        
+        -- Override CameraSystem functions to prevent game FOV changes
+        CameraSystem.SetZoomTarget = function(self, p23, p24, p25, p26, p27)
+            -- Do nothing - block game zoom FOV changes
+        end
+        
+        CameraSystem.SetSprintTarget = function(self, p28, p29, p30, p31, p32)
+            -- Do nothing - block game sprint FOV changes
+        end
+        
+        CameraSystem.SetDialogueTarget = function(self, p33, p34, p35, p36, p37)
+            -- Do nothing - block game dialogue FOV changes
+        end
+    else
+        stopFOVLock()
+        
+        -- Restore original CameraSystem functions
+        CameraSystem.SetZoomTarget = originalSetZoomTarget
+        CameraSystem.SetSprintTarget = originalSetSprintTarget
+        CameraSystem.SetDialogueTarget = originalSetDialogueTarget
+    end
+end
+
+-- Function to toggle zoom
+local function toggleZoom(enabled)
+    isZooming = enabled
+    if customFOVEnabled then
+        applyCustomFOV()
+    end
+end
+
+-- Initialize with custom FOV enabled
+toggleCustomFOV(true)
+
+-- Block the game's DefaultFOV attribute changes
+local player = game.Players.LocalPlayer
+local settings = game.ReplicatedStorage.Players:WaitForChild(player.Name):WaitForChild("Settings"):WaitForChild("GameplaySettings")
+
+-- Override the attribute change signal
+settings:GetAttributeChangedSignal("DefaultFOV"):Connect(function()
+    if customFOVEnabled then
+        -- Block the game's FOV change by immediately applying our custom FOV
+        task.wait()
+        applyCustomFOV()
+    end
+end)
+
+-- === UI ELEMENTS ===
+
+-- Custom FOV Enable/Disable Toggle
+Others:AddToggle('Custom FOV', {
+    Text = 'Custom FOV',
+    Default = true,
+    Tooltip = 'Enables custom FOV system (overrides game FOV completely)',
+    Callback = function(v)
+        toggleCustomFOV(v)
+    end
+})
+
+-- Base FOV Slider
+Others:AddSlider('FOV', {
+    Text = 'FOV',
+    Default = 100,
+    Min = 10,
+    Max = 120,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(c)
+        baseFOV = c
+        allvars.basefov = c
+        if customFOVEnabled and not isZooming then
+            applyCustomFOV()
+        end
+    end
+})
+
+-- Zoom FOV Slider
+Others:AddSlider('Zoom FOV', {
+    Text = 'Zoom FOV',
+    Default = 15,
+    Min = 0,
+    Max = 50,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(c)
+        zoomFOV = c
+        allvars.zoomfov = c
+        if customFOVEnabled and isZooming then
+            applyCustomFOV()
+        end
+    end
+})
+
+-- Zoom Toggle
+Others:AddToggle('Zoom', {
+    Text = 'Zoom',
+    Default = false,
+    Tooltip = 'Activates zoom using Zoom FOV value',
+    Callback = function(v)
+        toggleZoom(v)
+    end
+}):AddKeyPicker('Zoom', {
+    Default = 'Z',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'Zoom',
+    NoUI = false,
+})
+
+
+-- Protect against camera changes
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    if customFOVEnabled then
+        task.wait()
+        applyCustomFOV()
+    end
+end)
+
+workspace.CurrentCamera:GetPropertyChangedSignal("FieldOfView"):Connect(function()
+    if customFOVEnabled then
+        local targetFOV = isZooming and zoomFOV or baseFOV
+        if workspace.CurrentCamera.FieldOfView ~= targetFOV then
+            workspace.CurrentCamera.FieldOfView = targetFOV
+        end
+    end
+end)
+
 -- Your existing FreeCam code
 Others:AddToggle('Free cam', {
     Text = 'Free cam',
@@ -5108,7 +5351,6 @@ Others:AddToggle('Free cam', {
     end
 }):AddKeyPicker('F', {
     Default = 'U',
-    SyncToggleState = true,
     Mode = 'Toggle',
     Text = 'FreeCam',
     NoUI = false,
@@ -5147,7 +5389,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     end
 end)
 
-
 local originalFire
 originalFire = hookfunction(game.ReplicatedStorage.Remotes.FireProjectile.InvokeServer, function(...)
     local args = {...}
@@ -5166,10 +5407,8 @@ end)
 
 -- Network Desync Logic
 RunService.Heartbeat:Connect(function(deltaTime)
-    -- Check if networkDesync exists and is enabled
     if networkDesync and networkDesync.enabled then
         networkDesync.networkTimer = networkDesync.networkTimer + deltaTime
-        
         if networkDesync.networkTimer >= networkDesync.networkDelay then
             networkDesync.networkTimer = 0
             performNetworkDesync()
@@ -5185,7 +5424,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Instant reload function
 instrelMODfunc = function(a1,a2)
     local function aaa(a1)
         local v27_2_ = a1.weapon
@@ -5726,7 +5964,6 @@ MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', {
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Theme and Save Management
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 
