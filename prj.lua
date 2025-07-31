@@ -6272,8 +6272,8 @@ SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
 
-ThemeManager:SetFolder('EnhancedScript')
-SaveManager:SetFolder('EnhancedScript/configs')
+ThemeManager:SetFolder('ZestHub')
+SaveManager:SetFolder('ZestHub/configs')
 
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
