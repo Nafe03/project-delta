@@ -41,9 +41,9 @@ allvars = allvars or {}
 local aimresolverpos = localplayer.Character.HumanoidRootPart.CFrame
 
 -- Free cam variables
-local freeCam = false
-local freeCamPart = nil
-local originalCFrame = nil
+getgenv().freeCam = false
+getgenv().freeCamPart = nil
+getgenv().originalCFrame = nil
 local camera = workspace.CurrentCamera
 local player = game.Players.LocalPlayer
 local runService = game:GetService("RunService")
@@ -57,6 +57,17 @@ getgenv().FAST_SPEED_MULTIPLIER = 3
 getgenv().cameraAngles = Vector2.new(0, 0)
 getgenv().mouseConnection = nil
 getgenv().cameraAngles = Vector2.new(0, 0)
+
+getgenv().BeamTexture = {
+    [1] = "rbxassetid://12781806168",
+    [2] = "rbxassetid://12781741946"
+}
+
+-- Create a lookup table for the dropdown values (optional, for better names)
+getgenv().beamTextureUI = {
+    "Texture 1",
+    "Texture 2"
+}
 
 allvars.Zestequip = false
 allvars.instareload = false
@@ -79,7 +90,7 @@ allvars.hitmarkbool = false
 allvars.hitmarkcolor = Color3.new(1, 0, 0) -- Red
 allvars.hitmarkfade = 0.5 -- Fade time in seconds
 allvars.camthirdp = false
-local thirdpshow = false
+getgenv().thirdpshow = false
 allvars.camthirdpX = 2
 allvars.camthirdpY = 2
 allvars.camthirdpZ = 5
@@ -1812,24 +1823,50 @@ end
 
 local fpsrequired = require(game.ReplicatedStorage.Modules.FPS)
 
-if runs and runs.Heartbeat then
-    runs.Heartbeat:Connect(function(delta)
-        if not localplayer or not localplayer.Character or 
-           not localplayer.Character:FindFirstChild("HumanoidRootPart") or 
-           not localplayer.Character:FindFirstChild("Humanoid") then
-            return
-        end
+runs.Heartbeat:Connect(function(delta)
+    if not localplayer or not localplayer.Character or 
+       not localplayer.Character:FindFirstChild("HumanoidRootPart") or 
+       not localplayer.Character:FindFirstChild("Humanoid") then
+        return
+    end
 
-        if choosetarget then
-            choosetarget()
-        end
+    if choosetarget then
+        choosetarget()
+    end
 
-        if allvars.aimtrigger and aimtarget and getgenv().a1table then
-            fpsrequired.action(getgenv().a1table, true)
-            fpsrequired.action(getgenv().a1table, false)
+    -- Trigger bot implementation
+    if allvars.aimtrigger and aimtarget and getgenv().a1table then
+        -- Check if target is in crosshair (within FOV)
+        if aimtargetpart then
+            local targetPos = aimtargetpart.Position
+            local camera = workspace.CurrentCamera
+            local screenPos, onScreen = camera:WorldToViewportPoint(targetPos)
+            
+            if onScreen then
+                local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+                local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
+                local distance = (center - targetScreenPos).Magnitude
+                
+                -- Check if target is within trigger FOV (smaller than aim FOV)
+                local triggerFOV = allvars.aimfov * 0.5 -- Half of aim FOV
+                if distance <= triggerFOV then
+                    -- Check visibility if enabled
+                    local shouldShoot = true
+                    if allvars.aimvischeck then
+                        shouldShoot = isvisible(aimtarget, aimtargetpart)
+                    end
+                    
+                    -- Fire weapon if conditions are met
+                    if shouldShoot then
+                        fpsrequired.action(getgenv().a1table, true)
+                        task.wait(0.05) -- Short delay between shots
+                        fpsrequired.action(getgenv().a1table, false)
+                    end
+                end
+            end
         end
-    end)
-end
+    end
+end)
 
 function choosetarget()
     local cent = Vector2.new(wcamera.ViewportSize.X / 2, wcamera.ViewportSize.Y / 2)
@@ -2127,33 +2164,29 @@ function runhitmark(v140)
         hit_img.Image = "rbxassetid://13298929624"
         hit_img.BackgroundTransparency = 1
         hit_img.Size = UDim2.new(0, 150, 0, 150)
-        hit_img.Position = UDim2.new(0.5, -75, 0.5, -75) -- Fixed centering
+        hit_img.Position = UDim2.new(0.5, -75, 0.5, -75)
         hit_img.Visible = true
         hit_img.ImageColor3 = allvars.hitmarkcolor or Color3.new(1, 1, 1)
         hit_img.ImageTransparency = 0
-        hit_img.Rotation = 0 -- Start at 0 rotation
+        hit_img.Rotation = 0
         hit_img.Parent = hit
         
-        -- Define fade time if not already defined
-        local fadeTime = 1 -- Adjust as needed
+        local fadeTime = 1
         
         local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
         local rotationTween = TweenInfo.new(fadeTime, Enum.EasingStyle.Linear)
         
-        -- Create the fade tween
         local fadeTween = game:GetService("TweenService"):Create(hit_img, tweenInfo, {
             ImageTransparency = 1
         })
         
-        -- Create the rotation tween for spinning
         local rotTween = game:GetService("TweenService"):Create(hit_img, rotationTween, {
-            Rotation = 360 -- Full rotation
+            Rotation = 360
         })
         
         fadeTween:Play()
         rotTween:Play()
         
-        -- Clean up after animation
         fadeTween.Completed:Connect(function()
             if hitpart and hitpart.Parent then
                 hitpart:Destroy()
@@ -2166,71 +2199,73 @@ function runhitmark(v140)
     end
 end
 
--- Fixed hit sound function
 local function playHitSound(hitType)
     if not allvars.hitsoundbool then return end
     
-    -- Initialize hitsoundlib if it doesn't exist
-    local hitsoundlib = hitsoundlib or {
-        ["Ding"] = "rbxassetid://131961136"
+    local hitsoundlib = {
+        ["Ding"] = "rbxassetid://131961136",
+        ["Pop"] = "rbxassetid://198598793",
+        ["Click"] = "rbxassetid://421058951"
     }
     
-    local soundId = hitsoundlib[allvars["hitsound"..hitType]] or hitsoundlib["Ding"] -- Default to Ding if not found
+    hitType = hitType or ""
+    local soundKey = allvars["hitsound" .. hitType] or "Ding"
+    local soundId = hitsoundlib[soundKey] or hitsoundlib["Ding"]
     if not soundId then return end
     
-    local sound = Instance.new("Sound")
-    sound.SoundId = soundId
-    sound.Volume = 0.5
-    sound.Parent = workspace
-    sound:Play()
+    local success, err = pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = soundId
+        sound.Volume = math.min(math.max(allvars.hitsoundvolume or 0.5, 0), 1)
+        sound.Parent = workspace
+        sound:Play()
+        
+        game:GetService("Debris"):AddItem(sound, 3)
+    end)
     
-    game:GetService("Debris"):AddItem(sound, 2) -- Clean up after 2 seconds
+    if not success then
+        warn("Hit sound error: " .. tostring(err))
+    end
 end
 
--- Fixed beam-based tracer (performance friendly)
+local function createAttachmentPart(position)
+    local part = Instance.new("Part")
+    part.Name = "TracerAttachment"
+    part.Transparency = 1
+    part.CanCollide = false
+    part.CanQuery = false
+    part.CanTouch = false
+    part.Size = Vector3.new(0.1, 0.1, 0.1)
+    part.Anchored = true
+    part.Position = position
+    part.Parent = workspace
+    
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = part
+    
+    return part, attachment
+end
+
 function runBeamTracer(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        -- Create attachment points
-        local startAttachment = Instance.new("Attachment")
-        local endAttachment = Instance.new("Attachment")
+        local startPart, startAttachment = createAttachmentPart(startPos)
+        local endPart, endAttachment = createAttachmentPart(endPos)
         
-        local startPart = Instance.new("Part")
-        startPart.Transparency = 1
-        startPart.CanCollide = false
-        startPart.CanQuery = false
-        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        startPart.Anchored = true
-        startPart.Position = startPos
-        startPart.Parent = workspace
-        
-        local endPart = Instance.new("Part")
-        endPart.Transparency = 1
-        endPart.CanCollide = false
-        endPart.CanQuery = false
-        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        endPart.Anchored = true
-        endPart.Position = endPos
-        endPart.Parent = workspace
-        
-        startAttachment.Parent = startPart
-        endAttachment.Parent = endPart
-        
-        -- Create beam
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
         beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        -- Manual fade animation using NumberSequence
-        local fadeTime = allvars.tracerfade or 0.3
+        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
         local startTime = tick()
         local initialTrans = allvars.tracertrans or 0.3
         local initialWidth = allvars.tracerwidth or 0.2
@@ -2240,19 +2275,15 @@ function runBeamTracer(startPos, endPos)
             local elapsed = tick() - startTime
             local progress = math.min(elapsed / fadeTime, 1)
             
-            -- Smooth easing (quad out)
-            local easedProgress = 1 - (1 - progress) ^ 2
+            local easedProgress = 1 - ((1 - progress) * (1 - progress))
             
-            -- Update transparency
             local currentTrans = initialTrans + (1 - initialTrans) * easedProgress
-            beam.Transparency = NumberSequence.new(currentTrans)
-            
-            -- Update width
             local currentWidth = initialWidth * (1 - easedProgress)
-            beam.Width0 = currentWidth
-            beam.Width1 = currentWidth
             
-            -- Cleanup when done
+            beam.Transparency = NumberSequence.new(math.min(math.max(currentTrans, 0), 1))
+            beam.Width0 = math.max(currentWidth, 0)
+            beam.Width1 = math.max(currentWidth, 0)
+            
             if progress >= 1 then
                 connection:Disconnect()
                 if startPart and startPart.Parent then startPart:Destroy() end
@@ -2260,58 +2291,35 @@ function runBeamTracer(startPos, endPos)
             end
         end)
         
-        -- Safety cleanup
-        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.5)
-        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.5)
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 1)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 1)
     end)
 
     if not success then
-        warn("Beam tracer error:", err)
+        warn("Beam tracer error: " .. tostring(err))
     end
 end
 
--- Alternative: Beam tracer with width-only animation (simpler)
 function runBeamTracerWidthOnly(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        local startAttachment = Instance.new("Attachment")
-        local endAttachment = Instance.new("Attachment")
-        
-        local startPart = Instance.new("Part")
-        startPart.Transparency = 1
-        startPart.CanCollide = false
-        startPart.CanQuery = false
-        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        startPart.Anchored = true
-        startPart.Position = startPos
-        startPart.Parent = workspace
-        
-        local endPart = Instance.new("Part")
-        endPart.Transparency = 1
-        endPart.CanCollide = false
-        endPart.CanQuery = false
-        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        endPart.Anchored = true
-        endPart.Position = endPos
-        endPart.Parent = workspace
-        
-        startAttachment.Parent = startPart
-        endAttachment.Parent = endPart
+        local startPart, startAttachment = createAttachmentPart(startPos)
+        local endPart, endAttachment = createAttachmentPart(endPos)
         
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
         beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        -- Tween only the width (this works fine)
-        local fadeTime = allvars.tracerfade or 0.3
+        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
         local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
         local fadeTween = game:GetService("TweenService"):Create(beam, tweenInfo, {
@@ -2326,69 +2334,105 @@ function runBeamTracerWidthOnly(startPos, endPos)
             if endPart and endPart.Parent then endPart:Destroy() end
         end)
         
-        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.1)
-        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.1)
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 1)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 1)
     end)
 
     if not success then
-        warn("Width-only beam tracer error:", err)
+        warn("Width-only beam tracer error: " .. tostring(err))
     end
 end
 
--- Most performance-friendly: Simple beam with timer cleanup
 function runBeamTracerSimplest(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        local startAttachment = Instance.new("Attachment")
-        local endAttachment = Instance.new("Attachment")
-        
-        local startPart = Instance.new("Part")
-        startPart.Transparency = 1
-        startPart.CanCollide = false
-        startPart.CanQuery = false
-        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        startPart.Anchored = true
-        startPart.Position = startPos
-        startPart.Parent = workspace
-        
-        local endPart = Instance.new("Part")
-        endPart.Transparency = 1
-        endPart.CanCollide = false
-        endPart.CanQuery = false
-        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
-        endPart.Anchored = true
-        endPart.Position = endPos
-        endPart.Parent = workspace
-        
-        startAttachment.Parent = startPart
-        endAttachment.Parent = endPart
+        local startPart, startAttachment = createAttachmentPart(startPos)
+        local endPart, endAttachment = createAttachmentPart(endPos)
         
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
         beam.Width1 = allvars.tracerwidth or 0.2
+        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        -- Simple cleanup after delay
-        local fadeTime = allvars.tracerfade or 0.3
+        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
         game:GetService("Debris"):AddItem(startPart, fadeTime)
         game:GetService("Debris"):AddItem(endPart, fadeTime)
     end)
 
     if not success then
-        warn("Simple beam tracer error:", err)
+        warn("Simple beam tracer error: " .. tostring(err))
     end
 end
 
--- Modified CreateTracer function to use the dropdown selection
+function runCylinderTracer(startPos, endPos)
+    if not allvars or not allvars.tracbool then return end
+    if not startPos or not endPos then return end
+    
+    local success, err = pcall(function()
+        local distance = (startPos - endPos).Magnitude
+        if distance <= 0 then return end
+        
+        local tracer = Instance.new("Part")
+        tracer.Name = "CylinderTracer"
+        tracer.Shape = Enum.PartType.Cylinder
+        tracer.Anchored = true
+        tracer.CanCollide = false
+        tracer.CanQuery = false
+        tracer.CanTouch = false
+        tracer.Material = Enum.Material.Neon
+        tracer.Color = allvars.tracercolor3 or Color3.new(1, 1, 0)
+        tracer.Transparency = allvars.tracertrans or 0.3
+        
+        local width = allvars.tracerwidth or 0.2
+        tracer.Size = Vector3.new(distance, width, width)
+        tracer.CFrame = CFrame.lookAt(startPos + (endPos - startPos) * 0.5, endPos)
+        tracer.Parent = workspace
+        
+        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
+        local startTime = tick()
+        local initialTrans = allvars.tracertrans or 0.3
+        local initialWidth = width
+        
+        local connection
+        connection = game:GetService("RunService").Heartbeat:Connect(function()
+            local elapsed = tick() - startTime
+            local progress = math.min(elapsed / fadeTime, 1)
+            
+            if tracer and tracer.Parent then
+                local easedProgress = 1 - ((1 - progress) * (1 - progress))
+                tracer.Transparency = initialTrans + (1 - initialTrans) * easedProgress
+                local currentWidth = initialWidth * (1 - easedProgress)
+                tracer.Size = Vector3.new(distance, currentWidth, currentWidth)
+            end
+            
+            if progress >= 1 then
+                connection:Disconnect()
+                if tracer and tracer.Parent then tracer:Destroy() end
+            end
+        end)
+        
+        game:GetService("Debris"):AddItem(tracer, fadeTime + 1)
+    end)
+    
+    if not success then
+        warn("Cylinder tracer error: " .. tostring(err))
+    end
+end
+
 local function CreateTracer(startPos, endPos)
     if not allvars.tracbool then return end
+    if not startPos or not endPos then 
+        warn("CreateTracer: Invalid positions provided")
+        return 
+    end
     
     local tracerType = allvars.tracertype or "beam_performance"
     
@@ -2399,41 +2443,13 @@ local function CreateTracer(startPos, endPos)
     elseif tracerType == "beam_simple" then
         runBeamTracerSimplest(startPos, endPos)
     elseif tracerType == "cylinder" then
-        -- Create cylinder tracer
-        local tracer = Instance.new("Part")
-        tracer.Anchored = true
-        tracer.CanCollide = false
-        tracer.Material = Enum.Material.Neon
-        tracer.Color = allvars.tracercolor3
-        tracer.Transparency = allvars.tracertrans
-        tracer.Size = Vector3.new(allvars.tracerwidth, allvars.tracerwidth, (startPos - endPos).Magnitude)
-        tracer.CFrame = CFrame.new(startPos, endPos) * CFrame.new(0, 0, -tracer.Size.Z/2)
-        tracer.Parent = workspace
-        
-        -- Fade out effect
-        local fadeTime = allvars.tracerfade
-        local startTime = tick()
-        
-        local connection
-        connection = game:GetService("RunService").Heartbeat:Connect(function()
-            local elapsed = tick() - startTime
-            local progress = math.min(elapsed / fadeTime, 1)
-            
-            tracer.Transparency = allvars.tracertrans + (1 - allvars.tracertrans) * progress
-            local newWidth = allvars.tracerwidth * (1 - progress)
-            tracer.Size = Vector3.new(newWidth, newWidth, tracer.Size.Z)
-            
-            if progress >= 1 then
-                connection:Disconnect()
-                tracer:Destroy()
-            end
-        end)
-        
-        game:GetService("Debris"):AddItem(tracer, fadeTime + 0.1)
+        runCylinderTracer(startPos, endPos)
+    else
+        warn("Unknown tracer type: " .. tostring(tracerType))
+        runBeamTracer(startPos, endPos)
     end
 end
 
--- Fixed main aimbot function
 local aimogfunc = require(game.ReplicatedStorage.Modules.FPS.Bullet).CreateBullet
 local aimmodfunc
 
@@ -2472,7 +2488,7 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
     local v63 = v61:FindFirstChild("SpecialProperties")
     local v_u_66 = v63 and v63:GetAttribute("TracerColor") or v62:GetAttribute("ProjectileColor")
     local itemprop = require(v_u_16.Inventory:FindFirstChild(p49.Name).SettingsModule)
-    local bulletspeed = v65:GetAttribute("MuzzleVelocity")
+    local bulletspeed = 999999999
     local armorpen4 = v65:GetAttribute("ArmorPen")
     local tracerendpos = Vector3.zero
     local v79 = {
@@ -2533,14 +2549,14 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
 
             if v_u_106 == 1 then
                 task.spawn(function()
-                    for i=1, allvars.multitaps or 1 do -- Fixed: Added default value
+                    for i=1, allvars.multitaps or 1 do
                         if not v_u_7:InvokeServer(usethisvec, v_u_108, 0) then 
                             game.ReplicatedStorage.Modules.FPS.Binds.AdjustBullets:Fire(v_u_64, 1)
                         end
                     end
                 end)
             elseif 1 < v_u_106 then
-                for i=1, allvars.multitaps or 1 do -- Fixed: Added default value
+                for i=1, allvars.multitaps or 1 do
                     v_u_6:FireServer(usethisvec, v_u_108)
                 end
             end
@@ -2548,19 +2564,6 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
             local v_u_131 = nil
             local v_u_132 = 0
             local v_u_133 = 0
-
-            if allvars.aimfakewait and target ~= nil then
-                local tpart 
-                if target:IsA("Model") then
-                    tpart = target.HumanoidRootPart
-                else
-                    tpart = target.Character.HumanoidRootPart
-                end
-                local velocity = tpart.Velocity
-                local distance = (wcamera.CFrame.Position - tpart.CFrame.Position).Magnitude
-                local tth = (distance / bulletspeed)
-                task.wait(tth + 0.01)
-            end
 
             local penetrated = false
 
@@ -2583,16 +2586,16 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
                     end
 
                     if v137 == nil then
-                        if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                        if v_u_131 then v_u_131:Disconnect() end
                         return
                     end
 
                     tracerendpos = v140
 
                     local v171 = v_u_4:FindDeepAncestor(v137, "Model")
-                    if v171 and v171:FindFirstChild("Humanoid") then -- Fixed: Added nil check
+                    if v171 and v171:FindFirstChild("Humanoid") then
                         local ran = math.random(1, 100)
-                        local ranbool = ran <= (allvars.aimchance or 100) -- Fixed: Added default value
+                        local ranbool = ran <= (allvars.aimchance or 100)
                         if ranbool then
                             local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
 
@@ -2609,7 +2612,7 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
                         task.spawn(function()
                             runhitmark(v140)
                         end)
-                    elseif v137.Name == "Terrain" then -- if hit terrain
+                    elseif v137.Name == "Terrain" then
                         local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
                         v_u_5:FireServer(v137, v175, v_u_108, hittick)
 
@@ -2618,7 +2621,7 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
                         task.spawn(function()
                             runhitmark(v140)
                         end)
-                    else -- if hit not target then try wallpen
+                    else
                         v_u_2.Impact(v137, v140, v138, v139, v_u_114, "Ranged", true)
 
                         task.spawn(function()
@@ -2629,7 +2632,7 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
                         if arg1 == nil or arg2 == nil then
                             local v175 = v137.CFrame:ToObjectSpace(CFrame.new(v140))
                             v_u_5:FireServer(v137, v175, v_u_108, hittick)
-                            if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                            if v_u_131 then v_u_131:Disconnect() end
                             return
                         end
 
@@ -2641,12 +2644,12 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
                             return
                         end
 
-                        if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                        if v_u_131 then v_u_131:Disconnect() end
                         return
                     end
                 end
 
-                if v_u_131 then v_u_131:Disconnect() end -- Fixed: Added nil check
+                if v_u_131 then v_u_131:Disconnect() end
                 return
             end
             v_u_131 = game:GetService("RunService").RenderStepped:Connect(v184)
@@ -2665,7 +2668,6 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
             task.spawn(function()
                 task.wait(0.05)
                 if tracerendpos == Vector3.zero then return end
-                -- Fixed: Use proper tracer function
                 CreateTracer(wcamera.ViewModel.Item.ItemRoot.Position, tracerendpos)
             end)
         end
@@ -2673,7 +2675,6 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
     end
 end
 
--- Additional utility functions for snap line customization
 function setSnapLineSettings(settings)
     allvars = allvars or {}
     allvars.snaplinebool = settings.enabled or false
@@ -2685,7 +2686,6 @@ function setSnapLineSettings(settings)
     end
 end
 
--- Function to clean up snap line resources
 function cleanupSnapLine()
     stopSnapLine()
 
@@ -2696,7 +2696,6 @@ function cleanupSnapLine()
     end
 end
 
--- Function to toggle snap line
 function toggleSnapLine()
     allvars.snaplinebool = not allvars.snaplinebool
 
@@ -2707,8 +2706,7 @@ function toggleSnapLine()
     end
 end
 
--- Fixed transparency controller
-local thirdpshow = true -- Initialize missing variable
+local thirdpshow = true
 
 require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.TransparencyController).Update = function(a1, a2)
     local v14_3_ = workspace
@@ -2748,7 +2746,9 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                         local v14_9_ = -v14_6_
                         local v14_8_ = v14_5_
                         local v14_10_ = v14_6_
-                        local clamp = math.clamp
+                        local clamp = math.clamp or function(val, min, max)
+                            return math.min(math.max(val, min), max)
+                        end
                         v14_7_ = clamp(v14_8_, v14_9_, v14_10_)
                         v14_5_ = v14_7_
                         v14_7_ = a1.lastTransparency
@@ -2766,12 +2766,12 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                 a1.transparencyDirty = v14_5_
             end
             
-            v14_4_ = setto -- Fixed: Use setto variable
+            v14_4_ = setto
             v14_5_ = a1.transparencyDirty
             if not v14_5_ then
                 v14_5_ = a1.lastTransparency
                 if v14_5_ ~= v14_4_ then
-                    for v14_8_, v14_9_ in pairs(a1.cachedParts) do -- Fixed: Simplified loop
+                    for v14_8_, v14_9_ in pairs(a1.cachedParts) do
                         v14_8_.LocalTransparencyModifier = setto
                     end
                     a1.transparencyDirty = false
@@ -2779,7 +2779,6 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                 end
             end
             
-            -- Simplified transparency setting
             for v14_8_, v14_9_ in pairs(a1.cachedParts) do
                 v14_8_.LocalTransparencyModifier = setto
             end
@@ -3206,15 +3205,12 @@ end
 local aimogfunc = require(game.ReplicatedStorage.Modules.FPS.Bullet).CreateBullet
 local original_aimmodfunc
 
--- Enhanced bullet modification function
 local function enhanced_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
--- Apply instant hit modifications
 if allvars.instahit then
     local v_u_10 = game:GetService("ReplicatedStorage")
     local v65 = v_u_10.AmmoTypes:FindFirstChild(p52)
     
     if v65 then
-        -- Override bullet speed for instant hit
         local originalVelocity = v65:GetAttribute("MuzzleVelocity")
         v65:SetAttribute("MuzzleVelocity", 9999999)
         
@@ -3527,7 +3523,25 @@ gunmods2:AddDropdown('BodyHitSound', {
     end
 })
 
--- TRACER SECTION
+gunmods2:AddDropdown('BeamTexture', {
+    Values = beamTextureUI,
+    Default = getgenv().beamtexture or "Texture 2", -- Default to second texture
+    Multi = false,
+    Text = 'Beam Texture',
+    Callback = function(v)
+        local selectedIndex = nil
+        for i, textureName in ipairs(beamTextureUI) do
+            if textureName == v then
+                selectedIndex = i
+                break
+            end
+        end
+            if selectedIndex then
+            allvars.beamtexture = BeamTexture[selectedIndex]
+        end
+    end
+})
+
 gunmods2:AddToggle('TracerToggle', {
     Text = 'Enable Tracers',
     Default = false,
@@ -3617,15 +3631,308 @@ gunmods2:AddToggle('TracerBloom', {
     end
 })
 
--- Create the UI (add this near the top of your script)
-local targetItemsUI = Instance.new("ScreenGui")
-targetItemsUI.Name = "TargetItemsUI"
-targetItemsUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-targetItemsUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- GUN CUSTOMIZATION SECTION
+gunmods2:AddToggle('GunCustomToggle', {
+    Text = 'Enable Gun Customization',
+    Default = false,
+    Tooltip = 'Enables gun material and color customization',
+    Callback = function(v)
+        allvars.guncustombool = v
+        if not v then
+            -- Reset gun appearance when disabled
+            resetGunAppearance()
+        end
+    end
+})
+
+gunmods2:AddDropdown('GunMaterial', {
+    Values = {"ForceField", "Neon"},
+    Default = "ForceField",
+    Multi = false,
+    Text = 'Gun Material',
+    Tooltip = 'Select the material for your gun',
+    Callback = function(v)
+        allvars.gunmaterial = v
+        if allvars.guncustombool then
+            applyGunCustomization()
+        end
+    end
+})
+
+gunmods2:AddLabel('Gun Color'):AddColorPicker('GunColorPick', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'Gun Color',
+    Tooltip = 'Choose the color of your gun',
+    Callback = function(color)
+        allvars.guncolor = color
+        if allvars.guncustombool then
+            applyGunCustomization()
+        end
+    end
+})
+
+-- Function to recursively find and process all parts
+function processAllParts(parent, callback)
+    for _, child in pairs(parent:GetChildren()) do
+        if child:IsA("BasePart") then
+            callback(child)
+        end
+        -- Recursively process children
+        if #child:GetChildren() > 0 then
+            processAllParts(child, callback)
+        end
+    end
+end
+
+-- Function to remove all SurfaceAppearance objects
+function removeSurfaceAppearances(item)
+    processAllParts(item, function(part)
+        for _, child in pairs(part:GetChildren()) do
+            if child:IsA("SurfaceAppearance") then
+                child:Destroy()
+            end
+        end
+    end)
+end
+
+-- Function to apply gun customization
+function applyGunCustomization()
+    local camera = workspace.Camera
+    if not camera then return end
+    
+    local viewModel = camera:FindFirstChild("ViewModel")
+    if not viewModel then return end
+    
+    local item = viewModel:FindFirstChild("Item")
+    if not item then return end
+    
+    -- Remove all SurfaceAppearance objects
+    removeSurfaceAppearances(item)
+    
+    -- Apply material and color to all parts
+    processAllParts(item, function(part)
+        if allvars.gunmaterial == "ForceField" then
+            part.Material = Enum.Material.ForceField
+        elseif allvars.gunmaterial == "Neon" then
+            part.Material = Enum.Material.Neon
+        end
+        
+        if allvars.guncolor then
+            part.Color = allvars.guncolor
+        end
+    end)
+end
+
+-- Function to reset gun appearance (store original states)
+local originalStates = {}
+
+function storeOriginalStates(item)
+    originalStates = {}
+    processAllParts(item, function(part)
+        originalStates[part] = {
+            material = part.Material,
+            color = part.Color,
+            surfaceAppearances = {}
+        }
+        
+        -- Store SurfaceAppearance objects
+        for _, child in pairs(part:GetChildren()) do
+            if child:IsA("SurfaceAppearance") then
+                table.insert(originalStates[part].surfaceAppearances, child:Clone())
+            end
+        end
+    end)
+end
+
+function resetGunAppearance()
+    local camera = workspace.Camera
+    if not camera then return end
+    
+    local viewModel = camera:FindFirstChild("ViewModel")
+    if not viewModel then return end
+    
+    local item = viewModel:FindFirstChild("Item")
+    if not item then return end
+    
+    -- Restore original states
+    for part, state in pairs(originalStates) do
+        if part and part.Parent then
+            part.Material = state.material
+            part.Color = state.color
+            
+            -- Remove current SurfaceAppearances and restore originals
+            for _, child in pairs(part:GetChildren()) do
+                if child:IsA("SurfaceAppearance") then
+                    child:Destroy()
+                end
+            end
+            
+            for _, surfaceAppearance in pairs(state.surfaceAppearances) do
+                surfaceAppearance:Clone().Parent = part
+            end
+        end
+    end
+end
+
+-- Initialize original states when gun customization is first enabled
+local hasStoredStates = false
+local oldApplyFunction = applyGunCustomization
+
+applyGunCustomization = function()
+    local camera = workspace.Camera
+    if not camera then return end
+    
+    local viewModel = camera:FindFirstChild("ViewModel")
+    if not viewModel then return end
+    
+    local item = viewModel:FindFirstChild("Item")
+    if not item then return end
+    
+    -- Store original states on first use
+    if not hasStoredStates then
+        storeOriginalStates(item)
+        hasStoredStates = true
+    end
+    
+    oldApplyFunction()
+end
+
+-- Auto-apply when new weapon is equipped
+spawn(function()
+    while wait(0.5) do
+        if allvars.guncustombool then
+            local camera = workspace.Camera
+            if camera then
+                local viewModel = camera:FindFirstChild("ViewModel")
+                if viewModel then
+                    local item = viewModel:FindFirstChild("Item")
+                    if item then
+                        -- Check if this is a new weapon (reset stored states)
+                        local currentWeaponName = item.Name
+                        if allvars.lastWeaponName ~= currentWeaponName then
+                            hasStoredStates = false
+                            allvars.lastWeaponName = currentWeaponName
+                        end
+                        
+                        applyGunCustomization()
+                    end
+                end
+            end
+        end
+    end
+end)
+allvars.showvisibility = false
+allvars.showhealth = false
+
+-- Function to create or get existing UI
+getOrCreateUI = function(name, parent)
+    existing = parent:FindFirstChild(name)
+    if existing then
+        return existing
+    end
+    
+    ui = Instance.new("ScreenGui")
+    ui.Name = name
+    ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ui.ResetOnSpawn = false -- This prevents UI from being destroyed on death
+    ui.Parent = parent
+    return ui
+end
+
+-- Create persistent UIs
+visibilityUI = getOrCreateUI("VisibilityUI", game:GetService("CoreGui"))
+targetItemsUI = getOrCreateUI("TargetItemsUI", game:GetService("CoreGui"))
+
+-- Clear existing elements to prevent duplicates
+visibilityUI:ClearAllChildren()
+targetItemsUI:ClearAllChildren()
+
+-- Create visibility label
+visibilityLabel = Instance.new("TextLabel")
+visibilityLabel.Name = "VisibilityLabel"
+visibilityLabel.Parent = visibilityUI
+visibilityLabel.BackgroundTransparency = 1
+visibilityLabel.Position = UDim2.new(0.5, -50, 0.9, 0) -- Bottom center
+visibilityLabel.Size = UDim2.new(0, 100, 0, 30)
+visibilityLabel.Font = Enum.Font.GothamBold
+visibilityLabel.TextColor3 = Color3.new(1, 1, 1)
+visibilityLabel.TextSize = 14
+visibilityLabel.Text = ""
+visibilityLabel.Visible = false
+
+-- Create health label (positioned under visibility label)
+healthLabel = Instance.new("TextLabel")
+healthLabel.Name = "HealthLabel"
+healthLabel.Parent = visibilityUI
+healthLabel.BackgroundTransparency = 1
+healthLabel.Position = UDim2.new(0.5, -50, 0.93, 0) -- Just below visibility label
+healthLabel.Size = UDim2.new(0, 100, 0, 30)
+healthLabel.Font = Enum.Font.GothamBold
+healthLabel.TextColor3 = Color3.new(1, 1, 1)
+healthLabel.TextSize = 14
+healthLabel.Text = ""
+healthLabel.Visible = false
+
+-- Modified hasWallBetween function that updates the visibility label
+hasWallBetween = function(startPos, endPos, target)
+    raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    
+    -- Get current character references (handles respawning)
+    filterInstances = {}
+    if game.Players.LocalPlayer.Character then
+        table.insert(filterInstances, game.Players.LocalPlayer.Character)
+    end
+    if target.Character then
+        table.insert(filterInstances, target.Character)
+    end
+    raycastParams.FilterDescendantsInstances = filterInstances
+    
+    direction = (endPos - startPos)
+    raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    
+    -- Update visibility label
+    if raycastResult then
+        visibilityLabel.Text = "Invisible"
+        visibilityLabel.TextColor3 = Color3.new(1, 0, 0) -- Red
+    else
+        visibilityLabel.Text = "Visible"
+        visibilityLabel.TextColor3 = Color3.new(0, 1, 0) -- Green
+    end
+    
+    return raycastResult ~= nil, raycastResult
+end
+
+-- Function to update health display
+updateHealthDisplay = function(target)
+    if not target or not target:IsA("Player") or not target.Character then
+        healthLabel.Text = ""
+        return
+    end
+    
+    humanoid = target.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        currentHealth = math.floor(humanoid.Health)
+        maxHealth = math.floor(humanoid.MaxHealth)
+        healthLabel.Text = string.format("HP: %d/%d", currentHealth, maxHealth)
+        
+        -- Color code health
+        healthPercent = currentHealth / maxHealth
+        if healthPercent > 0.6 then
+            healthLabel.TextColor3 = Color3.new(0, 1, 0) -- Green
+        elseif healthPercent > 0.3 then
+            healthLabel.TextColor3 = Color3.new(1, 1, 0) -- Yellow
+        else
+            healthLabel.TextColor3 = Color3.new(1, 0, 0) -- Red
+        end
+    else
+        healthLabel.Text = ""
+    end
+end
 
 -- Create item slots
-local function createItemSlot(name, position)
-    local slot = Instance.new("Frame")
+createItemSlot = function(name, position)
+    slot = Instance.new("Frame")
     slot.Name = name
     slot.Parent = targetItemsUI
     slot.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -3636,8 +3943,7 @@ local function createItemSlot(name, position)
     slot.Size = UDim2.new(0, 100, 0, 100)
     slot.Visible = false
     
-    -- Add item image
-    local itemImage = Instance.new("ImageLabel")
+    itemImage = Instance.new("ImageLabel")
     itemImage.Name = "ItemImage"
     itemImage.Parent = slot
     itemImage.BackgroundTransparency = 1
@@ -3645,13 +3951,12 @@ local function createItemSlot(name, position)
     itemImage.Size = UDim2.new(0.8, 0, 0.6, 0)
     itemImage.Image = ""
     
-    -- Add item name label
-    local itemName = Instance.new("TextLabel")
+    itemName = Instance.new("TextLabel")
     itemName.Name = "ItemName"
     itemName.Parent = slot
     itemName.BackgroundTransparency = 1
     itemName.Position = UDim2.new(0, 0, 0.75, 0)
-    itemName.Size = UDim2.new(1, 0, 0.2, 0)
+    itemName.Size = UDim2.new(0.85, 0, 0.2, 0)
     itemName.Font = Enum.Font.GothamBold
     itemName.TextColor3 = Color3.new(1, 1, 1)
     itemName.TextSize = 14
@@ -3660,15 +3965,14 @@ local function createItemSlot(name, position)
     return slot
 end
 
--- Create 3 item slots
-local itemSlots = {
+itemSlots = {
     createItemSlot("Item1", UDim2.new(0.36, 0, 0, 0)),
     createItemSlot("Item2", UDim2.new(0.457, 0, 0, 0)),
     createItemSlot("Item3", UDim2.new(0.555, 0, 0, 0))
 }
 
-local function getFirstThreeItems(inventory)
-    local items = {}
+getFirstThreeItems = function(inventory)
+    items = {}
     for _, item in ipairs(inventory:GetChildren()) do
         if #items >= 3 then break end
         table.insert(items, item)
@@ -3676,29 +3980,29 @@ local function getFirstThreeItems(inventory)
     return items
 end
 
-local function updateTargetItems(target)
+updateTargetItems = function(target)
     for _, slot in ipairs(itemSlots) do
         slot.Visible = false
     end
     
     if not target or not target:IsA("Player") then return end
     
-    local targetInventory = game:GetService("ReplicatedStorage").Players:FindFirstChild(target.Name)
+    targetInventory = game:GetService("ReplicatedStorage").Players:FindFirstChild(target.Name)
     if not targetInventory or not targetInventory:FindFirstChild("Inventory") then return end
     
-    local inventory = targetInventory.Inventory
-    local items = getFirstThreeItems(inventory)
+    inventory = targetInventory.Inventory
+    items = getFirstThreeItems(inventory)
     
     -- Display items
     for i, item in ipairs(items) do
-        local slot = itemSlots[i]
-        local itemImage = slot:FindFirstChild("ItemImage")
-        local itemName = slot:FindFirstChild("ItemName")
+        slot = itemSlots[i]
+        itemImage = slot:FindFirstChild("ItemImage")
+        itemName = slot:FindFirstChild("ItemName")
         
         itemName.Text = item.Name
         
         if item:FindFirstChild("ItemProperties") then
-            local itemIcon = item.ItemProperties:FindFirstChild("ItemIcon")
+            itemIcon = item.ItemProperties:FindFirstChild("ItemIcon")
             if itemIcon and itemIcon:IsA("ImageLabel") then
                 itemImage.Image = itemIcon.Image
             else
@@ -3713,11 +4017,21 @@ local function updateTargetItems(target)
 end
 
 RunService.RenderStepped:Connect(function()
-    local shouldShow = allvars.aimbool and aimtarget ~= nil and allvars.showitems
+    visibilityLabel.Visible = allvars.aimbool and aimtarget ~= nil and allvars.showvisibility
+    healthLabel.Visible = allvars.aimbool and aimtarget ~= nil and allvars.showhealth
+    targetItemsUI.Enabled = allvars.aimbool and aimtarget ~= nil and allvars.showitems
+
+    if allvars.aimbool and aimtarget ~= nil and allvars.showvisibility and aimtargetpart and game.Players.LocalPlayer.Character then
+        startPos = workspace.CurrentCamera.CFrame.Position
+        endPos = aimtargetpart.Position
+        hasWallBetween(startPos, endPos, aimtarget)
+    end
     
-    targetItemsUI.Enabled = shouldShow
+    if allvars.aimbool and aimtarget ~= nil and allvars.showhealth then
+        updateHealthDisplay(aimtarget)
+    end
     
-    if shouldShow then
+    if allvars.aimbool and aimtarget ~= nil and allvars.showitems then
         if aimtarget:IsA("Player") then
             updateTargetItems(aimtarget)
         else
@@ -3728,7 +4042,24 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Add this toggle to your aim groupbox
+aim:AddToggle('ShowVisibility', {
+    Text = 'Show Visibility',
+    Default = false,
+    Tooltip = 'Shows if target is visible or blocked by wall',
+    Callback = function(v)
+        allvars.showvisibility = v
+    end
+})
+
+aim:AddToggle('ShowHealth', {
+    Text = 'Show Health',
+    Default = false,
+    Tooltip = 'Shows the target\'s health',
+    Callback = function(v)
+        allvars.showhealth = v
+    end
+})
+
 aim:AddToggle('ShowTargetItems', {
     Text = 'Show Target Items',
     Default = false,
@@ -4934,70 +5265,6 @@ uhhh:AddToggle('Desync', {
     NoUI = false,
 })
 
-uhhh:AddToggle('ThirdPerson', {
-    Text = 'Third Person',
-    Default = false,
-    Tooltip = 'Enables third person',
-    Callback = function(v)
-        allvars.camthirdp = v
-        if v and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-            localplayer.CameraMaxZoomDistance = 5
-            localplayer.CameraMinZoomDistance = 5
-        else
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(0,0,0)
-            localplayer.CameraMaxZoomDistance = 0.5
-            localplayer.CameraMinZoomDistance = 0.5
-        end
-    end
-}):AddKeyPicker('ThirdPerson', {
-    Default = 'KeypadSix',
-    Mode = 'Toggle', --Always, Toggle, Hold
-    Text = 'Third Person',
-    NoUI = false, 
-})
-uhhh:AddSlider('Thirdp Offset X', {
-    Text = 'Thirdp Offset X',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpX = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
-uhhh:AddSlider('Thirdp Offset Y', {
-    Text = 'Thirdp Offset Y',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpY = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
-uhhh:AddSlider('Thirdp Offset Z', {
-    Text = 'Thirdp Offset Z',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpZ = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
 runs.Heartbeat:Connect(function(delta) --desync
     if aimresolver then return end
 
@@ -5341,18 +5608,53 @@ workspace.CurrentCamera:GetPropertyChangedSignal("FieldOfView"):Connect(function
     end
 end)
 
--- Your existing FreeCam code
-Others:AddToggle('Free cam', {
-    Text = 'Free cam',
+
+
+local ThirdPerson = {
+    Enabled = false,
+    Connection = nil
+}
+
+local function enableThirdPerson()
+    -- Force settings
+    player.CameraMode = Enum.CameraMode.Classic
+    player.CameraMinZoomDistance = 0.5
+    player.CameraMaxZoomDistance = 400
+    
+    -- Monitor and prevent first person
+    ThirdPerson.Connection = player:GetPropertyChangedSignal("CameraMode"):Connect(function()
+        if player.CameraMode == Enum.CameraMode.LockFirstPerson then
+            player.CameraMode = Enum.CameraMode.Classic
+        end
+    end)
+end
+
+local function disableThirdPerson()
+    if ThirdPerson.Connection then
+        ThirdPerson.Connection:Disconnect()
+        ThirdPerson.Connection = nil
+    end
+    -- Reset to default camera behavior
+    player.CameraMode = Enum.CameraMode.Classic
+end
+
+-- Toggle setup
+Others:AddToggle('ThirdPerson', {
+    Text = 'Third Person BETA',
     Default = false,
-    Tooltip = 'Enables free camera movement',
-    Callback = function(v)
-        toggleFreeCam(v)
+    Tooltip = 'Forces third person camera view',
+    Callback = function(state)
+        ThirdPerson.Enabled = state
+        if state then
+            enableThirdPerson()
+        else
+            disableThirdPerson()
+        end
     end
 }):AddKeyPicker('F', {
-    Default = 'U',
+    Default = 'J',
     Mode = 'Toggle',
-    Text = 'FreeCam',
+    Text = 'ThirdPerson',
     NoUI = false,
 })
 
