@@ -30,17 +30,12 @@ local characterspawned = tick()
 local aimresolvertime = tick()
 local nojumptilt = false
 
-
-
--- Original functions
 local instrelOGfunc = require(game.ReplicatedStorage.Modules.FPS).reload
 local instrelMODfunc -- changed later
 
--- All variables table
 allvars = allvars or {}
 local aimresolverpos = localplayer.Character.HumanoidRootPart.CFrame
 
--- Free cam variables
 getgenv().freeCam = false
 getgenv().freeCamPart = nil
 getgenv().originalCFrame = nil
@@ -53,7 +48,6 @@ getgenv().MOVE_SPEED = 16
 getgenv().LOOK_SENSITIVITY = 0.002
 getgenv().FAST_SPEED_MULTIPLIER = 3
 
--- Camera rotation tracking
 getgenv().cameraAngles = Vector2.new(0, 0)
 getgenv().mouseConnection = nil
 getgenv().cameraAngles = Vector2.new(0, 0)
@@ -63,7 +57,6 @@ getgenv().BeamTexture = {
     [2] = "rbxassetid://12781741946"
 }
 
--- Create a lookup table for the dropdown values (optional, for better names)
 getgenv().beamTextureUI = {
     "Texture 1",
     "Texture 2"
@@ -95,7 +88,6 @@ allvars.camthirdpX = 2
 allvars.camthirdpY = 2
 allvars.camthirdpZ = 5
 allvars.nofall = false
--- Tracer settings
 allvars.tracbool = true
 allvars.tracercolor3 = Color3.new(1, 1, 0)
 allvars.tracertrans = 0.3
@@ -913,6 +905,12 @@ getgenv().distanceTextSize = 14
 getgenv().healthBarESP = false
 getgenv().healthBarColor = Color3.new(0, 1, 0)
 getgenv().healthBarBackground = Color3.new(0.2, 0.2, 0.2)
+getgenv().healthBarGradient = false
+getgenv().healthBarGradientColors = {
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(26, 255, 0)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0))
+}
 getgenv().weaponESPEnabled = false
 getgenv().weaponColor = Color3.new(1, 1, 1)
 getgenv().armorBarESP = false
@@ -1300,7 +1298,12 @@ local function CreateESP(player)
         objects.HealthBarOutline.Color = Color3.new(0, 0, 0)
         objects.HealthBarOutline.Visible = false
         objects.HealthBarOutline.ZIndex = 2
+
+        if getgenv().healthBarGradient then
+            objects.HealthBarGradient = true
+        end
     end
+
 
     if getgenv().weaponESPEnabled then
         objects.Weapon = Drawing.new("Text")
@@ -1537,9 +1540,35 @@ local function UpdateESP()
                         -- Health bar foreground
                         objects.HealthBar.Position = Vector2.new(barX, headPosition.Y + (boxHeight - barHeight))
                         objects.HealthBar.Size = Vector2.new(barWidth, barHeight)
-                        objects.HealthBar.Color = getgenv().healthBarColor
+                        
+                        -- Apply gradient if enabled, otherwise use solid color
+                        if getgenv().healthBarGradient then
+                            -- Calculate color based on health percentage
+                            local color
+                            if healthRatio > 0.5 then
+                                -- Interpolate between green and yellow
+                                local t = (healthRatio - 0.5) * 2
+                                color = Color3.new(
+                                    26/255 + (1 - 26/255) * t,
+                                    1,
+                                    0
+                                )
+                            else
+                                -- Interpolate between yellow and red
+                                local t = healthRatio * 2
+                                color = Color3.new(
+                                    1,
+                                    1,
+                                    0 + (0 - 0) * t
+                                )
+                            end
+                            objects.HealthBar.Color = color
+                        else
+                            objects.HealthBar.Color = getgenv().healthBarColor
+                        end
+                        
                         objects.HealthBar.Visible = true
-
+            
                         -- Health bar outline (border)
                         if objects.HealthBarOutline then
                             objects.HealthBarOutline.Position = Vector2.new(barX, headPosition.Y)
@@ -1823,50 +1852,24 @@ end
 
 local fpsrequired = require(game.ReplicatedStorage.Modules.FPS)
 
-runs.Heartbeat:Connect(function(delta)
-    if not localplayer or not localplayer.Character or 
-       not localplayer.Character:FindFirstChild("HumanoidRootPart") or 
-       not localplayer.Character:FindFirstChild("Humanoid") then
-        return
-    end
-
-    if choosetarget then
-        choosetarget()
-    end
-
-    -- Trigger bot implementation
-    if allvars.aimtrigger and aimtarget and getgenv().a1table then
-        -- Check if target is in crosshair (within FOV)
-        if aimtargetpart then
-            local targetPos = aimtargetpart.Position
-            local camera = workspace.CurrentCamera
-            local screenPos, onScreen = camera:WorldToViewportPoint(targetPos)
-            
-            if onScreen then
-                local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-                local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
-                local distance = (center - targetScreenPos).Magnitude
-                
-                -- Check if target is within trigger FOV (smaller than aim FOV)
-                local triggerFOV = allvars.aimfov * 0.5 -- Half of aim FOV
-                if distance <= triggerFOV then
-                    -- Check visibility if enabled
-                    local shouldShoot = true
-                    if allvars.aimvischeck then
-                        shouldShoot = isvisible(aimtarget, aimtargetpart)
-                    end
-                    
-                    -- Fire weapon if conditions are met
-                    if shouldShoot then
-                        fpsrequired.action(getgenv().a1table, true)
-                        task.wait(0.05) -- Short delay between shots
-                        fpsrequired.action(getgenv().a1table, false)
-                    end
-                end
-            end
+if runs and runs.Heartbeat then
+    runs.Heartbeat:Connect(function(delta)
+        if not localplayer or not localplayer.Character or 
+           not localplayer.Character:FindFirstChild("HumanoidRootPart") or 
+           not localplayer.Character:FindFirstChild("Humanoid") then
+            return
         end
-    end
-end)
+
+        if choosetarget then
+            choosetarget()
+        end
+
+        if allvars.aimtrigger and aimtarget and getgenv().a1table then
+            fpsrequired.action(getgenv().a1table, true)
+            fpsrequired.action(getgenv().a1table, false)
+        end
+    end)
+end
 
 function choosetarget()
     local cent = Vector2.new(wcamera.ViewportSize.X / 2, wcamera.ViewportSize.Y / 2)
@@ -2164,29 +2167,33 @@ function runhitmark(v140)
         hit_img.Image = "rbxassetid://13298929624"
         hit_img.BackgroundTransparency = 1
         hit_img.Size = UDim2.new(0, 150, 0, 150)
-        hit_img.Position = UDim2.new(0.5, -75, 0.5, -75)
+        hit_img.Position = UDim2.new(0.5, -75, 0.5, -75) -- Fixed centering
         hit_img.Visible = true
         hit_img.ImageColor3 = allvars.hitmarkcolor or Color3.new(1, 1, 1)
         hit_img.ImageTransparency = 0
-        hit_img.Rotation = 0
+        hit_img.Rotation = 0 -- Start at 0 rotation
         hit_img.Parent = hit
         
-        local fadeTime = 1
+        -- Define fade time if not already defined
+        local fadeTime = 1 -- Adjust as needed
         
         local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
         local rotationTween = TweenInfo.new(fadeTime, Enum.EasingStyle.Linear)
         
+        -- Create the fade tween
         local fadeTween = game:GetService("TweenService"):Create(hit_img, tweenInfo, {
             ImageTransparency = 1
         })
         
+        -- Create the rotation tween for spinning
         local rotTween = game:GetService("TweenService"):Create(hit_img, rotationTween, {
-            Rotation = 360
+            Rotation = 360 -- Full rotation
         })
         
         fadeTween:Play()
         rotTween:Play()
         
+        -- Clean up after animation
         fadeTween.Completed:Connect(function()
             if hitpart and hitpart.Parent then
                 hitpart:Destroy()
@@ -2199,73 +2206,72 @@ function runhitmark(v140)
     end
 end
 
+-- Fixed hit sound function
 local function playHitSound(hitType)
     if not allvars.hitsoundbool then return end
     
-    local hitsoundlib = {
-        ["Ding"] = "rbxassetid://131961136",
-        ["Pop"] = "rbxassetid://198598793",
-        ["Click"] = "rbxassetid://421058951"
+    -- Initialize hitsoundlib if it doesn't exist
+    local hitsoundlib = hitsoundlib or {
+        ["Ding"] = "rbxassetid://131961136"
     }
     
-    hitType = hitType or ""
-    local soundKey = allvars["hitsound" .. hitType] or "Ding"
-    local soundId = hitsoundlib[soundKey] or hitsoundlib["Ding"]
+    local soundId = hitsoundlib[allvars["hitsound"..hitType]] or hitsoundlib["Ding"] -- Default to Ding if not found
     if not soundId then return end
     
-    local success, err = pcall(function()
-        local sound = Instance.new("Sound")
-        sound.SoundId = soundId
-        sound.Volume = math.min(math.max(allvars.hitsoundvolume or 0.5, 0), 1)
-        sound.Parent = workspace
-        sound:Play()
-        
-        game:GetService("Debris"):AddItem(sound, 3)
-    end)
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = 0.5
+    sound.Parent = workspace
+    sound:Play()
     
-    if not success then
-        warn("Hit sound error: " .. tostring(err))
-    end
+    game:GetService("Debris"):AddItem(sound, 2) -- Clean up after 2 seconds
 end
 
-local function createAttachmentPart(position)
-    local part = Instance.new("Part")
-    part.Name = "TracerAttachment"
-    part.Transparency = 1
-    part.CanCollide = false
-    part.CanQuery = false
-    part.CanTouch = false
-    part.Size = Vector3.new(0.1, 0.1, 0.1)
-    part.Anchored = true
-    part.Position = position
-    part.Parent = workspace
-    
-    local attachment = Instance.new("Attachment")
-    attachment.Parent = part
-    
-    return part, attachment
-end
-
+-- Fixed beam-based tracer (performance friendly)
 function runBeamTracer(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        local startPart, startAttachment = createAttachmentPart(startPos)
-        local endPart, endAttachment = createAttachmentPart(endPos)
+        -- Create attachment points
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
+        
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
+        
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
+        
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
         
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
+        beam.FaceCamera = true
         beam.Width1 = allvars.tracerwidth or 0.2
-        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
+        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[1]
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
+        -- Manual fade animation using NumberSequence
+        local fadeTime = allvars.tracerfade or 0.3
         local startTime = tick()
         local initialTrans = allvars.tracertrans or 0.3
         local initialWidth = allvars.tracerwidth or 0.2
@@ -2275,15 +2281,19 @@ function runBeamTracer(startPos, endPos)
             local elapsed = tick() - startTime
             local progress = math.min(elapsed / fadeTime, 1)
             
-            local easedProgress = 1 - ((1 - progress) * (1 - progress))
+            -- Smooth easing (quad out)
+            local easedProgress = 1 - (1 - progress) ^ 2
             
+            -- Update transparency
             local currentTrans = initialTrans + (1 - initialTrans) * easedProgress
+            beam.Transparency = NumberSequence.new(currentTrans)
+            
+            -- Update width
             local currentWidth = initialWidth * (1 - easedProgress)
+            beam.Width0 = currentWidth
+            beam.Width1 = currentWidth
             
-            beam.Transparency = NumberSequence.new(math.min(math.max(currentTrans, 0), 1))
-            beam.Width0 = math.max(currentWidth, 0)
-            beam.Width1 = math.max(currentWidth, 0)
-            
+            -- Cleanup when done
             if progress >= 1 then
                 connection:Disconnect()
                 if startPart and startPart.Parent then startPart:Destroy() end
@@ -2291,35 +2301,58 @@ function runBeamTracer(startPos, endPos)
             end
         end)
         
-        game:GetService("Debris"):AddItem(startPart, fadeTime + 1)
-        game:GetService("Debris"):AddItem(endPart, fadeTime + 1)
+        -- Safety cleanup
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.5)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.5)
     end)
 
     if not success then
-        warn("Beam tracer error: " .. tostring(err))
+        warn("Beam tracer error:", err)
     end
 end
 
+-- Alternative: Beam tracer with width-only animation (simpler)
 function runBeamTracerWidthOnly(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        local startPart, startAttachment = createAttachmentPart(startPos)
-        local endPart, endAttachment = createAttachmentPart(endPos)
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
+        
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
+        
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
+        
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
         
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
         beam.Width1 = allvars.tracerwidth or 0.2
-        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
+        -- Tween only the width (this works fine)
+        local fadeTime = allvars.tracerfade or 0.3
         local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
         local fadeTween = game:GetService("TweenService"):Create(beam, tweenInfo, {
@@ -2334,105 +2367,69 @@ function runBeamTracerWidthOnly(startPos, endPos)
             if endPart and endPart.Parent then endPart:Destroy() end
         end)
         
-        game:GetService("Debris"):AddItem(startPart, fadeTime + 1)
-        game:GetService("Debris"):AddItem(endPart, fadeTime + 1)
+        game:GetService("Debris"):AddItem(startPart, fadeTime + 0.1)
+        game:GetService("Debris"):AddItem(endPart, fadeTime + 0.1)
     end)
 
     if not success then
-        warn("Width-only beam tracer error: " .. tostring(err))
+        warn("Width-only beam tracer error:", err)
     end
 end
 
+-- Most performance-friendly: Simple beam with timer cleanup
 function runBeamTracerSimplest(startPos, endPos)
     if not allvars or not allvars.tracbool then return end
     if not startPos or not endPos then return end
 
     local success, err = pcall(function()
-        local startPart, startAttachment = createAttachmentPart(startPos)
-        local endPart, endAttachment = createAttachmentPart(endPos)
+        local startAttachment = Instance.new("Attachment")
+        local endAttachment = Instance.new("Attachment")
+        
+        local startPart = Instance.new("Part")
+        startPart.Transparency = 1
+        startPart.CanCollide = false
+        startPart.CanQuery = false
+        startPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        startPart.Anchored = true
+        startPart.Position = startPos
+        startPart.Parent = workspace
+        
+        local endPart = Instance.new("Part")
+        endPart.Transparency = 1
+        endPart.CanCollide = false
+        endPart.CanQuery = false
+        endPart.Size = Vector3.new(0.1, 0.1, 0.1)
+        endPart.Anchored = true
+        endPart.Position = endPos
+        endPart.Parent = workspace
+        
+        startAttachment.Parent = startPart
+        endAttachment.Parent = endPart
         
         local beam = Instance.new("Beam")
         beam.Color = ColorSequence.new(allvars.tracercolor3 or Color3.new(1, 1, 0))
         beam.Transparency = NumberSequence.new(allvars.tracertrans or 0.3)
         beam.Width0 = allvars.tracerwidth or 0.2
         beam.Width1 = allvars.tracerwidth or 0.2
-        beam.Texture = getgenv().beamtexture or getgenv().BeamTexture[2] or "rbxassetid://446111271"
         beam.Attachment0 = startAttachment
         beam.Attachment1 = endAttachment
         beam.FaceCamera = true
         beam.Parent = startPart
         
-        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
+        -- Simple cleanup after delay
+        local fadeTime = allvars.tracerfade or 0.3
         game:GetService("Debris"):AddItem(startPart, fadeTime)
         game:GetService("Debris"):AddItem(endPart, fadeTime)
     end)
 
     if not success then
-        warn("Simple beam tracer error: " .. tostring(err))
+        warn("Simple beam tracer error:", err)
     end
 end
 
-function runCylinderTracer(startPos, endPos)
-    if not allvars or not allvars.tracbool then return end
-    if not startPos or not endPos then return end
-    
-    local success, err = pcall(function()
-        local distance = (startPos - endPos).Magnitude
-        if distance <= 0 then return end
-        
-        local tracer = Instance.new("Part")
-        tracer.Name = "CylinderTracer"
-        tracer.Shape = Enum.PartType.Cylinder
-        tracer.Anchored = true
-        tracer.CanCollide = false
-        tracer.CanQuery = false
-        tracer.CanTouch = false
-        tracer.Material = Enum.Material.Neon
-        tracer.Color = allvars.tracercolor3 or Color3.new(1, 1, 0)
-        tracer.Transparency = allvars.tracertrans or 0.3
-        
-        local width = allvars.tracerwidth or 0.2
-        tracer.Size = Vector3.new(distance, width, width)
-        tracer.CFrame = CFrame.lookAt(startPos + (endPos - startPos) * 0.5, endPos)
-        tracer.Parent = workspace
-        
-        local fadeTime = math.max(allvars.tracerfade or 0.3, 0.1)
-        local startTime = tick()
-        local initialTrans = allvars.tracertrans or 0.3
-        local initialWidth = width
-        
-        local connection
-        connection = game:GetService("RunService").Heartbeat:Connect(function()
-            local elapsed = tick() - startTime
-            local progress = math.min(elapsed / fadeTime, 1)
-            
-            if tracer and tracer.Parent then
-                local easedProgress = 1 - ((1 - progress) * (1 - progress))
-                tracer.Transparency = initialTrans + (1 - initialTrans) * easedProgress
-                local currentWidth = initialWidth * (1 - easedProgress)
-                tracer.Size = Vector3.new(distance, currentWidth, currentWidth)
-            end
-            
-            if progress >= 1 then
-                connection:Disconnect()
-                if tracer and tracer.Parent then tracer:Destroy() end
-            end
-        end)
-        
-        game:GetService("Debris"):AddItem(tracer, fadeTime + 1)
-    end)
-    
-    if not success then
-        warn("Cylinder tracer error: " .. tostring(err))
-    end
-end
-
+-- Modified CreateTracer function to use the dropdown selection
 local function CreateTracer(startPos, endPos)
     if not allvars.tracbool then return end
-    if not startPos or not endPos then 
-        warn("CreateTracer: Invalid positions provided")
-        return 
-    end
     
     local tracerType = allvars.tracertype or "beam_performance"
     
@@ -2443,15 +2440,83 @@ local function CreateTracer(startPos, endPos)
     elseif tracerType == "beam_simple" then
         runBeamTracerSimplest(startPos, endPos)
     elseif tracerType == "cylinder" then
-        runCylinderTracer(startPos, endPos)
-    else
-        warn("Unknown tracer type: " .. tostring(tracerType))
-        runBeamTracer(startPos, endPos)
+        -- Create cylinder tracer
+        local tracer = Instance.new("Part")
+        tracer.Anchored = true
+        tracer.CanCollide = false
+        tracer.Material = Enum.Material.Neon
+        tracer.Color = allvars.tracercolor3
+        tracer.Transparency = allvars.tracertrans
+        tracer.Size = Vector3.new(allvars.tracerwidth, allvars.tracerwidth, (startPos - endPos).Magnitude)
+        tracer.CFrame = CFrame.new(startPos, endPos) * CFrame.new(0, 0, -tracer.Size.Z/2)
+        tracer.Parent = workspace
+        
+        -- Fade out effect
+        local fadeTime = allvars.tracerfade
+        local startTime = tick()
+        
+        local connection
+        connection = game:GetService("RunService").Heartbeat:Connect(function()
+            local elapsed = tick() - startTime
+            local progress = math.min(elapsed / fadeTime, 1)
+            
+            tracer.Transparency = allvars.tracertrans + (1 - allvars.tracertrans) * progress
+            local newWidth = allvars.tracerwidth * (1 - progress)
+            tracer.Size = Vector3.new(newWidth, newWidth, tracer.Size.Z)
+            
+            if progress >= 1 then
+                connection:Disconnect()
+                tracer:Destroy()
+            end
+        end)
+        
+        game:GetService("Debris"):AddItem(tracer, fadeTime + 0.1)
     end
 end
 
 local aimogfunc = require(game.ReplicatedStorage.Modules.FPS.Bullet).CreateBullet
 local aimmodfunc
+local original_aimmodfunc
+
+local function enhanced_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
+    if allvars.instahit then
+        local v_u_10 = game:GetService("ReplicatedStorage")
+        local v_u_12 = v_u_10:WaitForChild("RangedWeapons")
+        local v65 = v_u_10.AmmoTypes:FindFirstChild(p52)
+        
+        if v65 then
+            -- Override bullet speed for instant hit
+            local originalVelocity = v65:GetAttribute("MuzzleVelocity")
+            v65:SetAttribute("MuzzleVelocity", 9999999)
+            
+            -- Restore original velocity after a short delay to avoid permanent changes
+            task.spawn(function()
+                wait(0.1)
+                if originalVelocity then
+                    v65:SetAttribute("MuzzleVelocity", originalVelocity)
+                end
+            end)
+        end
+    end
+    
+    -- Call original function if no modifications needed
+    if original_aimmodfunc then
+        return original_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
+    end
+end
+
+
+
+if original_aimmodfunc then
+    return original_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
+end
+
+if aimmodfunc then
+   original_aimmodfunc = aimmodfunc
+   aimmodfunc = enhanced_aimmodfunc
+end
+
+
 
 aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
     local v_u_6 = game.ReplicatedStorage.Remotes.VisualProjectile
@@ -2488,10 +2553,10 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
     local v63 = v61:FindFirstChild("SpecialProperties")
     local v_u_66 = v63 and v63:GetAttribute("TracerColor") or v62:GetAttribute("ProjectileColor")
     local itemprop = require(v_u_16.Inventory:FindFirstChild(p49.Name).SettingsModule)
-    local bulletspeed = 999999999
+    local bulletspeed = 999999999 -- Changed to extremely high value for bullet TP
     local armorpen4 = v65:GetAttribute("ArmorPen")
     local tracerendpos = Vector3.zero
-    local v79 = {
+	local v79 = {
         ["x"] = {
             ["Value"] = 0
         },
@@ -2564,6 +2629,9 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
             local v_u_131 = nil
             local v_u_132 = 0
             local v_u_133 = 0
+
+            -- Removed the aimfakewait delay since we want instant hit (bullet TP)
+            -- This is what makes it bullet TP instead of bullet prediction
 
             local penetrated = false
 
@@ -2675,6 +2743,7 @@ aimmodfunc = function(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
     end
 end
 
+-- Additional utility functions for snap line customization
 function setSnapLineSettings(settings)
     allvars = allvars or {}
     allvars.snaplinebool = settings.enabled or false
@@ -2686,6 +2755,7 @@ function setSnapLineSettings(settings)
     end
 end
 
+-- Function to clean up snap line resources
 function cleanupSnapLine()
     stopSnapLine()
 
@@ -2696,6 +2766,7 @@ function cleanupSnapLine()
     end
 end
 
+-- Function to toggle snap line
 function toggleSnapLine()
     allvars.snaplinebool = not allvars.snaplinebool
 
@@ -2706,7 +2777,8 @@ function toggleSnapLine()
     end
 end
 
-local thirdpshow = true
+-- Fixed transparency controller
+local thirdpshow = true -- Initialize missing variable
 
 require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.TransparencyController).Update = function(a1, a2)
     local v14_3_ = workspace
@@ -2746,9 +2818,7 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                         local v14_9_ = -v14_6_
                         local v14_8_ = v14_5_
                         local v14_10_ = v14_6_
-                        local clamp = math.clamp or function(val, min, max)
-                            return math.min(math.max(val, min), max)
-                        end
+                        local clamp = math.clamp
                         v14_7_ = clamp(v14_8_, v14_9_, v14_10_)
                         v14_5_ = v14_7_
                         v14_7_ = a1.lastTransparency
@@ -2766,12 +2836,12 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                 a1.transparencyDirty = v14_5_
             end
             
-            v14_4_ = setto
+            v14_4_ = setto -- Fixed: Use setto variable
             v14_5_ = a1.transparencyDirty
             if not v14_5_ then
                 v14_5_ = a1.lastTransparency
                 if v14_5_ ~= v14_4_ then
-                    for v14_8_, v14_9_ in pairs(a1.cachedParts) do
+                    for v14_8_, v14_9_ in pairs(a1.cachedParts) do -- Fixed: Simplified loop
                         v14_8_.LocalTransparencyModifier = setto
                     end
                     a1.transparencyDirty = false
@@ -2779,6 +2849,7 @@ require(game.Players.LocalPlayer.PlayerScripts.PlayerModule.CameraModule.Transpa
                 end
             end
             
+            -- Simplified transparency setting
             for v14_8_, v14_9_ in pairs(a1.cachedParts) do
                 v14_8_.LocalTransparencyModifier = setto
             end
@@ -3053,30 +3124,6 @@ local function applyGunMods(gun)
         sett.FireRate = 0.1
     end
 
-    -- Apply no recoil if enabled
-    if allvars.norecoil then
-        sett.MaxRecoil = 0
-        sett.RecoilReductionMax = 0
-        sett.RecoilTValueMax = 0
-        sett.MaximumKickBack = 0
-        -- Additional recoil settings for complete elimination
-        sett.RecoilMax = 0
-        sett.RecoilMin = 0
-        sett.RecoilPattern = {}
-        sett.CameraRecoil = 0
-        sett.Spread = 0
-        sett.SpreadReduction = 0
-    else
-        -- Reset to defaults
-        sett.MaximumKickBack = 1
-        sett.MaxRecoil = 4
-        sett.RecoilReductionMax = 1
-        sett.RecoilTValueMax = 5
-        sett.Spread = 1
-        sett.SpreadReduction = 1
-    end
-
-    -- Apply fast aim if enabled
     if allvars.fastaim then
         sett.AimInSpeed = 0.01  -- Almost instant
         sett.AimOutSpeed = 0.01  -- Almost instant
@@ -3201,63 +3248,7 @@ for _, ammo in pairs(ammoTypes:GetChildren()) do
 end
 end
 
--- Hook into the bullet creation function for enhanced modifications
-local aimogfunc = require(game.ReplicatedStorage.Modules.FPS.Bullet).CreateBullet
-local original_aimmodfunc
 
-local function enhanced_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
-if allvars.instahit then
-    local v_u_10 = game:GetService("ReplicatedStorage")
-    local v65 = v_u_10.AmmoTypes:FindFirstChild(p52)
-    
-    if v65 then
-        local originalVelocity = v65:GetAttribute("MuzzleVelocity")
-        v65:SetAttribute("MuzzleVelocity", 9999999)
-        
-        -- Restore original velocity after a short delay to avoid permanent changes
-        task.spawn(function()
-            wait(0.1)
-            if originalVelocity then
-                v65:SetAttribute("MuzzleVelocity", originalVelocity)
-            end
-        end)
-    end
-end
-
--- Apply zero recoil modifications
-if allvars.norecoil then
-    -- Override recoil values in the function parameters
-    local v79 = {
-        ["x"] = {
-            ["Value"] = 0
-        },
-        ["y"] = {
-            ["Value"] = 0
-        }
-    }
-    
-    -- Set recoil values to zero
-    local v83 = 0
-    local v82 = 0
-    
-    -- Return zero recoil values
-    if original_aimmodfunc then
-        local result1, result2, result3, result4 = original_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
-        return v83, v82, result3, v79
-    end
-end
-
--- Call original function if no modifications needed
-if original_aimmodfunc then
-    return original_aimmodfunc(prikol, p49, p50, p_u_51, aimpart, _, p52, p53, p54)
-end
-end
-
--- Hook the function if it exists
-if aimmodfunc then
-original_aimmodfunc = aimmodfunc
-aimmodfunc = enhanced_aimmodfunc
-end
 
 -- Function to apply mods to all guns in inventory
 local function applyToAllGuns()
@@ -3369,14 +3360,12 @@ end
 })
 
 gunmods:AddToggle('No Recoil', {
-Text = 'No Recoil',
-Default = false,
-Tooltip = 'Removes weapon recoil completely',
-Callback = function(v)
-    allvars.norecoil = v
-    applyToAllGuns()
-    monitorEquippedGun()
-end
+    Text = 'No Recoil',
+    Default = false,
+    Tooltip = 'Removes weapon recoil completely',
+    Callback = function(v)
+        allvars.norecoil = v
+    end
 })
 
 gunmods:AddToggle('Fast Aim', {
@@ -3455,14 +3444,6 @@ Callback = function(v)
 end
 })
 
-gunmods:AddToggle('Instant Equip', {
-    Text = 'Instant Equip',
-    Default = false,
-    Tooltip = 'Enables instant equip',
-    Callback = function(v)
-        allvars.instaequip = v
-    end
-})
 
 -- HITMARKER SECTION
 gunmods2:AddToggle('Hitmarker', {
@@ -3525,7 +3506,7 @@ gunmods2:AddDropdown('BodyHitSound', {
 
 gunmods2:AddDropdown('BeamTexture', {
     Values = beamTextureUI,
-    Default = getgenv().beamtexture or "Texture 2", -- Default to second texture
+    Default = getgenv().beamtexture or "Texture 1", -- Default to second texture
     Multi = false,
     Text = 'Beam Texture',
     Callback = function(v)
@@ -3631,7 +3612,6 @@ gunmods2:AddToggle('TracerBloom', {
     end
 })
 
--- GUN CUSTOMIZATION SECTION
 gunmods2:AddToggle('GunCustomToggle', {
     Text = 'Enable Gun Customization',
     Default = false,
@@ -3821,6 +3801,7 @@ spawn(function()
         end
     end
 end)
+
 allvars.showvisibility = false
 allvars.showhealth = false
 
@@ -4298,6 +4279,17 @@ CamLockBox:AddToggle('KnockCheckToggle', {
     Tooltip = 'Skip knocked out players (Da Hood)',
     Callback = function(state)
         knockCheckEnabled = state
+    end
+})
+
+espUI:AddToggle('HealthBarGradient', {
+    Text = 'Health Bar Gradient',
+    Default = false,
+    Tooltip = 'Enables gradient color for health bar',
+    
+    Callback = function(value)
+        getgenv().healthBarGradient = value
+        applyESP() -- Recreate ESP to apply changes
     end
 })
 
@@ -4921,6 +4913,7 @@ local function updateArmsColor()
     end
 end
 
+
 WorldStuff:AddToggle("Arms ForceField", {
     Text = "Arms ForceField",
     Default = false,	
@@ -5000,6 +4993,49 @@ WorldStuff:AddToggle('No Clouds', {
         end
     end
 })
+WorldStuff:AddToggle('Offset Changer', {
+    Text = 'Offset changer',
+    Default = false,
+    Tooltip = 'Enables offset changer',
+    Callback = function(v)
+        allvars.viewmodoffset = v
+    end
+})
+WorldStuff:AddSlider('Offset X', {
+    Text = 'Offset X',
+    Default = 2,
+    Min = -5,
+    Max = 5,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.viewmodX = c
+    end
+})
+WorldStuff:AddSlider('Offset Y', {
+    Text = 'Offset Y',
+    Default = 2,
+    Min = -5,
+    Max = 5,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.viewmodY = c
+    end
+})
+WorldStuff:AddSlider('Offset Z', {
+    Text = 'Offset Z',
+    Default = 2,
+    Min = -5,
+    Max = 5,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.viewmodZ = c
+    end
+})
+
+
 
 getgenv().FlightKeybind = Enum.KeyCode.X
 getgenv().FlySpeed = 10
@@ -5225,6 +5261,7 @@ uhhh:AddToggle('ActivateResolver',{
 }):AddKeyPicker('ResolverToggle', {
     Default = 'P',
     Mode = 'Toggle', --Always, Toggle, Hold
+    SyncToggleState = true,
     Text = 'Resolver',
     NoUI = false, 
 })
@@ -5265,6 +5302,70 @@ uhhh:AddToggle('Desync', {
     NoUI = false,
 })
 
+uhhh:AddToggle('ThirdPerson', {
+    Text = 'Third Person',
+    Default = false,
+    Tooltip = 'Enables third person',
+    Callback = function(v)
+        allvars.camthirdp = v
+        if v and localplayer.Character then
+            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
+            localplayer.CameraMaxZoomDistance = 5
+            localplayer.CameraMinZoomDistance = 5
+        else
+            localplayer.Character.Humanoid.CameraOffset = Vector3.new(0,0,0)
+            localplayer.CameraMaxZoomDistance = 0.5
+            localplayer.CameraMinZoomDistance = 0.5
+        end
+    end
+}):AddKeyPicker('ThirdPerson', {
+    Default = 'KeypadSix',
+    Mode = 'Toggle', --Always, Toggle, Hold
+    Text = 'Third Person',
+    NoUI = false, 
+})
+uhhh:AddSlider('Thirdp Offset X', {
+    Text = 'Thirdp Offset X',
+    Default = 2,
+    Min = -10,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.camthirdpX = c
+        if allvars.camthirdp and localplayer.Character then
+            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
+        end
+    end
+})
+uhhh:AddSlider('Thirdp Offset Y', {
+    Text = 'Thirdp Offset Y',
+    Default = 2,
+    Min = -10,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.camthirdpY = c
+        if allvars.camthirdp and localplayer.Character then
+            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
+        end
+    end
+})
+uhhh:AddSlider('Thirdp Offset Z', {
+    Text = 'Thirdp Offset Z',
+    Default = 2,
+    Min = -10,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(c)
+        allvars.camthirdpZ = c
+        if allvars.camthirdp and localplayer.Character then
+            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
+        end
+    end
+})
 runs.Heartbeat:Connect(function(delta) --desync
     if aimresolver then return end
 
@@ -5608,53 +5709,18 @@ workspace.CurrentCamera:GetPropertyChangedSignal("FieldOfView"):Connect(function
     end
 end)
 
-
-
-local ThirdPerson = {
-    Enabled = false,
-    Connection = nil
-}
-
-local function enableThirdPerson()
-    -- Force settings
-    player.CameraMode = Enum.CameraMode.Classic
-    player.CameraMinZoomDistance = 0.5
-    player.CameraMaxZoomDistance = 400
-    
-    -- Monitor and prevent first person
-    ThirdPerson.Connection = player:GetPropertyChangedSignal("CameraMode"):Connect(function()
-        if player.CameraMode == Enum.CameraMode.LockFirstPerson then
-            player.CameraMode = Enum.CameraMode.Classic
-        end
-    end)
-end
-
-local function disableThirdPerson()
-    if ThirdPerson.Connection then
-        ThirdPerson.Connection:Disconnect()
-        ThirdPerson.Connection = nil
-    end
-    -- Reset to default camera behavior
-    player.CameraMode = Enum.CameraMode.Classic
-end
-
--- Toggle setup
-Others:AddToggle('ThirdPerson', {
-    Text = 'Third Person BETA',
+-- Your existing FreeCam code
+Others:AddToggle('Free cam', {
+    Text = 'Free cam',
     Default = false,
-    Tooltip = 'Forces third person camera view',
-    Callback = function(state)
-        ThirdPerson.Enabled = state
-        if state then
-            enableThirdPerson()
-        else
-            disableThirdPerson()
-        end
+    Tooltip = 'Enables free camera movement',
+    Callback = function(v)
+        toggleFreeCam(v)
     end
 }):AddKeyPicker('F', {
-    Default = 'J',
+    Default = 'U',
     Mode = 'Toggle',
-    Text = 'ThirdPerson',
+    Text = 'FreeCam',
     NoUI = false,
 })
 
@@ -5977,6 +6043,156 @@ end
 -- Initialize FOV Circle
 createFovCircle()
 
+task.spawn(function() -- slow
+    while wait(1) do
+        invchecktext.Position = Vector2.new(30, (wcamera.ViewportSize.Y / 2) - 360) --on screen stuff
+
+        if scselected ~= nil and scgui ~= nil then
+            scgui.SkinsLabel.Text = "Available skins (For ".. scselected.Name.." ) : "
+        else
+            scgui.SkinsLabel.Text = "Available skins (For None) : "
+        end
+
+        local function handleModDetect()
+            if allvars.detectmods then
+                for _, player in pairs(game.Players:GetPlayers()) do
+                    if detectedmods[player.Name] ~= nil then continue end
+
+                    local pinfo = game.ReplicatedStorage.Players:FindFirstChild(player.Name)
+                    if not pinfo then continue end
+                    local status = pinfo:FindFirstChild("Status")
+                    if not status then continue end
+                    if not status:FindFirstChild("UAC") then continue end
+                    if not status:FindFirstChild("GameplayVariables") then continue end
+
+                    local function detectmod(plrname, reason)
+                        detectedmods[plrname] = true
+                        if mdetect == true then return end
+                        mdetect = true
+
+                        Library:Notify("Mod Detected, reason : ".. reason.. ", moderator : "..plrname, 60)
+                        local notsound = Instance.new("Sound")
+                        notsound.SoundId = "rbxassetid://1841354443"
+                        notsound.Parent = workspace
+                        notsound:Play()
+                        
+                        allvars.espexit = true
+                        safesetvalue(false, Toggles.Extract)
+                        Library:Notify("Extract ESP Enabled due to moderator", 4)
+                    end
+
+                    if status.UAC:GetAttribute("Enabled") == true then
+                        detectmod(player.Name, "uac enabled")
+                        continue
+                    elseif status.GameplayVariables:GetAttribute("Godmode") == true then
+                        detectmod(player.Name, "godmode enabled")
+                        continue
+                    elseif status.GameplayVariables:GetAttribute("PremiumLevel") >= 4 then
+                        detectmod(player.Name, "premium level >= 4")
+                        continue
+                    elseif status.UAC:GetAttribute("A1Detected") == true then
+                        detectmod(player.Name, "A1Detected")
+                        continue
+                    elseif status.UAC:GetAttribute("A2Detected") == true then
+                        detectmod(player.Name, "A2Detected")
+                        continue
+                    elseif status.UAC:GetAttribute("A3Detected") == true then
+                        detectmod(player.Name, "A3Detected")
+                        continue
+                    end
+                end
+            end
+        end
+
+        local function handleAntiMask()
+            if allvars.antimaskbool == true then
+                game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.HelmetMask.TitanShield.Size = UDim2.new(0,0,1,0)
+                game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Mask.GP5.Size = UDim2.new(0,0,1,0)
+                for i,v in pairs(game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Visor:GetChildren()) do
+                    v.Size = UDim2.new(0,0,1,0)
+                end
+            else
+                game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.HelmetMask.TitanShield.Size = UDim2.new(1,0,1,0)
+                game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Mask.GP5.Size = UDim2.new(1,0,1,0)
+                for i,v in pairs(game.Players.LocalPlayer.PlayerGui.MainGui.MainFrame.ScreenEffects.Visor:GetChildren()) do
+                    v.Size = UDim2.new(1,0,1,0)
+                end
+            end
+        end
+
+        local function handleRespawn()
+            if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") and localplayer.Character.Humanoid.Health <= 0 and allvars.instantrespawn == true then
+                localplayer.PlayerGui.RespawnMenu.Enabled = false
+                game.ReplicatedStorage.Remotes.SpawnCharacter:InvokeServer()
+            elseif allvars.instantrespawn == false and localplayer.Character.Humanoid.Health <= 0 then
+                localplayer.PlayerGui.RespawnMenu.Enabled = true
+            else
+                localplayer.PlayerGui.RespawnMenu.Enabled = false
+                game.ReplicatedStorage.Remotes.SpawnCharacter:InvokeServer()
+            end
+        end
+
+        local function handleFoliage()
+            if not folcheck then return end 
+            for _, v in pairs(folcheck.Foliage:GetDescendants()) do
+                if v:FindFirstChildOfClass("SurfaceAppearance") then
+                    v.Transparency = allvars.worldleaves and 1 or 0
+                end
+            end
+        end
+
+        local function handleInventory()
+            if not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+            local offset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
+            if not offset then return end
+
+            local inv = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Inventory
+            local eq = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Equipment
+            local cloth = game.ReplicatedStorage.Players:FindFirstChild(localplayer.Name).Clothing
+            if not inv then return end
+            if not eq then return end
+            if not cloth then return end
+
+            for _, v in pairs(inv:GetChildren()) do
+                if not v:FindFirstChild("SettingsModule") then return end
+                local sett = require(v.SettingsModule)
+                if allvars.viewmodoffset then
+                    sett.weaponOffSet = offset
+                end
+                if allvars.rapidfire then
+                    sett.FireRate = allvars.crapidfire and allvars.crapidfirenum or 0.001
+                end
+                if allvars.unlockmodes then
+                    sett.FireModes = {"Auto", "Semi"}
+                end
+            end
+
+            for _, v in pairs(eq:GetChildren()) do
+                if not v:FindFirstChild("SettingsModule") then return end
+                local sett = require(v.SettingsModule)
+                if allvars.viewmodoffset then
+                    sett.weaponOffSet = offset
+                end
+            end
+        end
+
+        if visdesync and desyncvis then
+            desyncvis.Color = desynccolor
+            desyncvis.Transparency = desynctrans
+        elseif desyncvis then
+            desyncvis.Transparency = 1
+        end
+
+        handleRespawn()
+        handleFoliage()
+        handleInventory()
+        handleAntiMask()
+        handleViewModel()
+        handleModDetect()
+    end
+end)
+
 do
     local mod = require(game.ReplicatedStorage.Modules.FPS)
     local ogfunc = mod.updateClient
@@ -6008,11 +6224,11 @@ do
             a1.springs.jumpTilt.Speed = 4
         end
         if allvars.viewmodoffset then
-            a1.sprintIdleOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
             a1.weaponOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
-            a1.AimInSpeed = 9e9
-        else
-            a1.AimInSpeed = 0.4
+            a1.sprintIdleOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
+            a1.crouchOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
+            a1.leanLeftOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
+            a1.leanRightOffset = CFrame.new(Vector3.new(allvars.viewmodX, allvars.viewmodY, allvars.viewmodZ))
         end
 
         return arg1, arg2, arg3
@@ -6272,8 +6488,8 @@ SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
 
-ThemeManager:SetFolder('ZestHub')
-SaveManager:SetFolder('ZestHub/configs')
+ThemeManager:SetFolder('ProjecZesty')
+SaveManager:SetFolder('ProjecZesty/configs')
 
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
