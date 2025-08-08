@@ -20,7 +20,7 @@ local uis = game:GetService("UserInputService")
 local tweens = game:GetService("TweenService")
 local TweenService = game:GetService("TweenService")
 local scriptloading = true
-local ACBYPASS_SYNC = false
+local ACBYPASS_SYNC = true
 local keybindlist = false
 local keylist_gui 
 local keylist_items = {}
