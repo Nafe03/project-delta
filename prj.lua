@@ -5302,70 +5302,7 @@ uhhh:AddToggle('Desync', {
     NoUI = false,
 })
 
-uhhh:AddToggle('ThirdPerson', {
-    Text = 'Third Person',
-    Default = false,
-    Tooltip = 'Enables third person',
-    Callback = function(v)
-        allvars.camthirdp = v
-        if v and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-            localplayer.CameraMaxZoomDistance = 5
-            localplayer.CameraMinZoomDistance = 5
-        else
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(0,0,0)
-            localplayer.CameraMaxZoomDistance = 0.5
-            localplayer.CameraMinZoomDistance = 0.5
-        end
-    end
-}):AddKeyPicker('ThirdPerson', {
-    Default = 'KeypadSix',
-    Mode = 'Toggle', --Always, Toggle, Hold
-    Text = 'Third Person',
-    NoUI = false, 
-})
-uhhh:AddSlider('Thirdp Offset X', {
-    Text = 'Thirdp Offset X',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpX = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
-uhhh:AddSlider('Thirdp Offset Y', {
-    Text = 'Thirdp Offset Y',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpY = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
-uhhh:AddSlider('Thirdp Offset Z', {
-    Text = 'Thirdp Offset Z',
-    Default = 2,
-    Min = -10,
-    Max = 10,
-    Rounding = 1,
-    Compact = false,
-    Callback = function(c)
-        allvars.camthirdpZ = c
-        if allvars.camthirdp and localplayer.Character then
-            localplayer.Character.Humanoid.CameraOffset = Vector3.new(allvars.camthirdpX, allvars.camthirdpY, allvars.camthirdpZ)
-        end
-    end
-})
+
 runs.Heartbeat:Connect(function(delta) --desync
     if aimresolver then return end
 
