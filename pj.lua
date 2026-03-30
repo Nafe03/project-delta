@@ -174,8 +174,10 @@ end)
 getgenv().allvars = getgenv().allvars or {
     noswaybool = false, nojumptilt = false,
     viewmodoffset = false,
+    viewmodX = 0,
+    viewmodY = 0,
+    viewmodZ = 0,
     NoBulletDrop = false,
-    viewmodX = 0, viewmodY = 0, viewmodZ = 0,
     rapidfire = false, fastaim = false,
     alwaysauto = false, instahit = false,
     nodof = false, noaiming = false,
@@ -248,6 +250,12 @@ getgenv().WeaponCham = getgenv().WeaponCham or {
     Enabled  = false,
     Material = "Neon",
     Color    = Color3.fromRGB(255, 100, 0),
+}
+
+getgenv().ArmCham = getgenv().ArmCham or {
+    Enabled  = false,
+    Material = "Neon",
+    Color    = Color3.fromRGB(200, 150, 100),
 }
 
 -- ── Leaf MeshIDs ──────────────────────────────────────
@@ -491,11 +499,7 @@ local function updateAllGunMods()
     gunModDirty = true
 end
 
--- Hook every gun mod toggle to call updateAllGunMods()
--- Example (add .Callback = updateAllGunMods to every gun mod toggle, or do this once at the end):
-for _, toggle in ipairs({"NoSwayToggle","NoJumpTilt","FastAim","NoRecoilToggle","NoWeaponBobToggle","NoDropToggle", ...}) do
-    -- You can manually add it or just call updateAllGunMods() in each existing Callback
-end
+-- Gun mod toggles call updateAllGunMods() via their Callbacks (set inline below)
 
 -- One single heartbeat for gun mods (much lighter)
 RunService.Heartbeat:Connect(function()
@@ -2081,6 +2085,115 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════
+-- ARM CHAM SYSTEM  (6 arm parts + Clothing ShirtTemplate)
+-- Targets: RightUpperArm, RightLowerArm, LeftUpperArm,
+--          LeftLowerArm, RightHand, LeftHand
+-- Hides the shirt texture by blanking ShirtTemplate (saved
+-- and restored when the cham is disabled).
+-- ═══════════════════════════════════════════════════════
+local ARM_PART_NAMES = {
+    "RightUpperArm", "RightLowerArm",
+    "LeftUpperArm",  "LeftLowerArm",
+    "RightHand",     "LeftHand",
+}
+
+local _armChamOriginals   = {}    -- [partName] = { Material, Color }
+local _armChamApplied     = false
+local _savedShirtTemplate = nil   -- Clothing.ShirtTemplate saved value
+
+local function getArmChamEnum()
+    local m = getgenv().ArmCham.Material
+    if m == "ForceField" then return Enum.Material.ForceField end
+    return Enum.Material.Neon
+end
+
+local function getViewModel()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+    return cam:FindFirstChild("ViewModel")
+end
+
+local function applyArmChams()
+    local vm = getViewModel()
+    if not vm then return end
+
+    local mat   = getArmChamEnum()
+    local color = getgenv().ArmCham.Color
+
+    -- Save + blank the ShirtTemplate so the skin texture disappears cleanly
+    local clothing = vm:FindFirstChild("Clothing")
+    if clothing then
+        if _savedShirtTemplate == nil then
+            -- save only once; nil means "not yet saved"
+            _savedShirtTemplate = clothing.ShirtTemplate
+        end
+        pcall(function() clothing.ShirtTemplate = "" end)
+    end
+
+    -- Apply material + color to every arm part
+    for _, partName in ipairs(ARM_PART_NAMES) do
+        local part = vm:FindFirstChild(partName)
+        if not part or not part:IsA("BasePart") then continue end
+        if part.Transparency == 1 then continue end
+
+        -- Save original values the first time we touch this part
+        if not _armChamOriginals[partName] then
+            _armChamOriginals[partName] = {
+                Material = part.Material,
+                Color    = part.Color,
+            }
+        end
+
+        pcall(function()
+            part.Material = mat
+            part.Color    = color
+        end)
+    end
+
+    _armChamApplied = true
+end
+
+local function removeArmChams()
+    local vm = getViewModel()
+
+    -- Restore ShirtTemplate
+    if _savedShirtTemplate ~= nil then
+        if vm then
+            local clothing = vm:FindFirstChild("Clothing")
+            if clothing then
+                pcall(function() clothing.ShirtTemplate = _savedShirtTemplate end)
+            end
+        end
+        _savedShirtTemplate = nil
+    end
+
+    -- Restore arm part materials and colors
+    if vm then
+        for partName, data in pairs(_armChamOriginals) do
+            local part = vm:FindFirstChild(partName)
+            if part and part:IsA("BasePart") then
+                pcall(function()
+                    part.Material = data.Material
+                    part.Color    = data.Color
+                end)
+            end
+        end
+    end
+
+    _armChamOriginals = {}
+    _armChamApplied   = false
+end
+
+-- Heartbeat: keep arm chams alive across weapon switches / respawns
+RunService.Heartbeat:Connect(function()
+    if not getgenv().ArmCham.Enabled then
+        if _armChamApplied then removeArmChams() end
+        return
+    end
+    applyArmChams()
+end)
+
+-- ═══════════════════════════════════════════════════════
 -- SKYBOX SYSTEM
 -- ═══════════════════════════════════════════════════════
 local Sky = Lighting:FindFirstChildOfClass("Sky")
@@ -2578,6 +2691,7 @@ PlayerWepGroup:AddToggle("PlayerWepPrimeToggle", {
     Callback      = function(v) getgenv().PlayerWeaponESP.Prime = v end,
     ColorCallback = function(c) getgenv().PlayerWeaponESP.PrimeColor = c end,
 })
+
 PlayerWepGroup:AddToggle("PlayerWepEquippedToggle", {
     Text          = "Equipped Gun  [Holding]",
     Default       = false,
@@ -2586,6 +2700,7 @@ PlayerWepGroup:AddToggle("PlayerWepEquippedToggle", {
     Callback      = function(v) getgenv().PlayerWeaponESP.Equipped = v end,
     ColorCallback = function(c) getgenv().PlayerWeaponESP.EquippedColor = c end,
 })
+
 PlayerWepGroup:AddDropdown("EquippedDisplayMode", {
     Text    = "Equipped Display Mode",
     Values  = { "Text", "Image" },
@@ -2596,7 +2711,6 @@ PlayerWepGroup:AddDropdown("EquippedDisplayMode", {
     end,
 })
 
--- ── Weapon Cham ───────────────────────────────────────
 local ChamGroup = VisualsTab:AddLeftGroupbox("Weapon Cham")
 
 ChamGroup:AddToggle("WeaponChamToggle", {
@@ -2631,6 +2745,42 @@ ChamGroup:AddDropdown("WeaponChamMaterial", {
     end,
 })
 
+-- ── Arm Cham ──────────────────────────────────────────
+local ArmChamGroup = VisualsTab:AddRightGroupbox("Arm Cham")
+
+ArmChamGroup:AddToggle("ArmChamToggle", {
+    Text           = "Enable Arm Cham",
+    Default        = false,
+    HasColorPicker = true,
+    Callback = function(v)
+        getgenv().ArmCham.Enabled = v
+        if not v then removeArmChams() end
+    end,
+    ColorCallback = function(c)
+        getgenv().ArmCham.Color = c
+        -- Live-update color while enabled
+        if getgenv().ArmCham.Enabled then
+            _armChamOriginals = {}   -- force re-save so restore stays correct
+            applyArmChams()
+        end
+    end,
+})
+
+ArmChamGroup:AddDropdown("ArmChamMaterial", {
+    Text    = "Material",
+    Values  = { "Neon", "ForceField" },
+    Default = 1,
+    Callback = function(v)
+        getgenv().ArmCham.Material = v
+        -- Live-update material while enabled
+        if getgenv().ArmCham.Enabled then
+            removeArmChams()
+            applyArmChams()
+        end
+    end,
+})
+
+
 -- ── Misc Tab ──────────────────────────────────────────
 local MiscTab      = Window:AddTab("Misc")
 local GunModsGroup = MiscTab:AddLeftGroupbox("Gun Mods")
@@ -2658,6 +2808,10 @@ PlayerMisc:AddToggle("AntiAimSpinToggle", {
         if lhum then lhum.AutoRotate = not v end
     end,
 })
+GunModsGroup:AddToggle("FastAim", {
+    Text = "Fast Aim", Default = false,
+    Callback = function(v) getgenv().allvars.fastaim = v end,
+})
 PlayerMisc:AddSlider("SpinSpeedSlider", {
     Text = "Spin Speed", Min = 1, Max = 25, Default = 5, Rounding = 1,
     Callback = function(v) SpinSpeed = v end,
@@ -2683,6 +2837,7 @@ GunModsGroup:AddToggle("NoJumpTilt", {
     Text = "No Jump Tilt", Default = false,
     Callback = function(v) getgenv().allvars.nojumptilt = v end,
 })
+
 
 GunModsGroup:AddToggle("NoRecoilToggle", {
     Text = "No Recoil", Default = false,
@@ -2767,9 +2922,66 @@ HitFXGroup:AddToggle("ViewmodelOffsetToggle", {
     Text = "Viewmodel Offset", Default = false,
     Callback = function(v) getgenv().allvars.viewmodoffset = v end,
 })
-HitFXGroup:AddSlider("ViewmodX", { Text="X Offset", Min=-5, Max=5, Default=0, Rounding=1, Callback=function(v) getgenv().allvars.viewmodX=v end })
-HitFXGroup:AddSlider("ViewmodY", { Text="Y Offset", Min=-5, Max=5, Default=0, Rounding=1, Callback=function(v) getgenv().allvars.viewmodY=v end })
-HitFXGroup:AddSlider("ViewmodZ", { Text="Z Offset", Min=-5, Max=5, Default=0, Rounding=1, Callback=function(v) getgenv().allvars.viewmodZ=v end })
+
+HitFXGroup:AddSlider('viewmodel_x', { Text = 'X', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
+    Callback = function(v) getgenv().allvars.viewmodX = v end,
+})
+HitFXGroup:AddSlider('viewmodel_y', { Text = 'Y', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
+    Callback = function(v) getgenv().allvars.viewmodY = v end,
+})
+HitFXGroup:AddSlider('viewmodel_z', { Text = 'Z', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
+    Callback = function(v) getgenv().allvars.viewmodZ = v end,
+})
+-- (Camera is already declared at the top of the script — no re-declaration needed)
+local storedC0 = {}
+local currentViewmodel = nil
+
+local function cacheOriginalC0s(vm)
+    if not vm then return end
+    local hrp = vm:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    storedC0 = {}
+    for _, jointName in ipairs({"LeftUpperArm", "RightUpperArm", "ItemRoot", "Motor6D"}) do
+        local joint = hrp:FindFirstChild(jointName)
+        if joint and joint.C0 then
+            storedC0[jointName] = joint.C0
+        end
+    end
+end
+
+local function vmpos(vm)
+    if not vm then return end
+    if vm ~= currentViewmodel then
+        currentViewmodel = vm
+        cacheOriginalC0s(vm)
+    end
+    local hrp = vm:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local vec = Vector3.new(
+        getgenv().allvars.viewmodX,
+        getgenv().allvars.viewmodY,
+        getgenv().allvars.viewmodZ
+    )
+    for jointName, baseC0 in pairs(storedC0) do
+        local joint = hrp:FindFirstChild(jointName)
+        if joint and baseC0 then
+            joint.C0 = baseC0 + vec
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.03) do
+        local vm = Camera:FindFirstChild("ViewModel") or Camera:FindFirstChildOfClass("Model")
+        if vm then
+            vmpos(vm)
+        else
+            currentViewmodel = nil
+            storedC0 = {}
+        end
+    end
+end)
 
 -- ── World Tab ─────────────────────────────────────────
 local WorldTab   = Window:AddTab("World")
