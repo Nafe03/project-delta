@@ -2683,10 +2683,7 @@ GunModsGroup:AddToggle("NoJumpTilt", {
     Text = "No Jump Tilt", Default = false,
     Callback = function(v) getgenv().allvars.nojumptilt = v end,
 })
-GunModsGroup:AddToggle("FastAim", {
-    Text = "Insta Aim", Default = false,
-    Callback = function(v) getgenv().allvars.fastaim = v end,
-})
+
 GunModsGroup:AddToggle("NoRecoilToggle", {
     Text = "No Recoil", Default = false,
     Callback = function(v)
@@ -2706,7 +2703,7 @@ pcall(function()
     end
 end)
 
--- Replace the old "No Spread" toggle with this:
+
 GunModsGroup:AddToggle('No Spread', {
     Text = 'No Spread', 
     Default = false, 
@@ -2983,31 +2980,11 @@ CamGroup:AddSlider("FovSlider", {
         end
     end,
 })
-CamGroup:AddToggle("ADSFOVToggle", {
-    Text = "Custom ADS FOV", Default = false,
-    Tooltip = "Override the zoom FOV when aiming down sights",
-    Callback = function(v)
-        getgenv().allvars.adsfovbool = v
-        if v then task.spawn(applyZoomToAllGuns) end
-    end,
-})
-CamGroup:AddSlider("ADSFOVSlider", {
-    Text    = "ADS FOV",
-    Default = 90,
-    Min     = 0,
-    Max     = 120,
-    Rounding = 1,
-    Compact  = false,
-    Callback = function(value)
-        currentZoomValue = value
-        applyZoomToAllGuns()
-    end,
-})
 
 CamGroup:AddToggle("AimZoomToggle", {
-    Text    = "Aim Zoom (RMB)",
+    Text    = "insta Aim",
     Default = false,
-    Tooltip = "Zoom camera to a custom FOV when holding right-click to aim",
+    Tooltip = "Instant Aim",
     Callback = function(v)
         AimZoomEnabled = v
         if not v and _aimZoomActive then
@@ -3029,13 +3006,14 @@ CamGroup:AddToggle("AimZoomToggle", {
         end
     end,
 })
+
 CamGroup:AddSlider("AimZoomFOVSlider", {
-    Text     = "Aim Zoom FOV",
+    Text     = "Aim Zoom",
     Min      = 5,
     Max      = 120,
     Default  = 40,
     Rounding = 0,
-    Tooltip  = "FOV when holding right-click (lower = more zoomed in)",
+    Tooltip  = "FOV when holding",
     Callback = function(v) AimZoomFOV = v end,
 })
 
