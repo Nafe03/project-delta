@@ -46,6 +46,7 @@ local lastLeaves   = nil
 local DropedItems = workspace.DroppedItems
 local WeaponFodler = game:GetService("ReplicatedStorage").RangedWeapons
 local AmmoFolder = game:GetService("ReplicatedStorage").AmmoTypes
+local gunModDirty = true  -- force first apply
 
 -- ── Item ESP name lookup tables (built once at load) ──
 local WeaponNames = {}
@@ -414,7 +415,7 @@ pcall(function()
     end
 end)
 
--- ── Gun mod helpers ────────────────────────────────────
+
 local function applyGunMods(gun)
     if not gun:FindFirstChild("SettingsModule") then return end
     local ok, sett = pcall(require, gun.SettingsModule)
@@ -423,24 +424,43 @@ local function applyGunMods(gun)
     local v = getgenv().allvars
     if v.rapidfire        then sett.FireRate = 0.01; sett.SemiAuto = false end
     if v.fastaim          then sett.AimInSpeed = 0.01; sett.AimOutSpeed = 0.01 end
-    if v.noswaybool       then sett.swayMult = 0; sett.IdleSwayModifier = 0
-                               sett.WalkSwayModifer = 0; sett.SprintSwayModifer = 0 end
-    if v.alwaysauto       then sett.FireMode = "Auto"; sett.FireModes = {"Auto"}
-                               sett.SemiAuto = false; sett.AutomaticFire = true end
-    if v.instahit         then sett.BulletSpeed = 9999999; sett.BulletDrop = 0
-                               sett.BulletGravity = 0 end
+    if v.noswaybool       then sett.swayMult = 0; sett.IdleSwayModifier = 0; sett.WalkSwayModifer = 0; sett.SprintSwayModifer = 0 end
+    if v.alwaysauto       then sett.FireMode = "Auto"; sett.FireModes = {"Auto"}; sett.SemiAuto = false; sett.AutomaticFire = true end
+    if v.instahit         then sett.BulletSpeed = 9999999; sett.BulletDrop = 0; sett.BulletGravity = 0 end
     if v.nodof            then sett.useDof = false end
     if v.noaiming         then sett.allowAiming = false end
-    if v.fastReload       then sett.ReloadFadeIn = 0.01; sett.ReloadFadeOut = 0.01
-                               sett.ReloadTime = 0.1 end
+    if v.fastReload       then sett.ReloadFadeIn = 0.01; sett.ReloadFadeOut = 0.01; sett.ReloadTime = 0.1 end
     if v.fastequip        then sett.EquipTValue = 0.01 end
     if v.extendedrange    then sett.ItemLength = 20; sett.Range = 9999 end
     if v.instantreduction then sett.ReductionStartTime = 0; sett.RecoilReduction = 100 end
     if v.adsfovbool       then
-        pcall(function() sett.AimFOV  = currentZoomValue end)
-        pcall(function() sett.ZoomFOV = currentZoomValue end)
+        sett.AimFOV  = currentZoomValue
+        sett.ZoomFOV = currentZoomValue
     end
 end
+
+-- New reactive system (add this after all UI toggles)
+local function updateAllGunMods()
+    gunModDirty = true
+end
+
+-- Hook every gun mod toggle to call updateAllGunMods()
+-- Example (add .Callback = updateAllGunMods to every gun mod toggle, or do this once at the end):
+for _, toggle in ipairs({"NoSwayToggle","NoJumpTilt","FastAim","NoRecoilToggle","NoWeaponBobToggle","NoDropToggle", ...}) do
+    -- You can manually add it or just call updateAllGunMods() in each existing Callback
+end
+
+-- One single heartbeat for gun mods (much lighter)
+RunService.Heartbeat:Connect(function()
+    if not gunModDirty then return end
+    gunModDirty = false
+    local itemsList = ReplicatedStorage:FindFirstChild("ItemsList")
+    if itemsList then
+        for _, item in ipairs(itemsList:GetChildren()) do
+            applyGunMods(item)
+        end
+    end
+end)
 
 -- ═══════════════════════════════════════════════════════
 -- NO RECOIL + NO WEAPON BOB — SpringV2 gc hook
@@ -880,6 +900,20 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+local function predictPosition(targetPart, origin, speed)
+    -- Only predict target movement (lead). Gravity/drop is handled separately below.
+    local pos = targetPart.Position
+    local vel = targetPart.Velocity or Vector3.new()
+
+    for _ = 1, 12 do
+        local delta = pos - origin
+        local t = delta.Magnitude / math.max(speed, 10)
+        pos = targetPart.Position + vel * t
+    end
+    return pos
+end
+
+-- Replace the entire silent aim bullet hook with this improved version:
 if BulletModule then
     local oldBullet
     local hookOk = pcall(function()
@@ -898,19 +932,23 @@ if BulletModule then
                     local targetPos = target.Position
 
                     if getgenv().Aimbot.Prediction then
-                        targetPos = predictPosition(target, aimPart.Position, projectileSpeed, acceleration)
+                        targetPos = predictPosition(target, aimPart.Position, projectileSpeed)
                     end
 
-                    local g        = math.abs(acceleration) * 2
-                    local distance = (targetPos - aimPart.Position).Magnitude
-                    local t        = distance / math.max(projectileSpeed, 1)
-                    local liftScale = getgenv().Aimbot.LiftScale or 1
-                    local lift     = 0.5 * g * (t * t) * liftScale
+                    -- ── STRONGER LONG-RANGE DROP COMPENSATION ──
+                    local g = math.abs(acceleration) * 2
+                    local delta = targetPos - aimPart.Position
+                    local flatDistance = delta.Magnitude
+                    local t = flatDistance / math.max(projectileSpeed, 1)
 
-                    if distance > projectileSpeed then
-                        local overrange = distance - projectileSpeed
-                        local extraT    = overrange / math.max(projectileSpeed, 1)
-                        lift = lift + (0.5 * g * (extraT * extraT) * liftScale)
+                    local liftScale = getgenv().Aimbot.LiftScale or 1
+                    local lift = 0.5 * g * (t * t) * liftScale
+
+                    -- Extra upward boost for longer ranges (exactly what you asked for)
+                    if t > 0.8 then
+                        lift = lift * 1.18                     -- base extra lift
+                        local extraT = (0.5 * g * t^2) / (projectileSpeed * 2) -- path curvature correction
+                        lift = lift + 0.5 * g * (extraT * extraT) * liftScale
                     end
 
                     local liftedTarget = Vector3.new(targetPos.X, targetPos.Y + lift, targetPos.Z)
@@ -920,8 +958,6 @@ if BulletModule then
                         getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
                         getgenv().aimtargetpart = target
 
-                        -- Tracer: barrel → faked target. Hit effect at confirmed position.
-                        -- Hit sound is handled by ProjectileInflict (real server confirmation).
                         task.spawn(function()
                             if getgenv().BulletTracers.Enabled then
                                 CreateBulletTracer(aimPart.Position, targetPos)
@@ -930,20 +966,18 @@ if BulletModule then
                         end)
 
                         _inBullet = true
-                        local r = oldBullet(idk, model, model2, model3,
-                            fakeAimPart, idk2, ammoType, tick, recoilPattern)
+                        local r = oldBullet(idk, model, model2, model3, fakeAimPart, idk2, ammoType, tick, recoilPattern)
                         _inBullet = false
                         return r
                     end
                 end
             end
 
-            -- Normal shot (no silent aim) — draw tracer from barrel along aim direction
+            -- Normal shot tracer (unchanged)
             if getgenv().BulletTracers.Enabled then
                 task.spawn(function()
                     local barrelPos = aimPart.Position
                     local lookDir   = aimPart.CFrame.LookVector
-                    -- Raycast to find where bullet actually lands
                     local rp = RaycastParams.new()
                     rp.FilterType = Enum.RaycastFilterType.Exclude
                     rp.FilterDescendantsInstances = { LocalPlayer.Character, workspace.CurrentCamera }
@@ -954,15 +988,14 @@ if BulletModule then
             end
 
             _inBullet = true
-            local r = oldBullet(idk, model, model2, model3,
-                aimPart, idk2, ammoType, tick, recoilPattern)
+            local r = oldBullet(idk, model, model2, model3, aimPart, idk2, ammoType, tick, recoilPattern)
             _inBullet = false
             return r
         end)
     end)
 
-    if hookOk then print("[SA] bullet.CreateBullet hook OK")
-    else         warn("[SA] bullet.CreateBullet hook FAILED") end
+    if hookOk then print("[SA] bullet.CreateBullet hook OK (improved prediction)")
+    else warn("[SA] bullet.CreateBullet hook FAILED") end
 else
     warn("[SA] Could not require Bullet module — silent aim disabled")
 end
@@ -1830,80 +1863,80 @@ end)
 -- ═══════════════════════════════════════════════════════
 -- DROPPED ITEM ESP
 -- ═══════════════════════════════════════════════════════
-local ItemESPLabels = {}   -- [model instance] = Drawing Text
+local ItemESPLabels = {}
 
 local function getItemCategory(item)
     if WeaponNames[item.Name] then return "weapon"
-    elseif AmmoNames[item.Name]  then return "ammo"
+    elseif AmmoNames[item.Name] then return "ammo"
     else return "junk" end
 end
 
-RunService.Heartbeat:Connect(function()
+local function createItemLabel(item)
+    if ItemESPLabels[item] then return end
+    local lbl = Drawing.new("Text")
+    lbl.Size         = 14
+    lbl.Font         = Drawing.Fonts.UI
+    lbl.Outline      = true
+    lbl.OutlineColor = Color3.fromRGB(0, 0, 0)
+    lbl.Center       = true
+    lbl.Visible      = false
+    ItemESPLabels[item] = lbl
+end
+
+local function removeItemLabel(item)
+    local lbl = ItemESPLabels[item]
+    if lbl then
+        pcall(function() lbl:Remove() end)
+        ItemESPLabels[item] = nil
+    end
+end
+
+-- Initial population + dynamic add/remove
+for _, item in ipairs(DropedItems:GetChildren()) do
+    createItemLabel(item)
+end
+
+DropedItems.ChildAdded:Connect(createItemLabel)
+DropedItems.ChildRemoved:Connect(removeItemLabel)
+
+-- Clean & fast update loop (only existing items, no GetChildren spam)
+RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     if not cam then return end
-
-    -- Garbage-collect labels for removed items
-    for item, lbl in pairs(ItemESPLabels) do
-        if not item or not item.Parent then
-            pcall(function() lbl:Remove() end)
-            ItemESPLabels[item] = nil
-        end
-    end
 
     local iesp = getgenv().ItemESP
     local anyActive = iesp.WeaponESP or iesp.AmmoESP or iesp.JunkESP
 
-    if not anyActive then
-        for _, lbl in pairs(ItemESPLabels) do lbl.Visible = false end
-        return
-    end
-
-    for _, item in pairs(DropedItems:GetChildren()) do
-        -- Find an anchor part
-        local part = nil
-        if item:IsA("BasePart") then
-            part = item
-        else
-            part = item:FindFirstChildOfClass("BasePart")
-            if not part then
-                for _, d in pairs(item:GetDescendants()) do
-                    if d:IsA("BasePart") then part = d; break end
-                end
-            end
+    for item, lbl in pairs(ItemESPLabels) do
+        if not item or not item.Parent then
+            removeItemLabel(item)
+            continue
         end
-        if not part then continue end
 
-        local cat  = getItemCategory(item)
+        local cat = getItemCategory(item)
         local show = (cat == "weapon" and iesp.WeaponESP)
                   or (cat == "ammo"   and iesp.AmmoESP)
                   or (cat == "junk"   and iesp.JunkESP)
 
-        -- Create label on first sight
-        if not ItemESPLabels[item] then
-            local lbl = Drawing.new("Text")
-            lbl.Size         = 14
-            lbl.Font         = Drawing.Fonts.UI
-            lbl.Outline      = true
-            lbl.OutlineColor = Color3.fromRGB(0, 0, 0)
-            lbl.Center       = true
-            lbl.Visible      = false
-            ItemESPLabels[item] = lbl
-        end
-
-        local lbl = ItemESPLabels[item]
-
         if show then
-            local sp, onScreen = cam:WorldToViewportPoint(part.Position + Vector3.new(0, 2.5, 0))
-            if onScreen and sp.Z > 0 then
-                local iesp = getgenv().ItemESP
-                lbl.Text     = item.Name
-                lbl.Position = Vector2.new(sp.X, sp.Y)
-                lbl.Color    = cat == "weapon" and (iesp.WeaponColor or Color3.fromRGB(165,127,159))
-                            or cat == "ammo"   and (iesp.AmmoColor   or Color3.fromRGB(165,127,159))
-                            or                     (iesp.JunkColor   or Color3.fromRGB(165,127,159))
-                lbl.Visible  = true
-            else
-                lbl.Visible = false
+            local part = item:IsA("BasePart") and item or item:FindFirstChildOfClass("BasePart")
+            if not part then
+                for _, desc in pairs(item:GetDescendants()) do
+                    if desc:IsA("BasePart") then part = desc; break end
+                end
+            end
+            if part then
+                local sp, onScreen = cam:WorldToViewportPoint(part.Position + Vector3.new(0, 2.5, 0))
+                if onScreen and sp.Z > 0 then
+                    lbl.Text     = item.Name
+                    lbl.Position = Vector2.new(sp.X, sp.Y)
+                    lbl.Color    = cat == "weapon" and (iesp.WeaponColor or Color3.fromRGB(165,127,159))
+                                or cat == "ammo"   and (iesp.AmmoColor   or Color3.fromRGB(165,127,159))
+                                or                     (iesp.JunkColor   or Color3.fromRGB(165,127,159))
+                    lbl.Visible  = true
+                else
+                    lbl.Visible = false
+                end
             end
         else
             lbl.Visible = false
@@ -2481,29 +2514,34 @@ GunModsGroup:AddToggle("NoRecoilToggle", {
         if v then task.spawn(hookSprings) end
     end,
 })
+-- At the top, after services (add this once)
+local originalAccuracy = {}
+local ammoFolder = ReplicatedStorage:WaitForChild("AmmoTypes")
+
+pcall(function()
+    for _, ammo in ipairs(ammoFolder:GetChildren()) do
+        if ammo:GetAttribute("AccuracyDeviation") then
+            originalAccuracy[ammo.Name] = ammo:GetAttribute("AccuracyDeviation")
+        end
+    end
+end)
+
+-- Replace the old "No Spread" toggle with this:
 GunModsGroup:AddToggle('No Spread', {
     Text = 'No Spread', 
     Default = false, 
     Callback = function(value)
-        local ammoFolder = replicatestorage:FindFirstChild("AmmoTypes")
-        if not ammoFolder then
-            warn("AmmoTypes folder not found in ReplicatedStorage")
-            return
-        end
-        
         if value then
             for _, v in ipairs(ammoFolder:GetChildren()) do
-                if v and v:GetAttribute("AccuracyDeviation") then
-                    v:SetAttribute("AccuracyDeviation", 0.1)
+                if v:GetAttribute("AccuracyDeviation") then
+                    v:SetAttribute("AccuracyDeviation", 0)
                 end
             end
         else
+            -- Restore originals
             for _, v in ipairs(ammoFolder:GetChildren()) do
-                if v then
-                    local realAmmo = realAmmoTypes and realAmmoTypes:FindFirstChild(v.Name)
-                    if realAmmo and v:GetAttribute("AccuracyDeviation") then
-                        v:SetAttribute("AccuracyDeviation", realAmmo:GetAttribute("AccuracyDeviation"))
-                    end
+                if originalAccuracy[v.Name] then
+                    v:SetAttribute("AccuracyDeviation", originalAccuracy[v.Name])
                 end
             end
         end
