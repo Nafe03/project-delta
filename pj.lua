@@ -3031,7 +3031,7 @@ CamGroup:AddToggle("AimZoomToggle", {
 })
 CamGroup:AddSlider("AimZoomFOVSlider", {
     Text     = "Aim Zoom FOV",
-    Min      = 20,
+    Min      = 5,
     Max      = 120,
     Default  = 40,
     Rounding = 0,
