@@ -244,6 +244,12 @@ getgenv().HitSound = {
 
 getgenv().GunMods = { InstantEquip = false }
 
+getgenv().WeaponCham = getgenv().WeaponCham or {
+    Enabled  = false,
+    Material = "Neon",
+    Color    = Color3.fromRGB(255, 100, 0),
+}
+
 -- ── Leaf MeshIDs ──────────────────────────────────────
 local LEAF_MESHIDS = {
     ["rbxassetid://8140855690"] = true,
@@ -1945,6 +1951,95 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════
+-- WEAPON CHAM SYSTEM
+-- ═══════════════════════════════════════════════════════
+local _chamOriginals = {}   -- [part] = { Material, Color, surfaceAppearances }
+local _chamApplied   = false
+
+local function getChamEnum()
+    local m = getgenv().WeaponCham.Material
+    if m == "ForceField" then return Enum.Material.ForceField end
+    return Enum.Material.Neon
+end
+
+local function getWeaponItem()
+    local cam = workspace:FindFirstChild("Camera") or workspace.CurrentCamera
+    if not cam then return nil end
+    local vm = cam:FindFirstChild("ViewModel")
+    if not vm then return nil end
+    return vm:FindFirstChild("Item")
+end
+
+local function applyWeaponChams()
+    local item = getWeaponItem()
+    if not item then return end
+
+    local mat   = getChamEnum()
+    local color = getgenv().WeaponCham.Color
+
+    for _, part in pairs(item:GetDescendants()) do
+        if not part:IsA("BasePart") then continue end
+        if part.Transparency == 1    then continue end
+
+        -- Save original state once per part (clears on removeWeaponChams)
+        if not _chamOriginals[part] then
+            local sas = {}
+            for _, child in pairs(part:GetChildren()) do
+                if child:IsA("SurfaceAppearance") then
+                    table.insert(sas, child)
+                end
+            end
+            _chamOriginals[part] = {
+                Material           = part.Material,
+                Color              = part.Color,
+                surfaceAppearances = sas,
+            }
+        end
+
+        -- Apply cham
+        pcall(function()
+            part.Material = mat
+            part.Color    = color
+        end)
+
+        -- Hide SurfaceAppearances by deparenting them
+        for _, sa in pairs(_chamOriginals[part].surfaceAppearances) do
+            pcall(function()
+                if sa.Parent then sa.Parent = nil end
+            end)
+        end
+    end
+    _chamApplied = true
+end
+
+local function removeWeaponChams()
+    for part, data in pairs(_chamOriginals) do
+        pcall(function()
+            if part and part.Parent then
+                part.Material = data.Material
+                part.Color    = data.Color
+                for _, sa in pairs(data.surfaceAppearances) do
+                    if sa and not sa.Parent then
+                        sa.Parent = part
+                    end
+                end
+            end
+        end)
+    end
+    _chamOriginals = {}
+    _chamApplied   = false
+end
+
+-- Heartbeat: continuously apply chams so they survive weapon switches
+RunService.Heartbeat:Connect(function()
+    if not getgenv().WeaponCham.Enabled then
+        if _chamApplied then removeWeaponChams() end
+        return
+    end
+    applyWeaponChams()
+end)
+
+-- ═══════════════════════════════════════════════════════
 -- SKYBOX SYSTEM
 -- ═══════════════════════════════════════════════════════
 local Sky = Lighting:FindFirstChildOfClass("Sky")
@@ -2094,6 +2189,7 @@ local function _wrap(group)
     local orig_dropdown  = group.AddDropdown
     local orig_colorpick = group.AddColorPicker
     local orig_label     = group.AddLabel
+    local orig_keypicker = group.AddKeyPicker
 
     group.AddToggle = function(self, id, opts)
         local e = orig_toggle(self, id, opts)
@@ -2118,6 +2214,14 @@ local function _wrap(group)
         group.AddColorPicker = function(self, id, opts)
             local e = orig_colorpick(self, id, opts)
             _reg[id] = { elem = e, kind = "ColorPicker", cb = opts and opts.Callback }
+            return e
+        end
+    end
+    -- Track keybinds so they are saved/loaded with configs
+    if orig_keypicker then
+        group.AddKeyPicker = function(self, id, opts)
+            local e = orig_keypicker(self, id, opts)
+            _reg[id] = { elem = e, kind = "KeyPicker", cb = opts and opts.Callback }
             return e
         end
     end
@@ -2448,6 +2552,41 @@ PlayerWepGroup:AddDropdown("EquippedDisplayMode", {
     Tooltip = "Text = weapon name   |   Image = icon from ReplicatedStorage.ItemsList",
     Callback = function(v)
         getgenv().PlayerWeaponESP.EquippedMode = v
+    end,
+})
+
+-- ── Weapon Cham ───────────────────────────────────────
+local ChamGroup = VisualsTab:AddLeftGroupbox("Weapon Cham")
+
+ChamGroup:AddToggle("WeaponChamToggle", {
+    Text           = "Enable Weapon Cham",
+    Default        = false,
+    HasColorPicker = true,
+    Callback = function(v)
+        getgenv().WeaponCham.Enabled = v
+        if not v then removeWeaponChams() end
+    end,
+    ColorCallback = function(c)
+        getgenv().WeaponCham.Color = c
+        -- Re-apply immediately so the color updates live
+        if getgenv().WeaponCham.Enabled then
+            removeWeaponChams()
+            applyWeaponChams()
+        end
+    end,
+})
+
+ChamGroup:AddDropdown("WeaponChamMaterial", {
+    Text    = "Material",
+    Values  = { "Neon", "ForceField" },
+    Default = 1,
+    Callback = function(v)
+        getgenv().WeaponCham.Material = v
+        -- Re-apply immediately so the material updates live
+        if getgenv().WeaponCham.Enabled then
+            removeWeaponChams()
+            applyWeaponChams()
+        end
     end,
 })
 
@@ -2952,6 +3091,13 @@ local function buildSnapshot()
             -- standalone color pickers (AmbientPicker, OutdoorPicker, etc.)
             local col = e.GetColor and e.GetColor()
             if col then snap[id] = { k="C", c = c3hex(col) } end
+        elseif kind == "KeyPicker" then
+            -- save keybind: store the KeyCode name and current mode
+            local key  = e.GetValue and e.GetValue()
+            local mode = e.GetMode  and e.GetMode()
+            if key then
+                snap[id] = { k="K", v=key.Name, m=mode or "Toggle" }
+            end
         end
     end
     return snap
@@ -2969,9 +3115,14 @@ local function applySnapshot(snap)
             -- belt-and-suspenders: fire cb directly in case SetValue didn't
             if entry.cb then pcall(entry.cb, val) end
             if data.c and e.ColorPicker and e.ColorPicker.SetColor then
-                local col = Color3.fromHex(data.c)
-                e.ColorPicker.SetColor(col)
-                if entry.colorCb then pcall(entry.colorCb, col) end
+                local ok, col = pcall(Color3.fromHex, Color3, data.c)
+                if ok and col then
+                    -- SetColor fires the ColorCallback internally via updateColor();
+                    -- we only call colorCb separately if it is a DIFFERENT function
+                    -- (i.e. the picker's updateColor won't reach it).
+                    e.ColorPicker.SetColor(col)
+                    if entry.colorCb then pcall(entry.colorCb, col) end
+                end
             end
         elseif data.k == "S" then
             local val = tonumber(data.v) or 0
@@ -2985,9 +3136,20 @@ local function applySnapshot(snap)
             end
         elseif data.k == "C" then
             if data.c then
-                local col = Color3.fromHex(data.c)
-                if e.SetColor then e.SetColor(col) end
-                if entry.cb then pcall(entry.cb, col) end
+                local ok, col = pcall(Color3.fromHex, Color3, data.c)
+                if ok and col then
+                    if e.SetColor then e.SetColor(col) end
+                    if entry.cb then pcall(entry.cb, col) end
+                end
+            end
+        elseif data.k == "K" then
+            -- Restore keybind: parse the saved KeyCode name back to an enum value
+            if data.v and data.v ~= "" then
+                local ok, kc = pcall(function() return Enum.KeyCode[data.v] end)
+                if ok and kc then
+                    if e.SetKey  then pcall(e.SetKey,  kc) end
+                    if data.m and e.SetMode then pcall(e.SetMode, data.m) end
+                end
             end
         end
     end
