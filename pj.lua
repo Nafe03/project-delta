@@ -304,6 +304,47 @@ pcall(function() FireProjectile    = ReplicatedStorage.Remotes.FireProjectile en
 pcall(function() ProjectileInflict = ReplicatedStorage.Remotes.ProjectileInflict end)
 pcall(function() CamMod            = require(ReplicatedStorage.Modules.CameraSystem) end)
 
+-- ── AimZoom — direct FOV override on RMB (like ADS FOV) ──
+local AimZoomEnabled = false
+local AimZoomFOV     = 40    -- raw FOV value when aiming (20–120)
+local _aimZoomActive = false
+local _aimZoomConn   = nil
+
+local function applyAimZoom(isAiming)
+    if not AimZoomEnabled then return end
+    if isAiming == _aimZoomActive then return end
+    _aimZoomActive = isAiming
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    local targetFov = isAiming and AimZoomFOV or (TargetFOV or BaseFov or 70)
+    TweenService:Create(cam,
+        TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { FieldOfView = targetFov }
+    ):Play()
+    -- Also push through CamMod if available so the game's camera system stays in sync
+    if CamMod then
+        pcall(function()
+            local base = BaseFov or 70
+            local divisor = isAiming and (base / AimZoomFOV) or 1
+            CamMod:SetZoomTarget(divisor, isAiming, 0.12,
+                Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        end)
+    end
+end
+
+-- Detect RMB (ADS) press / release
+UserInputService.InputBegan:Connect(function(inp, gameProc)
+    if gameProc then return end
+    if inp.UserInputType == Enum.UserInputType.MouseButton2 then
+        applyAimZoom(true)
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton2 then
+        applyAimZoom(false)
+    end
+end)
+
 -- ── ADS FOV ───────────────────────────────────────────
 local currentZoomValue = 90
 local itemslist = game.ReplicatedStorage:WaitForChild("ItemsList")
@@ -2643,7 +2684,7 @@ GunModsGroup:AddToggle("NoJumpTilt", {
     Callback = function(v) getgenv().allvars.nojumptilt = v end,
 })
 GunModsGroup:AddToggle("FastAim", {
-    Text = "Fast Aim", Default = false,
+    Text = "Insta Aim", Default = false,
     Callback = function(v) getgenv().allvars.fastaim = v end,
 })
 GunModsGroup:AddToggle("NoRecoilToggle", {
@@ -2961,6 +3002,41 @@ CamGroup:AddSlider("ADSFOVSlider", {
         currentZoomValue = value
         applyZoomToAllGuns()
     end,
+})
+
+CamGroup:AddToggle("AimZoomToggle", {
+    Text    = "Aim Zoom (RMB)",
+    Default = false,
+    Tooltip = "Zoom camera to a custom FOV when holding right-click to aim",
+    Callback = function(v)
+        AimZoomEnabled = v
+        if not v and _aimZoomActive then
+            -- Restore FOV immediately when toggled off mid-aim
+            _aimZoomActive = false
+            local cam = workspace.CurrentCamera
+            if cam then
+                TweenService:Create(cam,
+                    TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    { FieldOfView = TargetFOV or BaseFov or 70 }
+                ):Play()
+            end
+            if CamMod then
+                pcall(function()
+                    CamMod:SetZoomTarget(1, false, 0.12,
+                        Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                end)
+            end
+        end
+    end,
+})
+CamGroup:AddSlider("AimZoomFOVSlider", {
+    Text     = "Aim Zoom FOV",
+    Min      = 20,
+    Max      = 120,
+    Default  = 40,
+    Rounding = 0,
+    Tooltip  = "FOV when holding right-click (lower = more zoomed in)",
+    Callback = function(v) AimZoomFOV = v end,
 })
 
 -- ── Third Person ──────────────────────────────────────
