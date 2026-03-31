@@ -43,6 +43,7 @@ local root        = LocalPlayer.Character.HumanoidRootPart
 random      = false
 lastGrass    = nil
 lastLeaves   = nil
+Extrakt = workspace.NoCollision.ExitLocations
 local DropedItems = workspace.DroppedItems
 local WeaponFodler = game:GetService("ReplicatedStorage").RangedWeapons
 local AmmoFolder = game:GetService("ReplicatedStorage").AmmoTypes
