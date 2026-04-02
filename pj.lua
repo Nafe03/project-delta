@@ -1,3 +1,8 @@
+repeat
+	task["wait"]()
+until game:IsLoaded()
+
+
 if not LPH_OBFUSCATED then
     LPH_JIT            = function(f) return f end
     LPH_JIT_MAX        = function(f) return f end
@@ -20,7 +25,7 @@ if not getnilinstances then getnilinstances = function() return {} end end
 
 -- ── Services ──────────────────────────────────────────
 local UILibrary       = loadstring(game:HttpGetAsync(
-    "https://raw.githubusercontent.com/Nafe03/Zest-Hub/refs/heads/main/ui3.lua"))()
+    "https://raw.githubusercontent.com/Nafe03/Zest-Hub/refs/heads/main/ui4.lua"))()
 
 local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
