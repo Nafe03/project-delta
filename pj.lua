@@ -48,6 +48,7 @@ local root        = LocalPlayer.Character.HumanoidRootPart
 random      = false
 lastGrass    = nil
 lastLeaves   = nil
+getgenv().FlySpeed = 50
 Extrakt = workspace.NoCollision.ExitLocations
 local DropedItems = workspace.DroppedItems
 local WeaponFodler = game:GetService("ReplicatedStorage").RangedWeapons
@@ -594,7 +595,7 @@ RunService.Heartbeat:Connect(function()
     local lhum  = chr and chr:FindFirstChild("Humanoid")
     local lroot = chr and chr:FindFirstChild("HumanoidRootPart")
 
-    if SlowDown and lhum and lhum.WalkSpeed < 16 then
+    if SlowDown and lhum and lhum.WalkSpeed < 16 and not FreeCam then
         lhum.WalkSpeed = 16
     end
 
@@ -957,6 +958,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+
 local function predictPosition(targetPart, origin, speed)
     -- Only predict target movement (lead). Gravity/drop is handled separately below.
     local pos = targetPart.Position
@@ -1101,7 +1103,7 @@ if ProjectileInflict then
                     and cachedTarget
                     and cachedTarget.Parent then
                     local args2 = outerArgs
-                    args2[2] = (cachedTarget.Position - args2[1]).Unit * 9e4
+                    args2[2] = (cachedTarget.Position - args2[1]).Unit * math.huge
                     return OldNamecall(self, table.unpack(args2))
                 end
 
@@ -2416,6 +2418,66 @@ local function _wrapTab(tab)
     return tab
 end
 
+-- ── Fly ───────────────────────────────────────────────
+local function CreateCore()
+    if workspace:FindFirstChild("FlyCore") then workspace.FlyCore:Destroy() end
+    local core = Instance.new("Part")
+    core.Name        = "FlyCore"
+    core.Size        = Vector3.new(1, 1, 1)
+    core.Transparency = 1
+    core.CanCollide  = false
+    core.Massless    = true
+    core.Parent      = workspace
+    local weld       = Instance.new("Weld", core)
+    weld.Part0       = core
+    weld.Part1       = LocalPlayer.Character.HumanoidRootPart
+    return core
+end
+
+local function StartFly()
+    if getgenv().Flying then return end
+    getgenv().Flying = true
+    local lhum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if lhum then lhum.PlatformStand = true end
+    local Core = CreateCore()
+    local BV = Instance.new("BodyVelocity", Core)
+    BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    BV.Velocity = Vector3.zero
+    local BG = Instance.new("BodyGyro", Core)
+    BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    BG.P         = 9e4
+    BG.CFrame    = Core.CFrame
+    RunService.RenderStepped:Connect(function()
+        if not getgenv().Flying then return end
+        local camera       = workspace.CurrentCamera
+        local moveDirection = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W)           then moveDirection = moveDirection + camera.CFrame.LookVector  end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S)           then moveDirection = moveDirection - camera.CFrame.LookVector  end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A)           then moveDirection = moveDirection - camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D)           then moveDirection = moveDirection + camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space)       then moveDirection = moveDirection + Vector3.new(0, 1, 0)      end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDirection = moveDirection - Vector3.new(0, 1, 0)      end
+        BV.Velocity = moveDirection * getgenv().FlySpeed
+        BG.CFrame   = camera.CFrame
+    end)
+end
+
+local function StopFly()
+    if not getgenv().Flying then return end
+    getgenv().Flying = false
+    local lhum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if lhum then lhum.PlatformStand = false end
+    if workspace:FindFirstChild("FlyCore") then workspace.FlyCore:Destroy() end
+end
+
+-- Re-stop fly on respawn so state stays clean
+LocalPlayer.CharacterAdded:Connect(function()
+    if getgenv().Flying then
+        task.wait(0.1)
+        getgenv().Flying = false
+    end
+end)
+
 local Window = UILibrary.new({
     Name          = "ZestHub",
     ToggleKey     = Enum.KeyCode.RightShift,
@@ -2794,6 +2856,29 @@ local HitFXGroup   = MiscTab:AddRightGroupbox("Hit Effects")
 local PlayerMisc   = MiscTab:AddLeftGroupbox("Player")
 local replicatestorage = game:GetService("ReplicatedStorage")
 
+PlayerMisc:AddKeyPicker("FlyKey", {
+    Default  = Enum.KeyCode.G,
+    Mode     = "Toggle",
+    Text     = "Fly Keybind",
+    Callback = function(v)
+        if v then StartFly() else StopFly() end
+        -- keep the toggle in sync
+        local tog = _reg["FlyToggle"]
+        if tog and tog.elem and tog.elem.SetValue then
+            tog.elem.SetValue(v)
+        end
+    end,
+})
+PlayerMisc:AddToggle("FlyToggle", {
+    Text = "Fly", Default = false,
+    Callback = function(v)
+        if v then StartFly() else StopFly() end
+    end,
+})
+PlayerMisc:AddSlider("FlySpeedSlider", {
+    Text = "Fly Speed", Min = 10, Max = 300, Default = 50, Rounding = 0,
+    Callback = function(v) getgenv().FlySpeed = v end,
+})
 PlayerMisc:AddToggle("NoJumpCooldownToggle", {
     Text = "No Jump Cooldown", Default = false,
     Callback = function(v) noJumpCooldown = v end,
@@ -2804,7 +2889,9 @@ PlayerMisc:AddToggle("Nofall", {
 })
 PlayerMisc:AddToggle("NoSlowdownToggle", {
     Text = "No Slowdown", Default = false,
-    Callback = function(v) SlowDown = v end,
+    Callback = function(v) 
+    SlowDown = v 
+    end,
 })
 PlayerMisc:AddToggle("AntiAimSpinToggle", {
     Text = "AntiAim Spin", Default = false,
@@ -3177,7 +3264,11 @@ CamGroup:AddToggle("FreeCamToggle", {
     Tooltip = "WASD=move | Q/E=down/up | Shift=fast | Mouse=look",
     Callback = function(v)
         FreeCam = v
-        if v then enableFreeCam() else disableFreeCam() end
+        if v then 
+            enableFreeCam()
+            hum.WalkSpeed = 0
+        else
+            disableFreeCam() end
     end,
 })
 CamGroup:AddSlider("FreeCamSpeedSlider", {
@@ -3199,13 +3290,14 @@ CamGroup:AddSlider("FovSlider", {
     end,
 })
 
+
 CamGroup:AddToggle("AimZoomToggle", {
     Text    = "insta Aim",
     Default = false,
     Tooltip = "Instant Aim",
     Callback = function(v)
         AimZoomEnabled = v
-        if not v and _aimZoomActive then
+        if not v and _aimZoomActive  then
             -- Restore FOV immediately when toggled off mid-aim
             _aimZoomActive = false
             local cam = workspace.CurrentCamera
@@ -3346,7 +3438,6 @@ local function c3hex(c)
         math.round(c.R*255), math.round(c.G*255), math.round(c.B*255))
 end
 
--- Snapshot every registered element
 local function buildSnapshot()
     local snap = {}
     for id, entry in pairs(_reg) do
@@ -3360,22 +3451,17 @@ local function buildSnapshot()
         elseif kind == "Dropdown" then
             snap[id] = { k="D", v = e.GetValue and e.GetValue() or "" }
         elseif kind == "ColorPicker" then
-            -- standalone color pickers (AmbientPicker, OutdoorPicker, etc.)
             local col = e.GetColor and e.GetColor()
             if col then snap[id] = { k="C", c = c3hex(col) } end
         elseif kind == "KeyPicker" then
-            -- save keybind: store the KeyCode name and current mode
             local key  = e.GetValue and e.GetValue()
             local mode = e.GetMode  and e.GetMode()
-            if key then
-                snap[id] = { k="K", v=key.Name, m=mode or "Toggle" }
-            end
+            if key then snap[id] = { k="K", v=key.Name, m=mode or "Toggle" } end
         end
     end
     return snap
 end
 
--- Apply a snapshot — fires every element's Callback automatically
 local function applySnapshot(snap)
     for id, data in pairs(snap) do
         local entry = _reg[id]
@@ -3384,14 +3470,11 @@ local function applySnapshot(snap)
         if data.k == "T" then
             local val = data.v == true
             if e.SetValue then e.SetValue(val) end
-            -- belt-and-suspenders: fire cb directly in case SetValue didn't
             if entry.cb then pcall(entry.cb, val) end
             if data.c and e.ColorPicker and e.ColorPicker.SetColor then
-                local ok, col = pcall(Color3.fromHex, Color3, data.c)
+                -- FIX: Color3.fromHex is static; old code passed Color3 table as bogus self
+                local ok, col = pcall(function() return Color3.fromHex(data.c) end)
                 if ok and col then
-                    -- SetColor fires the ColorCallback internally via updateColor();
-                    -- we only call colorCb separately if it is a DIFFERENT function
-                    -- (i.e. the picker's updateColor won't reach it).
                     e.ColorPicker.SetColor(col)
                     if entry.colorCb then pcall(entry.colorCb, col) end
                 end
@@ -3399,7 +3482,6 @@ local function applySnapshot(snap)
         elseif data.k == "S" then
             local val = tonumber(data.v) or 0
             if e.SetValue then e.SetValue(val) end
-            -- Slider SetValue never fires Callback, so always fire manually
             if entry.cb then pcall(entry.cb, val) end
         elseif data.k == "D" then
             if e.SetValue and data.v and data.v ~= "" then
@@ -3408,14 +3490,13 @@ local function applySnapshot(snap)
             end
         elseif data.k == "C" then
             if data.c then
-                local ok, col = pcall(Color3.fromHex, Color3, data.c)
+                local ok, col = pcall(function() return Color3.fromHex(data.c) end)
                 if ok and col then
                     if e.SetColor then e.SetColor(col) end
                     if entry.cb then pcall(entry.cb, col) end
                 end
             end
         elseif data.k == "K" then
-            -- Restore keybind: parse the saved KeyCode name back to an enum value
             if data.v and data.v ~= "" then
                 local ok, kc = pcall(function() return Enum.KeyCode[data.v] end)
                 if ok and kc then
@@ -3427,7 +3508,7 @@ local function applySnapshot(snap)
     end
 end
 
-local function cfgPath(name) return CFG_SUB.."/"..name..".json" end
+local function cfgPath(name)   return CFG_SUB.."/"..name..".json" end
 
 local function listConfigs()
     local out = {}
@@ -3470,7 +3551,7 @@ local function setAutoload(name)
     writefile(CFG_SUB.."/autoload.txt", name or "")
 end
 
--- Auto-load 1 second after start so all hooks are settled
+-- Auto-load 1 second after start so all hooks/modules are settled
 task.spawn(function()
     task.wait(1)
     local auto = getAutoload()
@@ -3485,56 +3566,49 @@ local CfgTab   = Window:AddTab("Config")
 local CfgLeft  = CfgTab:AddLeftGroupbox("Actions")
 local CfgRight = CfgTab:AddRightGroupbox("Configs")
 
-local _cfgList    = listConfigs()
-local _cfgSel     = nil
-local _cfgDropRef = nil
-local _cfgSelLbl  = nil  -- label showing what's selected
+local _cfgList   = listConfigs()
+local _cfgSel    = nil
+local _cfgSelLbl = nil
 
--- Right: static dropdown (values fixed at creation) + refresh rebuilds via label
-_cfgDropRef = CfgRight:AddDropdown("CfgListDrop", {
+CfgRight:AddDropdown("CfgListDrop", {
     Text     = "Select Config",
     Values   = #_cfgList > 0 and _cfgList or {"(no configs yet)"},
     Default  = 1,
     Callback = function(v)
-        -- ignore the placeholder
-        if v == "(no configs yet)" then _cfgSel = nil return end
+        if v == "(no configs yet)" then _cfgSel = nil; return end
         _cfgSel = v
-        if _cfgSelLbl then
-            _cfgSelLbl.SetText("Selected: " .. v)
-        end
+        if _cfgSelLbl then _cfgSelLbl.SetText("Selected: "..v) end
     end,
 })
 
 _cfgSelLbl = CfgRight:AddLabel("Selected: none")
 
--- Refresh rebuilds by recreating the dropdown isn't possible in ui2,
--- so we print the list to console and tell the user to re-run the script
--- OR just show in label. Best we can do without SetValues:
 CfgRight:AddButton("CfgRefreshBtn", {
-    Text = "Refresh (re-run to update list)",
+    Text = "Refresh List",
     Callback = function()
         _cfgList = listConfigs()
         local names = table.concat(_cfgList, ", ")
-        print("[Config] " .. #_cfgList .. " configs: " .. (names ~= "" and names or "none"))
+        print("[Config] "..#_cfgList.." config(s): "..(names ~= "" and names or "none"))
+        Window:Notify(#_cfgList.." config(s) found", 1, 3)
     end,
 })
 
-local _autoLbl = CfgRight:AddLabel("Autoload: " .. (getAutoload() or "none"))
+local _autoLbl = CfgRight:AddLabel("Autoload: "..(getAutoload() or "none"))
 
--- Left: actions
 CfgLeft:AddButton("CfgSaveNewBtn", {
     Text = "Save New Config",
     Callback = function()
-        local name = "config_" .. os.date("%m%d_%H%M%S")
+        local name = "config_"..os.date("%m%d_%H%M%S")
         local ok, err = saveConfig(name)
         if ok then
             _cfgList = listConfigs()
-            -- Update selected to the just-saved one
-            _cfgSel = name
-            if _cfgSelLbl then _cfgSelLbl.SetText("Selected: " .. name) end
-            print("[Config] Saved: " .. name)
+            _cfgSel  = name
+            if _cfgSelLbl then _cfgSelLbl.SetText("Selected: "..name) end
+            print("[Config] Saved: "..name)
+            Window:Notify("Saved: "..name, 2, 3)
         else
-            warn("[Config] " .. tostring(err))
+            warn("[Config] "..tostring(err))
+            Window:Notify("Save failed: "..tostring(err), 3, 3)
         end
     end,
 })
@@ -3542,30 +3616,41 @@ CfgLeft:AddButton("CfgSaveNewBtn", {
 CfgLeft:AddButton("CfgLoadBtn", {
     Text = "Load Selected",
     Callback = function()
-        if not _cfgSel then warn("[Config] Select a config first") return end
+        if not _cfgSel then Window:Notify("Select a config first", 4, 3); return end
         local ok, err = loadConfig(_cfgSel)
-        if ok then print("[Config] Loaded: " .. _cfgSel)
-        else warn("[Config] " .. tostring(err)) end
+        if ok then
+            print("[Config] Loaded: ".._cfgSel)
+            Window:Notify("Loaded: ".._cfgSel, 2, 3)
+        else
+            warn("[Config] "..tostring(err))
+            Window:Notify("Load failed: "..tostring(err), 3, 3)
+        end
     end,
 })
 
 CfgLeft:AddButton("CfgOverwriteBtn", {
     Text = "Overwrite Selected",
     Callback = function()
-        if not _cfgSel then warn("[Config] Select a config first") return end
+        if not _cfgSel then Window:Notify("Select a config first", 4, 3); return end
         local ok, err = saveConfig(_cfgSel)
-        if ok then print("[Config] Overwritten: " .. _cfgSel)
-        else warn("[Config] " .. tostring(err)) end
+        if ok then
+            print("[Config] Overwritten: ".._cfgSel)
+            Window:Notify("Overwritten: ".._cfgSel, 2, 3)
+        else
+            warn("[Config] "..tostring(err))
+            Window:Notify("Overwrite failed: "..tostring(err), 3, 3)
+        end
     end,
 })
 
 CfgLeft:AddButton("CfgDeleteBtn", {
     Text = "Delete Selected",
     Callback = function()
-        if not _cfgSel then warn("[Config] Select a config first") return end
+        if not _cfgSel then Window:Notify("Select a config first", 4, 3); return end
         deleteConfig(_cfgSel)
-        print("[Config] Deleted: " .. _cfgSel)
-        _cfgSel = nil
+        print("[Config] Deleted: ".._cfgSel)
+        Window:Notify("Deleted: ".._cfgSel, 3, 3)
+        _cfgSel  = nil
         _cfgList = listConfigs()
         if _cfgSelLbl then _cfgSelLbl.SetText("Selected: none") end
     end,
@@ -3574,10 +3659,11 @@ CfgLeft:AddButton("CfgDeleteBtn", {
 CfgLeft:AddButton("CfgAutoloadBtn", {
     Text = "Set as Autoload",
     Callback = function()
-        if not _cfgSel then warn("[Config] Select a config first") return end
+        if not _cfgSel then Window:Notify("Select a config first", 4, 3); return end
         setAutoload(_cfgSel)
-        _autoLbl.SetText("Autoload: " .. _cfgSel)
-        print("[Config] Autoload → " .. _cfgSel)
+        _autoLbl.SetText("Autoload: ".._cfgSel)
+        print("[Config] Autoload → ".._cfgSel)
+        Window:Notify("Autoload set: ".._cfgSel, 2, 3)
     end,
 })
 
@@ -3587,6 +3673,7 @@ CfgLeft:AddButton("CfgClearAutoBtn", {
         setAutoload("")
         _autoLbl.SetText("Autoload: none")
         print("[Config] Autoload cleared")
+        Window:Notify("Autoload cleared", 1, 3)
     end,
 })
 
