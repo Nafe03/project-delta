@@ -239,6 +239,7 @@ getgenv().Aimbot = {
     AutoShoot  = false,
     AutoShootRate = 0.12,
     InstantHit = false,
+    ClosestPart = false,  -- target the closest visible body part instead of a fixed part
 }
 
 getgenv().BulletTracers = {
@@ -763,18 +764,17 @@ local function projectileDrop(origin, targetPos, speed, acceleration)
     return 0.5 * gravity * t^2   -- always negative Y (downward drop)
 end
 
-local function predictPosition(targetPart, origin, speed, acceleration)
-    -- Perfect iterative prediction: 15 passes, accounts for drag=0, gravity, and velocity.
-    -- gravity is forced downward (negative Y) regardless of how the game stores acceleration.
-    local gravity = Vector3.new(0, -math.abs(acceleration) * 2, 0)
-    local pos     = targetPart.Position
-    local vel     = targetPart.Velocity
+local function predictPosition(targetPart, origin, speed, gravity)
+    -- Iterative lead prediction with gravity compensation (15 passes).
+    -- gravity = full g value (math.abs(ProjectileDrop) * 2)
+    local gravVec = Vector3.new(0, -(gravity or 19.6), 0)
+    local pos = targetPart.Position
+    local vel = targetPart.Velocity or Vector3.zero
 
     for _ = 1, 15 do
         local delta = pos - origin
-        local t     = delta.Magnitude / math.max(speed, 1)
-        -- Full kinematic position at time t
-        pos = targetPart.Position + vel * t + 0.5 * gravity * (t * t)
+        local t = delta.Magnitude / math.max(speed, 1)
+        pos = targetPart.Position + vel * t + 0.5 * gravVec * (t * t)
     end
     return pos
 end
@@ -828,57 +828,123 @@ end
 local BaseCameraFOV = 70   -- hoisted here so scanTarget + auto-shoot can use it
 local cachedTarget  = nil
 
+-- Body parts checked when ClosestPart mode is active, ordered head→legs
+local BODY_PARTS = {
+    "Head", "UpperTorso", "LowerTorso",
+    "RightUpperArm", "LeftUpperArm",
+    "RightLowerArm", "LeftLowerArm",
+    "RightHand",     "LeftHand",
+    "RightUpperLeg", "LeftUpperLeg",
+    "HumanoidRootPart",
+}
+
+-- Returns the best part to aim at for a given character.
+-- With ClosestPart: picks the part closest to the mouse that passes wall-check.
+-- Without ClosestPart: uses the fixed TargetPart, wall-checked as normal.
+local function getBestPartForCharacter(character, mousePos, camPos, effectiveFOV)
+    local ab = getgenv().Aimbot
+
+    if ab.ClosestPart then
+        -- Find the part closest to the mouse that is within FOV and visible
+        local bestPart, bestDist = nil, effectiveFOV
+        for _, partName in ipairs(BODY_PARTS) do
+            local part = character:FindFirstChild(partName)
+            if not part then continue end
+            local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if not onScreen or sp.Z <= 0 then continue end
+            local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+            if d < bestDist then
+                -- Wall check per part when enabled
+                if ab.WallCheck and not isVisible(camPos, part) then continue end
+                bestDist = d
+                bestPart = part
+            end
+        end
+        return bestPart, bestDist
+    else
+        -- Fixed part mode (original behaviour)
+        local part = character:FindFirstChild(ab.TargetPart)
+        if not part then return nil, effectiveFOV end
+        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen or sp.Z <= 0 then return nil, effectiveFOV end
+        local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+        if d >= effectiveFOV then return nil, effectiveFOV end
+        -- Wall check is done in caller for the fixed-part path
+        return part, d
+    end
+end
+
 local function scanTarget()
     Camera = workspace.CurrentCamera
     if not Camera or not Camera.Parent then return nil end
     local camFOV = Camera.FieldOfView
     if not camFOV or camFOV == 0 then camFOV = BaseCameraFOV end
-    local fovScale   = BaseCameraFOV / camFOV
+    local fovScale     = BaseCameraFOV / camFOV
     local effectiveFOV = getgenv().Aimbot.FOV * fovScale
     local best, bestDist = nil, effectiveFOV
     local mousePos = UserInputService:GetMouseLocation()
     local camPos   = Camera.CFrame.Position
+    local ab       = getgenv().Aimbot
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character then continue end
         local phum = player.Character:FindFirstChild("Humanoid")
-        local part = player.Character:FindFirstChild(getgenv().Aimbot.TargetPart)
-        if not phum or phum.Health <= 0 or not part then continue end
+        if not phum or phum.Health <= 0 then continue end
 
-        -- No hard distance cap — uses your ESP MaxDistance setting
-        if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
+        -- Quick distance cull on root before per-part checks
+        local eroot = player.Character:FindFirstChild("HumanoidRootPart")
+        if eroot and (eroot.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
 
-        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-        if not onScreen then continue end
-
-        local dist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-        if dist < bestDist then
-            bestDist = dist
-            best = part
+        if ab.ClosestPart then
+            local part, d = getBestPartForCharacter(player.Character, mousePos, camPos, bestDist)
+            -- ClosestPart already does wall-check per-part inside getBestPartForCharacter
+            if part and d < bestDist then
+                bestDist = d
+                best = part
+            end
+        else
+            local part = player.Character:FindFirstChild(ab.TargetPart)
+            if not part then continue end
+            if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
+            local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if not onScreen then continue end
+            local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+            if d < bestDist then
+                bestDist = d
+                best = part
+            end
         end
     end
 
-    if getgenv().Aimbot.TargetAI then
+    if ab.TargetAI then
         local aiZones = workspace:FindFirstChild("AiZones")
         if aiZones then
             for _, zone in pairs(aiZones:GetChildren()) do
                 for _, model in pairs(zone:GetChildren()) do
                     if model.ClassName ~= "Model" then continue end
                     local nhum = model:FindFirstChildOfClass("Humanoid")
-                    local part = model:FindFirstChild(getgenv().Aimbot.TargetPart)
-                              or model:FindFirstChild("HumanoidRootPart")
-                    if not nhum or nhum.Health <= 0 or not part then continue end
-                    if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
-                    local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-                    if not onScreen then continue end
-                    local dist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-                    if dist < bestDist then bestDist = dist; best = part end
+                    if not nhum or nhum.Health <= 0 then continue end
+
+                    if ab.ClosestPart then
+                        local part, d = getBestPartForCharacter(model, mousePos, camPos, bestDist)
+                        if part and d < bestDist then bestDist = d; best = part end
+                    else
+                        local part = model:FindFirstChild(ab.TargetPart)
+                                  or model:FindFirstChild("HumanoidRootPart")
+                        if not part then continue end
+                        if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
+                        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+                        if not onScreen then continue end
+                        local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+                        if d < bestDist then bestDist = d; best = part end
+                    end
                 end
             end
         end
     end
 
-    if best and getgenv().Aimbot.WallCheck then
+    -- Wall check for the non-ClosestPart path (ClosestPart already did it per-part)
+    if best and not ab.ClosestPart and ab.WallCheck then
         if not isVisible(camPos, best) then
             best = nil
         end
@@ -957,6 +1023,11 @@ RunService.RenderStepped:Connect(function()
         TargetLine.Visible = false
     end
 end)
+
+
+-- _inBullet must be declared HERE so both the BulletModule hook and the
+-- namecall hook share the exact same upvalue (not two separate variables).
+local _inBullet = false
 
 
 local function predictPosition(targetPart, origin, speed)
@@ -1060,9 +1131,8 @@ else
 end
 
 -- ── Combined namecall hook ─────────────────────────────
--- _inBullet: true while CreateBullet is executing so the Raycast
--- intercept knows it came from FPS.Bullet without debug.getinfo
-local _inBullet = false
+-- _inBullet is declared above (before the BulletModule hook) so both hooks
+-- share the same upvalue.
 
 if ProjectileInflict then
     local OldNamecall
@@ -2511,8 +2581,14 @@ AimLeft:AddToggle("SilentAimToggle", {
     Callback = function(v) getgenv().Aimbot.SilentAim = v end,
 })
 AimRight:AddSlider("LiftScaleSlider", {
-    Text = "Bullet Drop Compensation", Min = 0, Max = 10, Default = 1, Rounding = 2,
+    Text = "Bullet Drop Compensation", Min = 0, Max = 7, Default = 1, Rounding = 2,
+    Tooltip = "1.0 = physics-accurate. Raise if bullets land low, lower if they fly over.",
     Callback = function(v) getgenv().Aimbot.LiftScale = v end,
+})
+AimLeft:AddToggle("ClosestPartToggle", {
+    Text = "Closest Visible Part", Default = false,
+    Tooltip = "Targets whichever body part is closest to your crosshair and not behind a wall (ignores Target Part setting)",
+    Callback = function(v) getgenv().Aimbot.ClosestPart = v end,
 })
 AimLeft:AddToggle("ShowFOVToggle", {
     Text = "Show FOV Circle", Default = false,
