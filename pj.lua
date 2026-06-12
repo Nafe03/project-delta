@@ -81,7 +81,7 @@ getgenv().PlayerWeaponESP = getgenv().PlayerWeaponESP or {
     Hip           = false,
     Prime         = false,
     Equipped      = false,
-    EquippedMode  = "Text",   -- "Text" or "Image"
+    EquippedMode  = "Text",
     HipColor      = Color3.fromRGB(165, 127, 159),
     PrimeColor    = Color3.fromRGB(165, 127, 159),
     EquippedColor = Color3.fromRGB(255, 220, 80),
@@ -111,6 +111,10 @@ local FreeCamYaw    = 0
 local FreeCamRender = nil
 local FreeCamInput  = nil
 local TargetFOV     = 70
+-- FIX 1: BaseFov properly declared as a local variable.
+-- Previously missing, which caused AimZoom's restore path to silently fail
+-- (it referenced BaseFov as an undefined global that was always nil).
+local BaseFov       = 70
 
 local function enableFreeCam()
     Camera = workspace.CurrentCamera
@@ -136,7 +140,6 @@ local function enableFreeCam()
     FreeCamRender = RunService.RenderStepped:Connect(function(dt)
         if not FreeCam then return end
 
-        -- Re-enforce every frame so Roblox can't reset it
         UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 
         local rotCF = CFrame.Angles(0, FreeCamYaw, 0) * CFrame.Angles(FreeCamPitch, 0, 0)
@@ -236,7 +239,7 @@ getgenv().Aimbot = {
     Prediction = false,
     TargetAI   = false,
     TargetLine = false,
-    LiftScale  = 1.0,  -- unused by physics sim, kept for compat
+    LiftScale  = 1.0,
     TargetLineColor = Color3.fromRGB(255, 80, 0),
     AutoShoot  = false,
     AutoShootRate = 0.12,
@@ -295,7 +298,6 @@ local function applyLeaves(hide)
         if not zone then continue end
         for _, obj in pairs(zone:GetChildren()) do
             if obj:IsA("Model") then
-                -- Smart bush detection: any model whose name starts with "Bush"
                 local isBush = obj.Name:sub(1, 4):lower() == "bush"
                 for _, part in pairs(obj:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -323,7 +325,7 @@ pcall(function() CamMod            = require(ReplicatedStorage.Modules.CameraSys
 
 -- ── AimZoom — direct FOV override on RMB (like ADS FOV) ──
 local AimZoomEnabled = false
-local AimZoomFOV     = 40    -- raw FOV value when aiming (20–120)
+local AimZoomFOV     = 40
 local _aimZoomActive = false
 local _aimZoomConn   = nil
 
@@ -333,12 +335,12 @@ local function applyAimZoom(isAiming)
     _aimZoomActive = isAiming
     local cam = workspace.CurrentCamera
     if not cam then return end
+    -- FIX 2: BaseFov is now a proper local, so this restore works correctly
     local targetFov = isAiming and AimZoomFOV or (TargetFOV or BaseFov or 70)
     TweenService:Create(cam,
         TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
         { FieldOfView = targetFov }
     ):Play()
-    -- Also push through CamMod if available so the game's camera system stays in sync
     if CamMod then
         pcall(function()
             local base = BaseFov or 70
@@ -442,7 +444,6 @@ pcall(function()
         local r1, r2, r3 = ogfunc(a1, a2, a3)
         a1table = a1
 
-        -- guard: some weapons (melee, thrown) have no springs table
         if not a1 or not a1.springs then return r1, r2, r3 end
 
         if getgenv().allvars.nojumptilt then
@@ -466,13 +467,23 @@ pcall(function()
             end
         end
 
+        -- FIX 3: Viewmodel offset — only apply to visual/animation offsets.
+        -- weaponOffset is intentionally LEFT ALONE because the bullet system
+        -- (Bullet.lua CreateBullet) reads a1.weaponOffset to determine the
+        -- barrel world position, which is what prediction/silent-aim uses.
+        -- Changing it here would rotate the barrel away from the target,
+        -- breaking prediction and making bullets miss.
         if getgenv().allvars.viewmodoffset then
-            local cf = CFrame.new(getgenv().allvars.viewmodX,
-                                  getgenv().allvars.viewmodY,
-                                  getgenv().allvars.viewmodZ)
-            a1.weaponOffset    = cf; a1.sprintIdleOffset = cf
-            a1.crouchOffset    = cf; a1.leanLeftOffset   = cf
-            a1.leanRightOffset = cf
+            local cf = CFrame.new(
+                getgenv().allvars.viewmodX,
+                getgenv().allvars.viewmodY,
+                getgenv().allvars.viewmodZ
+            )
+            -- Only visual offsets — do NOT touch weaponOffset (barrel position)
+            if a1.sprintIdleOffset ~= nil then a1.sprintIdleOffset = cf end
+            if a1.crouchOffset     ~= nil then a1.crouchOffset     = cf end
+            if a1.leanLeftOffset   ~= nil then a1.leanLeftOffset   = cf end
+            if a1.leanRightOffset  ~= nil then a1.leanRightOffset  = cf end
         end
 
         return r1, r2, r3
@@ -503,14 +514,10 @@ local function applyGunMods(gun)
     end
 end
 
--- New reactive system (add this after all UI toggles)
 local function updateAllGunMods()
     gunModDirty = true
 end
 
--- Gun mod toggles call updateAllGunMods() via their Callbacks (set inline below)
-
--- One single heartbeat for gun mods (much lighter)
 RunService.Heartbeat:Connect(function()
     if not gunModDirty then return end
     gunModDirty = false
@@ -643,7 +650,6 @@ RunService.Heartbeat:Connect(function()
             end
         end
     else
-        -- Restore saved originals
         for _, ammo in pairs(at:GetChildren()) do
             if ammo:IsA("Folder") or ammo:IsA("Configuration") then
                 if savedDropValues[ammo.Name] ~= nil then
@@ -675,10 +681,8 @@ RunService.Heartbeat:Connect(function(dt)
     Lighting.Ambient        = w.Ambient
     Lighting.OutdoorAmbient = w.OutdoorAmbient
 
-    -- Shadows — enforce every frame so game can't reset it
     Lighting.GlobalShadows = not w.RemoveShadows
 
-    -- Atmosphere — enforce every frame so game can't reset it
     local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
     if atmo then
         if w.RemoveAtmo then
@@ -690,14 +694,12 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Clouds — enforce every frame so game can't reset it
     local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
     if clouds then
         local want = not w.RemoveClouds
         if clouds.Enabled ~= want then clouds.Enabled = want end
     end
 
-    -- Grass — re-enforce on a 5s timer (sethiddenproperty is expensive)
     _grassTimer = _grassTimer - dt
     if _grassTimer <= 0 then
         _grassTimer = 5
@@ -706,8 +708,6 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- Leaves — re-enforce on a 3s timer so newly spawned trees also get caught.
-    -- Checks current transparency so it only touches parts that need updating.
     _leavesTimer = _leavesTimer - dt
     if _leavesTimer <= 0 then
         _leavesTimer = 3
@@ -716,7 +716,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Track last value so toggling off still fires applyLeaves(false) once
     if w.RemoveLeaves ~= lastLeaves then
         lastLeaves = w.RemoveLeaves
         if not w.RemoveLeaves then
@@ -782,7 +781,6 @@ end
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
--- Cached foliage folder so wall-check never trips on leaves/bushes
 local _cachedFoliage = nil
 local function getFoliage()
     if not _cachedFoliage or not _cachedFoliage.Parent then
@@ -795,19 +793,16 @@ end
 local function isVisible(origin, targetPart)
     local ignore = { Camera }
     if LocalPlayer.Character then table.insert(ignore, LocalPlayer.Character) end
-    -- Exclude all foliage so leaves/bushes never block wall-check
     local fol = getFoliage()
     if fol then table.insert(ignore, fol) end
     rayParams.FilterDescendantsInstances = ignore
     local direction = targetPart.Position - origin
-    -- Multi-pass: keep stepping through transparent parts (glass, meshes < 0.5 opacity)
     local offset = Vector3.new()
     for _ = 1, 6 do
         local result = workspace:Raycast(origin + offset, direction - offset, rayParams)
-        if not result then return true end  -- nothing solid in the way
+        if not result then return true end
         local inst = result.Instance
         if inst:IsDescendantOf(targetPart.Parent) then return true end
-        -- If the blocking part is semi-transparent, punch through it
         if inst.Transparency >= 0.3 then
             local extra = { inst }
             for _, e in ipairs(ignore) do table.insert(extra, e) end
@@ -824,7 +819,7 @@ end
 -- ═══════════════════════════════════════════════════════
 -- TARGET SYSTEM — runs on Heartbeat, NOT RenderStepped
 -- ═══════════════════════════════════════════════════════
-local BaseCameraFOV = 70   -- hoisted here so scanTarget + auto-shoot can use it
+local BaseCameraFOV = 70
 local cachedTarget  = nil
 
 local function scanTarget()
@@ -844,7 +839,6 @@ local function scanTarget()
         local part = player.Character:FindFirstChild(getgenv().Aimbot.TargetPart)
         if not phum or phum.Health <= 0 or not part then continue end
 
-        -- No hard distance cap — uses your ESP MaxDistance setting
         if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
 
         local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -886,7 +880,6 @@ local function scanTarget()
     return best
 end
 
--- Target scanning throttled to every 4 frames — kills the FPS drop
 local _scanFrame = 0
 RunService.Heartbeat:Connect(function()
     if not getgenv().Aimbot.Enabled and not getgenv().Aimbot.AutoShoot then
@@ -914,7 +907,6 @@ FOVCircle.Radius = getgenv().Aimbot.FOV
 local CurrentFOVRadius = getgenv().Aimbot.FOV
 local TargetFOVRadius  = getgenv().Aimbot.FOV
 local FOVSmoothSpeed   = 0.15
--- BaseCameraFOV = 70 is declared earlier, above scanTarget
 
 local TargetLine = Drawing.new("Line")
 TargetLine.Thickness    = 1.5
@@ -922,7 +914,6 @@ TargetLine.Color        = getgenv().Aimbot.TargetLineColor
 TargetLine.Transparency = 1
 TargetLine.Visible      = false
 
--- RenderStepped only does cheap drawing — no scanning
 RunService.RenderStepped:Connect(function()
     local mousePos = UserInputService:GetMouseLocation()
     local cam = workspace.CurrentCamera
@@ -957,32 +948,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-
--- ═══════════════════════════════════════════════════════
--- BULLET PHYSICS — exact mirror of bullet.lua simulation
--- ═══════════════════════════════════════════════════════
--- bullet.lua state vars (names preserved from decompile):
---   u99  = direction unit vector
---   u101 = MuzzleVelocity (studs/sec)
---   u115 = velocity vector = u101 * u99  (changes each step via gravity)
---   u100 = current bullet position
---   u117 = accumulated delta time per sub-step (threshold: 1/240)
---   gravity applied ONLY when no hit: u115 += Vector3(0,-70,0) * u117
---   position advances: u100 = hitPos (or u100 + u99 * stepDist if no hit)
---   direction updates: u99 = u115.Unit  after gravity applied
---
--- simulateBullet(origin, direction, muzzleVelocity)
---   Runs the exact same Euler integration bullet.lua uses.
---   Returns the world position where the bullet would hit a player,
---   plus the time-of-flight so we can account for target movement.
---
 local BULLET_GRAVITY = Vector3.new(0, -70, 0)
-local BULLET_STEP    = 1 / 240  -- bullet.lua: 0.004166666666666667
+local BULLET_STEP    = 1 / 240
 
--- bulletTOF: runs bullet.lua's exact Euler integration and returns
--- the time-of-flight to travel 'targetDist' studs along the bullet path.
--- Stops as soon as the cumulative distance reaches targetDist so tof
--- is the real travel time to that point, not the time to fly 4000 studs.
 local function bulletTOF(origin, direction, muzzleVelocity, targetDist)
     local u99  = direction.Unit
     local u115 = muzzleVelocity * u99
@@ -993,7 +961,6 @@ local function bulletTOF(origin, direction, muzzleVelocity, targetDist)
         local u117    = BULLET_STEP
         local stepDist = (u115 * u117).Magnitude
 
-        -- Apply gravity (bullet.lua else-branch line 518)
         u115 = u115 + BULLET_GRAVITY * u117
 
         u99  = u115.Unit
@@ -1023,7 +990,7 @@ local function bulletDropAt(origin, direction, muzzleVelocity, targetDist)
     end
 
     local straightEnd = origin + direction.Unit * targetDist
-    return pos.Y - straightEnd.Y   -- negative = bullet fell below aim line
+    return pos.Y - straightEnd.Y
 end
 
 local function predictBulletTrajectory(targetPart, origin, muzzleVelocity)
@@ -1032,7 +999,6 @@ local function predictBulletTrajectory(targetPart, origin, muzzleVelocity)
     local targetPos = targetPart.Position
     local targetVel = targetPart.AssemblyLinearVelocity or Vector3.zero
 
-    -- Straight-line distance to target right now
     local dist = (targetPos - origin).Magnitude
 
     local straightDir = (targetPos - origin).Unit
@@ -1060,51 +1026,34 @@ if BulletModule then
 
                 local target = getTarget()
 
-                -- ── INSTANT HIT ───────────────────────────────────────────
-                -- Captured remote sequence (from RemoteSpy):
-                --   1) FireProjectile:InvokeServer(direction, seed, timestamp)
-                --   2) ProjectileInflict:FireServer(hitPart, localCF, seed, timestamp)
-                -- Seed must match across both calls.
-                -- Direction for FireProjectile is the EXACT unit vector the bullet
-                -- travels — computed via the same Euler sim bullet.lua uses.
                 if getgenv().Aimbot.InstantHit and target and target.Parent then
                     if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
 
                         local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
                         local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
 
-                        -- Barrel origin
                         local barrelPos = aimPart and typeof(aimPart) == "Instance"
                             and aimPart.Position or Camera.CFrame.Position
 
-                        -- Get converged predicted target position + exact aim direction
-                        -- predictBulletTrajectory uses the same Euler sim as bullet.lua
                         local predictedPos, aimDir
                         if getgenv().Aimbot.Prediction then
                             predictedPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
                         end
-                        -- Fallback: straight line to current position
                         predictedPos = predictedPos or target.Position
                         aimDir       = aimDir or (target.Position - barrelPos).Unit
 
-                        -- Shared seed — must be identical for both remotes
                         local fireSeed = math.random(-100000, 100000)
                         local fireTime = tick()
 
-                        -- 1) Register bullet with server using the physics-accurate direction
                         pcall(function()
                             FireProjectile:InvokeServer(aimDir, fireSeed, fireTime)
                         end)
 
-                        -- 2) Register hit immediately using same seed
-                        --    localCF = target part's local-space CFrame of impact point
-                        --    (mirrors bullet.lua: v120.CFrame:ToObjectSpace(CFrame.new(v123)))
                         local localHitCF = target.CFrame:ToObjectSpace(CFrame.new(predictedPos))
                         pcall(function()
                             ProjectileInflict:FireServer(target, localHitCF, fireSeed, tick())
                         end)
 
-                        -- Visual + state
                         getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
                         getgenv().aimtargetpart = target
                         task.spawn(function()
@@ -1115,7 +1064,6 @@ if BulletModule then
                             end
                         end)
 
-                        -- Call original so animations/sounds/recoil fire normally
                         _inBullet = true
                         local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
                         _inBullet = false
@@ -1131,7 +1079,6 @@ if BulletModule then
                     local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
                     local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
 
-                    -- Barrel world position
                     local barrelPos = aimPart.Position
                     if viewModel and viewModel:FindFirstChild("Item") then
                         local item = viewModel.Item
@@ -1146,7 +1093,6 @@ if BulletModule then
                         end
                     end
 
-                    -- Use exact bullet physics to get predicted position + aim direction
                     local finalPos, aimDir
                     if getgenv().Aimbot.Prediction then
                         finalPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
@@ -1158,7 +1104,6 @@ if BulletModule then
                         getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
                         getgenv().aimtargetpart = target
 
-                        -- Warp aimPart so LookVector points along the physics-correct direction
                         local origCF   = aimPart.CFrame
                         aimPart.CFrame = CFrame.new(aimPart.Position, aimPart.Position + aimDir)
 
@@ -1227,9 +1172,6 @@ if ProjectileInflict then
 end
 
 -- ── Auto Shoot ────────────────────────────────────────
--- Simulates mouse1press/release so the game's own fire system runs normally.
--- Silent Aim (BulletModule hook) then redirects the bullet at the cached target.
--- Visibility is ALWAYS checked, regardless of the Aimbot WallCheck setting.
 local _autoShootTimer  = 0
 local _autoShootHeld   = false
 
@@ -1263,7 +1205,6 @@ end
 
 RunService.Heartbeat:Connect(function(dt)
     if not getgenv().Aimbot.AutoShoot then
-        -- Release if we were holding when toggled off
         if _autoShootHeld then
             pcall(mouse1release)
             _autoShootHeld = false
@@ -1277,7 +1218,6 @@ RunService.Heartbeat:Connect(function(dt)
     local target = autoShootFindTarget()
 
     if target then
-        -- Simulate a click: press → small delay → release
         pcall(mouse1press)
         _autoShootHeld = true
         task.delay(0.065, function()
@@ -1286,12 +1226,11 @@ RunService.Heartbeat:Connect(function(dt)
         end)
         _autoShootTimer = getgenv().Aimbot.AutoShootRate
     else
-        -- No target — make sure mouse isn't stuck held
         if _autoShootHeld then
             pcall(mouse1release)
             _autoShootHeld = false
         end
-        _autoShootTimer = 0.05  -- check again soon
+        _autoShootTimer = 0.05
     end
 end)
 
@@ -1320,7 +1259,6 @@ local function getWeaponIcon(weaponName)
     if not props then return nil end
     local icon = props:FindFirstChild("ItemIcon")
     if not icon then return nil end
-    -- ItemIcon is an ImageLabel — read its .Image property
     return tostring(icon.Image)
 end
 
@@ -1453,7 +1391,6 @@ function ESPClass:CreateLabels()
     self.labels.distance.Size = UDim2.new(1,40,0,16)
     self.labels.distance.Text = "0m"
 
-    -- Player Weapon ESP labels (shown above name label)
     self.labels.weaponHip = label("WeaponHipLabel", 12,
         Color3.fromRGB(165, 127, 159),
         UDim2.new(0.5, 0, 0, -36), Vector2.new(0.5, 1))
@@ -1472,14 +1409,12 @@ function ESPClass:CreateLabels()
     self.labels.weaponPrime2.Text    = ""
     self.labels.weaponPrime2.Visible = false
 
-    -- Equipped Gun label (reads workspace[player].Holding)
     self.labels.weaponEquipped = label("WeaponEquippedLabel", 12,
         Color3.fromRGB(255, 220, 80),
         UDim2.new(0.5, 0, 1, 6), Vector2.new(0.5, 0))
     self.labels.weaponEquipped.Text    = ""
     self.labels.weaponEquipped.Visible = false
 
-    -- Equipped Gun image (shown instead of text when Image mode is active)
     local eqImg = Instance.new("ImageLabel")
     eqImg.Name                   = "WeaponEquippedImage"
     eqImg.BackgroundTransparency = 1
@@ -1549,27 +1484,20 @@ function ESPClass:Update()
     local rootSP, _ = Camera:WorldToViewportPoint(eroot.Position)
     if rootSP.Z <= 0 then self:Hide() return end
 
-    -- Use actual top-of-head and bottom-of-feet world positions for accurate
-    -- screen-space sizing at ALL distances. The old code had a hard 20px minimum
-    -- which made the box look huge relative to distant characters.
-    local topWorld = head.Position + Vector3.new(0, 0.7, 0)           -- crown of head
-    local botWorld = eroot.Position - Vector3.new(0, 2.8, 0)          -- near feet
+    local topWorld = head.Position + Vector3.new(0, 0.7, 0)
+    local botWorld = eroot.Position - Vector3.new(0, 2.8, 0)
 
     local topSP = Camera:WorldToViewportPoint(topWorld)
     local botSP = Camera:WorldToViewportPoint(botWorld)
 
-    -- Make sure both ends are in front of the camera
     if topSP.Z <= 0 or botSP.Z <= 0 then self:Hide() return end
 
     local height = math.abs(topSP.Y - botSP.Y)
-    local width  = height * 0.55   -- standard ~1:2 width:height ratio for upright characters
+    local width  = height * 0.55
 
-    -- Tiny floor just to avoid 0-size frames; no large minimum that inflates the box
     height = math.max(height, 4)
     width  = math.max(width,  4)
 
-    -- Center the container on the midpoint between head and feet screen positions,
-    -- not on the root (waist) which caused vertical drift at steep camera angles.
     local midX = (topSP.X + botSP.X) * 0.5
     local midY = (topSP.Y + botSP.Y) * 0.5
 
@@ -1674,7 +1602,6 @@ function ESPClass:Update()
         if self.labels.weaponPrime2 then self.labels.weaponPrime2.Visible = false end
     end
 
-    -- ── Equipped Gun ESP (workspace[player].Holding ObjectValue) ─────────
     if pwESP.Equipped then
         local wchar   = workspace:FindFirstChild(self.player.Name)
         local holding = wchar and wchar:FindFirstChild("Holding")
@@ -1689,7 +1616,6 @@ function ESPClass:Update()
                     self.labels.weaponEquippedImage.Visible = true
                     self.labels.weaponEquipped.Visible      = false
                 else
-                    -- No icon found — fall back to text
                     self.labels.weaponEquipped.Text       = "[Gun] " .. heldName
                     self.labels.weaponEquipped.TextColor3 = pwESP.EquippedColor or Color3.fromRGB(255,220,80)
                     self.labels.weaponEquipped.Visible    = true
@@ -1762,7 +1688,7 @@ NPCScreenGui.ResetOnSpawn = false
 NPCScreenGui.IgnoreGuiInset = true
 NPCScreenGui.Parent = game:GetService("CoreGui")
 
-local NPCObjects = {}   -- [model] = NPCObj
+local NPCObjects = {}
 local NPCClass   = {}
 NPCClass.__index = NPCClass
 
@@ -1783,7 +1709,6 @@ function NPCClass:CreateUI()
     self.container.BorderSizePixel = 0
     self.container.Parent = NPCScreenGui
 
-    -- Box
     local box = Instance.new("Frame")
     box.BackgroundColor3 = getgenv().NPC.Box.Color
     box.BackgroundTransparency = 1
@@ -1797,7 +1722,6 @@ function NPCClass:CreateUI()
     stroke.Parent = box
     self.box.frame = box; self.box.stroke = stroke
 
-    -- Health bar
     local cont = Instance.new("Frame")
     cont.Size = UDim2.new(0, getgenv().NPC.HealthBar.Width, 1, 4)
     cont.Position = UDim2.new(0,-8,0,-2)
@@ -1831,7 +1755,6 @@ function NPCClass:CreateUI()
     self.healthBar.gradient  = gradFrame
     self.healthBar.mask      = mask
 
-    -- Labels
     local function label(name, size, color, pos, anchor, align)
         local l = Instance.new("TextLabel")
         l.Name = name
@@ -1992,10 +1915,8 @@ local function RemoveNPC(model)
     if NPCObjects[model] then NPCObjects[model]:Destroy(); NPCObjects[model] = nil end
 end
 
--- Update loop — also discovers new AIs that spawn after script loads
 local _npcScanTimer = 0
 RunService.Heartbeat:Connect(function(dt)
-    -- Update all existing NPC ESP objects, prune dead ones
     for model, obj in pairs(NPCObjects) do
         if model and model.Parent then
             obj:Update()
@@ -2006,7 +1927,6 @@ RunService.Heartbeat:Connect(function(dt)
 
     if not getgenv().NPC.Enabled then return end
 
-    -- Re-scan AiZones every 2s to pick up newly spawned AIs
     _npcScanTimer = _npcScanTimer - dt
     if _npcScanTimer > 0 then return end
     _npcScanTimer = 2
@@ -2055,7 +1975,6 @@ local function removeItemLabel(item)
     end
 end
 
--- Initial population + dynamic add/remove
 for _, item in ipairs(DropedItems:GetChildren()) do
     createItemLabel(item)
 end
@@ -2063,7 +1982,6 @@ end
 DropedItems.ChildAdded:Connect(createItemLabel)
 DropedItems.ChildRemoved:Connect(removeItemLabel)
 
--- Clean & fast update loop (only existing items, no GetChildren spam)
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     if not cam then return end
@@ -2111,7 +2029,7 @@ end)
 -- ═══════════════════════════════════════════════════════
 -- WEAPON CHAM SYSTEM
 -- ═══════════════════════════════════════════════════════
-local _chamOriginals = {}   -- [part] = { Material, Color, surfaceAppearances }
+local _chamOriginals = {}
 local _chamApplied   = false
 
 local function getChamEnum()
@@ -2139,7 +2057,6 @@ local function applyWeaponChams()
         if not part:IsA("BasePart") then continue end
         if part.Transparency == 1    then continue end
 
-        -- Save original state once per part (clears on removeWeaponChams)
         if not _chamOriginals[part] then
             local sas = {}
             for _, child in pairs(part:GetChildren()) do
@@ -2154,13 +2071,11 @@ local function applyWeaponChams()
             }
         end
 
-        -- Apply cham
         pcall(function()
             part.Material = mat
             part.Color    = color
         end)
 
-        -- Hide SurfaceAppearances by deparenting them
         for _, sa in pairs(_chamOriginals[part].surfaceAppearances) do
             pcall(function()
                 if sa.Parent then sa.Parent = nil end
@@ -2188,7 +2103,6 @@ local function removeWeaponChams()
     _chamApplied   = false
 end
 
--- Heartbeat: continuously apply chams so they survive weapon switches
 RunService.Heartbeat:Connect(function()
     if not getgenv().WeaponCham.Enabled then
         if _chamApplied then removeWeaponChams() end
@@ -2198,11 +2112,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════
--- ARM CHAM SYSTEM  (6 arm parts + Clothing ShirtTemplate)
--- Targets: RightUpperArm, RightLowerArm, LeftUpperArm,
---          LeftLowerArm, RightHand, LeftHand
--- Hides the shirt texture by blanking ShirtTemplate (saved
--- and restored when the cham is disabled).
+-- ARM CHAM SYSTEM
 -- ═══════════════════════════════════════════════════════
 local ARM_PART_NAMES = {
     "RightUpperArm", "RightLowerArm",
@@ -2210,9 +2120,9 @@ local ARM_PART_NAMES = {
     "RightHand",     "LeftHand",
 }
 
-local _armChamOriginals   = {}    -- [partName] = { Material, Color }
+local _armChamOriginals   = {}
 local _armChamApplied     = false
-local _savedShirtTemplate = nil   -- Clothing.ShirtTemplate saved value
+local _savedShirtTemplate = nil
 
 local function getArmChamEnum()
     local m = getgenv().ArmCham.Material
@@ -2233,23 +2143,19 @@ local function applyArmChams()
     local mat   = getArmChamEnum()
     local color = getgenv().ArmCham.Color
 
-    -- Save + blank the ShirtTemplate so the skin texture disappears cleanly
     local clothing = vm:FindFirstChild("Clothing")
     if clothing then
         if _savedShirtTemplate == nil then
-            -- save only once; nil means "not yet saved"
             _savedShirtTemplate = clothing.ShirtTemplate
         end
         pcall(function() clothing.ShirtTemplate = "" end)
     end
 
-    -- Apply material + color to every arm part
     for _, partName in ipairs(ARM_PART_NAMES) do
         local part = vm:FindFirstChild(partName)
         if not part or not part:IsA("BasePart") then continue end
         if part.Transparency == 1 then continue end
 
-        -- Save original values the first time we touch this part
         if not _armChamOriginals[partName] then
             _armChamOriginals[partName] = {
                 Material = part.Material,
@@ -2269,7 +2175,6 @@ end
 local function removeArmChams()
     local vm = getViewModel()
 
-    -- Restore ShirtTemplate
     if _savedShirtTemplate ~= nil then
         if vm then
             local clothing = vm:FindFirstChild("Clothing")
@@ -2280,7 +2185,6 @@ local function removeArmChams()
         _savedShirtTemplate = nil
     end
 
-    -- Restore arm part materials and colors
     if vm then
         for partName, data in pairs(_armChamOriginals) do
             local part = vm:FindFirstChild(partName)
@@ -2297,7 +2201,6 @@ local function removeArmChams()
     _armChamApplied   = false
 end
 
--- Heartbeat: keep arm chams alive across weapon switches / respawns
 RunService.Heartbeat:Connect(function()
     if not getgenv().ArmCham.Enabled then
         if _armChamApplied then removeArmChams() end
@@ -2335,18 +2238,17 @@ local function applySkybox(name)
 end
 
 -- ═══════════════════════════════════════════════════════
--- SMOOTH CROSSHAIR (follows mouse with lerp)
+-- SMOOTH CROSSHAIR
 -- ═══════════════════════════════════════════════════════
 local crosshairEnabled = false
 local crosshairColor   = Color3.fromRGB(255, 255, 255)
 local crosshairSize    = 8
 local crosshairThick   = 1.5
 local crosshairGap     = 4
-local crosshairSmooth  = 0.25  -- 0=instant, 1=never arrives
+local crosshairSmooth  = 0.25
 
 local crosshairPos = UserInputService:GetMouseLocation()
 
--- 4 lines: top, bottom, left, right
 local crossLines = {}
 for i = 1, 4 do
     local l = Drawing.new("Line")
@@ -2367,16 +2269,12 @@ RunService.RenderStepped:Connect(function()
     crosshairPos = crosshairPos:Lerp(mouse, 1 - crosshairSmooth)
     local cx, cy = crosshairPos.X, crosshairPos.Y
 
-    -- top
     crossLines[1].From = Vector2.new(cx,              cy - crosshairGap - crosshairSize)
     crossLines[1].To   = Vector2.new(cx,              cy - crosshairGap)
-    -- bottom
     crossLines[2].From = Vector2.new(cx,              cy + crosshairGap)
     crossLines[2].To   = Vector2.new(cx,              cy + crosshairGap + crosshairSize)
-    -- left
     crossLines[3].From = Vector2.new(cx - crosshairGap - crosshairSize, cy)
     crossLines[3].To   = Vector2.new(cx - crosshairGap,                  cy)
-    -- right
     crossLines[4].From = Vector2.new(cx + crosshairGap,                  cy)
     crossLines[4].To   = Vector2.new(cx + crosshairGap + crosshairSize,  cy)
 
@@ -2388,12 +2286,12 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════
--- HIT EFFECT — spinning crosshair at bullet impact point
+-- HIT EFFECT
 -- ═══════════════════════════════════════════════════════
 local hitEffectEnabled = true
 local hitEffectColor   = Color3.fromRGB(255, 60, 60)
 local hitEffectSize    = 14
-local hitEffectDur     = 0.45   -- seconds to live
+local hitEffectDur     = 0.45
 local hitEffectThick   = 1.8
 
 local function spawnHitEffect(worldPos)
@@ -2423,12 +2321,9 @@ local function spawnHitEffect(worldPos)
             return
         end
 
-        -- Fade out
         local alpha = 1 - (elapsed / hitEffectDur)
-        -- Spin
-        angle = angle + 360 * dt * 3   -- 3 full spins per second
+        angle = angle + 360 * dt * 3
 
-        -- Update screen position (follow world point if possible)
         local nsp, nos = Camera:WorldToViewportPoint(worldPos)
         if nos and nsp.Z > 0 then sx, sy = nsp.X, nsp.Y end
 
@@ -2445,10 +2340,9 @@ local function spawnHitEffect(worldPos)
 end
 
 -- ═══════════════════════════════════════════════════════
--- ELEMENT REGISTRY  (auto-captures every Add* return)
--- Wrap groupbox methods so every element is stored by id
+-- ELEMENT REGISTRY
 -- ═══════════════════════════════════════════════════════
-local _reg = {}   -- [id] = { elem, type }
+local _reg = {}
 
 local function _wrap(group)
     local orig_toggle    = group.AddToggle
@@ -2460,23 +2354,19 @@ local function _wrap(group)
 
     group.AddToggle = function(self, id, opts)
         local e = orig_toggle(self, id, opts)
-        -- store both Callback and ColorCallback so applySnapshot can re-fire them
         _reg[id] = { elem = e, kind = "Toggle", cb = opts and opts.Callback, colorCb = opts and opts.ColorCallback }
         return e
     end
     group.AddSlider = function(self, id, opts)
         local e = orig_slider(self, id, opts)
-        -- store Callback so applySnapshot can re-fire it (SetValue doesn't call it)
         _reg[id] = { elem = e, kind = "Slider", cb = opts and opts.Callback }
         return e
     end
     group.AddDropdown = function(self, id, opts)
         local e = orig_dropdown(self, id, opts)
-        -- store Callback so applySnapshot can re-fire it if SetValue doesn't
         _reg[id] = { elem = e, kind = "Dropdown", cb = opts and opts.Callback }
         return e
     end
-    -- Track standalone color pickers added directly on a groupbox
     if orig_colorpick then
         group.AddColorPicker = function(self, id, opts)
             local e = orig_colorpick(self, id, opts)
@@ -2484,7 +2374,6 @@ local function _wrap(group)
             return e
         end
     end
-    -- Track keybinds so they are saved/loaded with configs
     if orig_keypicker then
         group.AddKeyPicker = function(self, id, opts)
             local e = orig_keypicker(self, id, opts)
@@ -2492,7 +2381,6 @@ local function _wrap(group)
             return e
         end
     end
-    -- Wrap AddLabel so chained :AddColorPicker("id", {...}) is also tracked
     if orig_label then
         group.AddLabel = function(self, text)
             local lbl = orig_label(self, text)
@@ -2510,7 +2398,6 @@ local function _wrap(group)
     return group
 end
 
--- Wrap AddLeftGroupbox / AddRightGroupbox on a tab
 local function _wrapTab(tab)
     local origL = tab.AddLeftGroupbox
     local origR = tab.AddRightGroupbox
@@ -2575,7 +2462,6 @@ local function StopFly()
     if workspace:FindFirstChild("FlyCore") then workspace.FlyCore:Destroy() end
 end
 
--- Re-stop fly on respawn so state stays clean
 LocalPlayer.CharacterAdded:Connect(function()
     if getgenv().Flying then
         task.wait(0.1)
@@ -2595,7 +2481,6 @@ local Window = UILibrary.new({
     WatermarkText = "ZestHub",
 })
 
--- Wrap AddTab so every tab auto-wraps its groupboxes
 local _origAddTab = Window.AddTab
 Window.AddTab = function(self, name)
     return _wrapTab(_origAddTab(self, name))
@@ -2893,7 +2778,6 @@ ChamGroup:AddToggle("WeaponChamToggle", {
     end,
     ColorCallback = function(c)
         getgenv().WeaponCham.Color = c
-        -- Re-apply immediately so the color updates live
         if getgenv().WeaponCham.Enabled then
             removeWeaponChams()
             applyWeaponChams()
@@ -2907,7 +2791,6 @@ ChamGroup:AddDropdown("WeaponChamMaterial", {
     Default = 1,
     Callback = function(v)
         getgenv().WeaponCham.Material = v
-        -- Re-apply immediately so the material updates live
         if getgenv().WeaponCham.Enabled then
             removeWeaponChams()
             applyWeaponChams()
@@ -2915,7 +2798,6 @@ ChamGroup:AddDropdown("WeaponChamMaterial", {
     end,
 })
 
--- ── Arm Cham ──────────────────────────────────────────
 local ArmChamGroup = VisualsTab:AddRightGroupbox("Arm Cham")
 
 ArmChamGroup:AddToggle("ArmChamToggle", {
@@ -2928,9 +2810,8 @@ ArmChamGroup:AddToggle("ArmChamToggle", {
     end,
     ColorCallback = function(c)
         getgenv().ArmCham.Color = c
-        -- Live-update color while enabled
         if getgenv().ArmCham.Enabled then
-            _armChamOriginals = {}   -- force re-save so restore stays correct
+            _armChamOriginals = {}
             applyArmChams()
         end
     end,
@@ -2942,7 +2823,6 @@ ArmChamGroup:AddDropdown("ArmChamMaterial", {
     Default = 1,
     Callback = function(v)
         getgenv().ArmCham.Material = v
-        -- Live-update material while enabled
         if getgenv().ArmCham.Enabled then
             removeArmChams()
             applyArmChams()
@@ -2964,7 +2844,6 @@ PlayerMisc:AddKeyPicker("FlyKey", {
     Text     = "Fly Keybind",
     Callback = function(v)
         if v then StartFly() else StopFly() end
-        -- keep the toggle in sync
         local tog = _reg["FlyToggle"]
         if tog and tog.elem and tog.elem.SetValue then
             tog.elem.SetValue(v)
@@ -3045,7 +2924,6 @@ GunModsGroup:AddToggle("NoRecoilToggle", {
         if v then task.spawn(hookSprings) end
     end,
 })
--- At the top, after services (add this once)
 local originalAccuracy = {}
 local ammoFolder = ReplicatedStorage:WaitForChild("AmmoTypes")
 
@@ -3069,7 +2947,6 @@ GunModsGroup:AddToggle('No Spread', {
                 end
             end
         else
-            -- Restore originals
             for _, v in ipairs(ammoFolder:GetChildren()) do
                 if originalAccuracy[v.Name] then
                     v:SetAttribute("AccuracyDeviation", originalAccuracy[v.Name])
@@ -3117,11 +2994,14 @@ HitFXGroup:AddSlider("HitSoundVol", {
     Text = "Volume", Min = 0, Max = 2, Default = 1, Rounding = 1,
     Callback = function(v) getgenv().HitSound.Volume = v end,
 })
+
+-- FIX 3 (UI side): Viewmodel offset sliders now only control the visual
+-- offsets. The actual application is handled in the updateClient hook above,
+-- where weaponOffset is intentionally excluded.
 HitFXGroup:AddToggle("ViewmodelOffsetToggle", {
     Text = "Viewmodel Offset", Default = false,
     Callback = function(v) getgenv().allvars.viewmodoffset = v end,
 })
-
 HitFXGroup:AddSlider('viewmodel_x', { Text = 'X', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
     Callback = function(v) getgenv().allvars.viewmodX = v end,
 })
@@ -3131,56 +3011,13 @@ HitFXGroup:AddSlider('viewmodel_y', { Text = 'Y', Default = 0, Min = -5, Max = 5
 HitFXGroup:AddSlider('viewmodel_z', { Text = 'Z', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
     Callback = function(v) getgenv().allvars.viewmodZ = v end,
 })
--- (Camera is already declared at the top of the script — no re-declaration needed)
-local storedC0 = {}
-local currentViewmodel = nil
 
-local function cacheOriginalC0s(vm)
-    if not vm then return end
-    local hrp = vm:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    storedC0 = {}
-    for _, jointName in ipairs({"LeftUpperArm", "RightUpperArm", "ItemRoot", "Motor6D"}) do
-        local joint = hrp:FindFirstChild(jointName)
-        if joint and joint.C0 then
-            storedC0[jointName] = joint.C0
-        end
-    end
-end
-
-local function vmpos(vm)
-    if not vm then return end
-    if vm ~= currentViewmodel then
-        currentViewmodel = vm
-        cacheOriginalC0s(vm)
-    end
-    local hrp = vm:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local vec = Vector3.new(
-        getgenv().allvars.viewmodX,
-        getgenv().allvars.viewmodY,
-        getgenv().allvars.viewmodZ
-    )
-    for jointName, baseC0 in pairs(storedC0) do
-        local joint = hrp:FindFirstChild(jointName)
-        if joint and baseC0 then
-            joint.C0 = baseC0 + vec
-        end
-    end
-end
-
-task.spawn(function()
-    while task.wait(0.03) do
-        local vm = Camera:FindFirstChild("ViewModel") or Camera:FindFirstChildOfClass("Model")
-        if vm then
-            vmpos(vm)
-        else
-            currentViewmodel = nil
-            storedC0 = {}
-        end
-    end
-end)
+-- NOTE: The old vmpos() / storedC0 / cacheOriginalC0s block and its
+-- task.spawn loop have been REMOVED entirely. That system was fighting
+-- the updateClient hook every 0.03s and was modifying ViewModel Motor6D
+-- C0 values, which are a completely different layer to what the FPS module
+-- uses for weapon rendering. It had zero visual effect and only caused
+-- conflicts. The updateClient hook above is the correct place.
 
 -- ── World Tab ─────────────────────────────────────────
 local WorldTab   = Window:AddTab("World")
@@ -3250,12 +3087,11 @@ LightGroup:AddToggle("Remove SunRay", {
     end,
 })
 
--- ── Third Person camera state (declared before UI so closures can capture) ──
+-- ── Third Person camera state ──
 local _3pYaw    = 0
-local _3pPitch  = math.rad(-10)   -- slight downward default tilt
+local _3pPitch  = math.rad(-10)
 local _3pInput  = nil
 
--- Make the local character body parts visible/invisible for third/first person
 local function setLocalCharVisibility(visible)
     local char = LocalPlayer.Character
     if not char then return end
@@ -3268,7 +3104,6 @@ local function setLocalCharVisibility(visible)
 end
 
 local function enable3P()
-    -- Initialise yaw from current camera so it doesn't snap
     Camera = workspace.CurrentCamera
     if Camera then
         local _, cy, _ = Camera.CFrame:ToEulerAnglesYXZ()
@@ -3301,7 +3136,6 @@ local function disable3P()
     end
 end
 
--- Third person render loop — runs after camera priority so it overrides normally
 RunService:BindToRenderStep("ZH_ThirdPerson", Enum.RenderPriority.Camera.Value + 1, function()
     if not ThirdPerson or FreeCam then return end
     Camera = workspace.CurrentCamera
@@ -3311,11 +3145,9 @@ RunService:BindToRenderStep("ZH_ThirdPerson", Enum.RenderPriority.Camera.Value +
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- Keep mouse locked every frame (game can reset it)
     UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
     Camera.CameraType = Enum.CameraType.Scriptable
 
-    -- Keep character body visible every frame (game resets LocalTransparencyModifier)
     local char2 = LocalPlayer.Character
     if char2 then
         for _, part in pairs(char2:GetDescendants()) do
@@ -3326,17 +3158,14 @@ RunService:BindToRenderStep("ZH_ThirdPerson", Enum.RenderPriority.Camera.Value +
         end
     end
 
-    -- Orbit pivot: character hip + height offset
     local pivot = hrp.Position + Vector3.new(0, ThirdPersonHeight, 0)
 
-    -- Build camera CFrame from our own yaw/pitch — independent of game camera
     local orbitCF  = CFrame.new(pivot)
                    * CFrame.Angles(0, _3pYaw, 0)
                    * CFrame.Angles(_3pPitch, 0, 0)
     local backward = -orbitCF.LookVector
     local idealPos = pivot + backward * ThirdPersonDist
 
-    -- Wall-push: raycast from pivot to ideal camera position
     local rp = RaycastParams.new()
     rp.FilterType = Enum.RaycastFilterType.Exclude
     local excl = { char }
@@ -3344,7 +3173,6 @@ RunService:BindToRenderStep("ZH_ThirdPerson", Enum.RenderPriority.Camera.Value +
     if fol then table.insert(excl, fol) end
     rp.FilterDescendantsInstances = excl
     local ray = workspace:Raycast(pivot, idealPos - pivot, rp)
-    -- Pull camera 0.25 studs in front of any wall hit to avoid clipping
     local finalPos = ray and (ray.Position + (pivot - idealPos).Unit * 0.25) or idealPos
 
     Camera.CFrame = CFrame.new(finalPos, pivot)
@@ -3358,7 +3186,6 @@ CamGroup:AddKeyPicker("FreeCamKey", {
     Callback = function(v)
         FreeCam = v
         if v then enableFreeCam() else disableFreeCam() end
-        -- keep the toggle in sync
         local tog = _reg["FreeCamToggle"]
         if tog and tog.elem and tog.elem.SetValue then
             tog.elem.SetValue(v)
@@ -3385,10 +3212,13 @@ CamGroup:AddToggle("FOVToggle", {
     Text = "Custom FOV", Default = false,
     Callback = function(v) getgenv().World.FOVEnabled = v end,
 })
+-- FIX 2: FovSlider now also updates BaseFov so AimZoom restores to the
+-- correct value after un-ADS instead of always snapping back to 70.
 CamGroup:AddSlider("FovSlider", {
     Text = "FOV", Min = 30, Max = 120, Default = 70, Rounding = 1,
     Callback = function(v)
         TargetFOV = v
+        BaseFov   = v   -- keep AimZoom un-aim restore target in sync
         if getgenv().World.FOVEnabled then
             local cam = (CamMod and CamMod.u4) or Camera
             cam.FieldOfView = v
@@ -3404,7 +3234,6 @@ CamGroup:AddToggle("AimZoomToggle", {
     Callback = function(v)
         AimZoomEnabled = v
         if not v and _aimZoomActive  then
-            -- Restore FOV immediately when toggled off mid-aim
             _aimZoomActive = false
             local cam = workspace.CurrentCamera
             if cam then
@@ -3429,7 +3258,7 @@ CamGroup:AddSlider("AimZoomFOVSlider", {
     Max      = 120,
     Default  = 40,
     Rounding = 0,
-    Tooltip  = "FOV when holding",
+    Tooltip  = "FOV when holding RMB",
     Callback = function(v) AimZoomFOV = v end,
 })
 
@@ -3445,7 +3274,6 @@ _3pKeyElem = CamGroup:AddKeyPicker("ThirdPersonKey", {
         else
             disable3P()
         end
-        -- keep the UI toggle in sync
         local tog = _reg["ThirdPersonToggle"]
         if tog and tog.elem and tog.elem.SetValue then tog.elem.SetValue(v) end
     end,
@@ -3529,8 +3357,7 @@ HitFXGroupFX:AddSlider("HitEffectDur", {
 
 
 -- ═══════════════════════════════════════════════════════
--- CONFIG SYSTEM  — reads directly from the UI registry
--- Saves/loads every Toggle, Slider, Dropdown + ColorPickers
+-- CONFIG SYSTEM
 -- ═══════════════════════════════════════════════════════
 local HttpService = game:GetService("HttpService")
 local CFG_FOLDER  = "ZestHub"
@@ -3578,7 +3405,6 @@ local function applySnapshot(snap)
             if e.SetValue then e.SetValue(val) end
             if entry.cb then pcall(entry.cb, val) end
             if data.c and e.ColorPicker and e.ColorPicker.SetColor then
-                -- FIX: Color3.fromHex is static; old code passed Color3 table as bogus self
                 local ok, col = pcall(function() return Color3.fromHex(data.c) end)
                 if ok and col then
                     e.ColorPicker.SetColor(col)
@@ -3657,7 +3483,6 @@ local function setAutoload(name)
     writefile(CFG_SUB.."/autoload.txt", name or "")
 end
 
--- Auto-load 1 second after start so all hooks/modules are settled
 task.spawn(function()
     task.wait(1)
     local auto = getAutoload()
@@ -3791,5 +3616,3 @@ LightGroup:AddLabel("Outdoor Ambient"):AddColorPicker("OutdoorPicker", {
     Default  = Color3.fromRGB(138,138,138),
     Callback = function(c) getgenv().World.OutdoorAmbient = c end,
 })
-
-print("[ZestHub] Loaded!")
