@@ -238,7 +238,7 @@ getgenv().Aimbot = {
     Prediction = false,
     TargetAI   = false,
     TargetLine = false,
-    LiftScale  = 1,
+    LiftScale  = 0.35,
     TargetLineColor = Color3.fromRGB(255, 80, 0),
     AutoShoot  = false,
     AutoShootRate = 0.12,
@@ -986,7 +986,7 @@ local function predictPosition(targetPart, origin, speed, gravity)
         local drop = 0.5 * math.abs(projectileGravity) * timeToTarget * timeToTarget
         
         -- Apply lift scale
-        local liftScale = getgenv().Aimbot.LiftScale or 1
+        local liftScale = getgenv().Aimbot.LiftScale or 0.35
         local adjustedDrop = drop * liftScale
         
         -- Return adjusted position
@@ -2588,7 +2588,7 @@ AimLeft:AddToggle("SilentAimToggle", {
     Callback = function(v) getgenv().Aimbot.SilentAim = v end,
 })
 AimRight:AddSlider("LiftScaleSlider", {
-    Text = "Bullet Drop Compensation", Min = 0, Max = 10, Default = 1, Rounding = 2,
+    Text = "Bullet Drop Compensation", Min = 0, Max = 0.35, Default = 0.35, Rounding = 2,
     Callback = function(v) getgenv().Aimbot.LiftScale = v end,
 })
 AimLeft:AddToggle("ShowFOVToggle", {
