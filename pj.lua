@@ -27,13 +27,13 @@ if not getnilinstances then getnilinstances = function() return {} end end
 local UILibrary       = loadstring(game:HttpGetAsync(
     "https://raw.githubusercontent.com/Nafe03/Zest-Hub/refs/heads/main/ui4.lua"))()
 
-local Players           = game:GetService("Players")
-local RunService        = game:GetService("RunService")
-local UserInputService  = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting          = game:GetService("Lighting")
-local TweenService      = game:GetService("TweenService")
-local SoundService      = game:GetService("SoundService")
+Players           = game:GetService("Players")
+RunService        = game:GetService("RunService")
+UserInputService  = game:GetService("UserInputService")
+ReplicatedStorage = game:GetService("ReplicatedStorage")
+Lighting          = game:GetService("Lighting")
+TweenService      = game:GetService("TweenService")
+SoundService      = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local chr         = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -43,12 +43,14 @@ SlowDown    = false
 Spin        = false
 local SpinSpeed   = 5
 nofall      = false
+AlwaysCrouch = false
 noJumpCooldown = false
 local root        = LocalPlayer.Character.HumanoidRootPart
 random      = false
 lastGrass    = nil
 lastLeaves   = nil
 getgenv().FlySpeed = 50
+getgenv().NoSpread = false
 Extrakt = workspace.NoCollision.ExitLocations
 local DropedItems = workspace.DroppedItems
 local WeaponFodler = game:GetService("ReplicatedStorage").RangedWeapons
@@ -69,6 +71,8 @@ getgenv().ItemESP = getgenv().ItemESP or {
     WeaponESP    = false,
     AmmoESP      = false,
     JunkESP      = false,
+    Character    = false,
+    CharacterColor   = Color3.fromRGB(165, 127, 159),
     WeaponColor  = Color3.fromRGB(165, 127, 159),
     AmmoColor    = Color3.fromRGB(165, 127, 159),
     JunkColor    = Color3.fromRGB(165, 127, 159),
@@ -239,7 +243,6 @@ getgenv().Aimbot = {
     AutoShoot  = false,
     AutoShootRate = 0.12,
     InstantHit = false,
-    ClosestPart = false,  -- target the closest visible body part instead of a fixed part
 }
 
 getgenv().BulletTracers = {
@@ -574,7 +577,6 @@ task.spawn(function()
     hookSprings()
 end)
 
--- ── Main Heartbeat ────────────────────────────────────
 RunService.Heartbeat:Connect(function()
     if random then
         getgenv().allvars.upanglenum = math.random() * 2 - 1
@@ -582,6 +584,9 @@ RunService.Heartbeat:Connect(function()
 
     if noJumpCooldown and hum then
         hum.JumpHeight = 3.3
+    end
+    if AlwaysCrouch and hum then
+        hum:SetAttribute("Crouch", true)
     end
 
     if nofall and hum then
@@ -764,17 +769,18 @@ local function projectileDrop(origin, targetPos, speed, acceleration)
     return 0.5 * gravity * t^2   -- always negative Y (downward drop)
 end
 
-local function predictPosition(targetPart, origin, speed, gravity)
-    -- Iterative lead prediction with gravity compensation (15 passes).
-    -- gravity = full g value (math.abs(ProjectileDrop) * 2)
-    local gravVec = Vector3.new(0, -(gravity or 19.6), 0)
-    local pos = targetPart.Position
-    local vel = targetPart.Velocity or Vector3.zero
+local function predictPosition(targetPart, origin, speed, acceleration)
+    -- Perfect iterative prediction: 15 passes, accounts for drag=0, gravity, and velocity.
+    -- gravity is forced downward (negative Y) regardless of how the game stores acceleration.
+    local gravity = Vector3.new(0, -math.abs(acceleration) * 2, 0)
+    local pos     = targetPart.Position
+    local vel     = targetPart.Velocity
 
     for _ = 1, 15 do
         local delta = pos - origin
-        local t = delta.Magnitude / math.max(speed, 1)
-        pos = targetPart.Position + vel * t + 0.5 * gravVec * (t * t)
+        local t     = delta.Magnitude / math.max(speed, 1)
+        -- Full kinematic position at time t
+        pos = targetPart.Position + vel * t + 0.5 * gravity * (t * t)
     end
     return pos
 end
@@ -828,123 +834,57 @@ end
 local BaseCameraFOV = 70   -- hoisted here so scanTarget + auto-shoot can use it
 local cachedTarget  = nil
 
--- Body parts checked when ClosestPart mode is active, ordered head→legs
-local BODY_PARTS = {
-    "Head", "UpperTorso", "LowerTorso",
-    "RightUpperArm", "LeftUpperArm",
-    "RightLowerArm", "LeftLowerArm",
-    "RightHand",     "LeftHand",
-    "RightUpperLeg", "LeftUpperLeg",
-    "HumanoidRootPart",
-}
-
--- Returns the best part to aim at for a given character.
--- With ClosestPart: picks the part closest to the mouse that passes wall-check.
--- Without ClosestPart: uses the fixed TargetPart, wall-checked as normal.
-local function getBestPartForCharacter(character, mousePos, camPos, effectiveFOV)
-    local ab = getgenv().Aimbot
-
-    if ab.ClosestPart then
-        -- Find the part closest to the mouse that is within FOV and visible
-        local bestPart, bestDist = nil, effectiveFOV
-        for _, partName in ipairs(BODY_PARTS) do
-            local part = character:FindFirstChild(partName)
-            if not part then continue end
-            local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if not onScreen or sp.Z <= 0 then continue end
-            local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-            if d < bestDist then
-                -- Wall check per part when enabled
-                if ab.WallCheck and not isVisible(camPos, part) then continue end
-                bestDist = d
-                bestPart = part
-            end
-        end
-        return bestPart, bestDist
-    else
-        -- Fixed part mode (original behaviour)
-        local part = character:FindFirstChild(ab.TargetPart)
-        if not part then return nil, effectiveFOV end
-        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-        if not onScreen or sp.Z <= 0 then return nil, effectiveFOV end
-        local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-        if d >= effectiveFOV then return nil, effectiveFOV end
-        -- Wall check is done in caller for the fixed-part path
-        return part, d
-    end
-end
-
 local function scanTarget()
     Camera = workspace.CurrentCamera
     if not Camera or not Camera.Parent then return nil end
     local camFOV = Camera.FieldOfView
     if not camFOV or camFOV == 0 then camFOV = BaseCameraFOV end
-    local fovScale     = BaseCameraFOV / camFOV
+    local fovScale   = BaseCameraFOV / camFOV
     local effectiveFOV = getgenv().Aimbot.FOV * fovScale
     local best, bestDist = nil, effectiveFOV
     local mousePos = UserInputService:GetMouseLocation()
     local camPos   = Camera.CFrame.Position
-    local ab       = getgenv().Aimbot
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character then continue end
         local phum = player.Character:FindFirstChild("Humanoid")
-        if not phum or phum.Health <= 0 then continue end
+        local part = player.Character:FindFirstChild(getgenv().Aimbot.TargetPart)
+        if not phum or phum.Health <= 0 or not part then continue end
 
-        -- Quick distance cull on root before per-part checks
-        local eroot = player.Character:FindFirstChild("HumanoidRootPart")
-        if eroot and (eroot.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
+        -- No hard distance cap — uses your ESP MaxDistance setting
+        if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
 
-        if ab.ClosestPart then
-            local part, d = getBestPartForCharacter(player.Character, mousePos, camPos, bestDist)
-            -- ClosestPart already does wall-check per-part inside getBestPartForCharacter
-            if part and d < bestDist then
-                bestDist = d
-                best = part
-            end
-        else
-            local part = player.Character:FindFirstChild(ab.TargetPart)
-            if not part then continue end
-            if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
-            local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if not onScreen then continue end
-            local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-            if d < bestDist then
-                bestDist = d
-                best = part
-            end
+        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen then continue end
+
+        local dist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+        if dist < bestDist then
+            bestDist = dist
+            best = part
         end
     end
 
-    if ab.TargetAI then
+    if getgenv().Aimbot.TargetAI then
         local aiZones = workspace:FindFirstChild("AiZones")
         if aiZones then
             for _, zone in pairs(aiZones:GetChildren()) do
                 for _, model in pairs(zone:GetChildren()) do
                     if model.ClassName ~= "Model" then continue end
                     local nhum = model:FindFirstChildOfClass("Humanoid")
-                    if not nhum or nhum.Health <= 0 then continue end
-
-                    if ab.ClosestPart then
-                        local part, d = getBestPartForCharacter(model, mousePos, camPos, bestDist)
-                        if part and d < bestDist then bestDist = d; best = part end
-                    else
-                        local part = model:FindFirstChild(ab.TargetPart)
-                                  or model:FindFirstChild("HumanoidRootPart")
-                        if not part then continue end
-                        if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
-                        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-                        if not onScreen then continue end
-                        local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
-                        if d < bestDist then bestDist = d; best = part end
-                    end
+                    local part = model:FindFirstChild(getgenv().Aimbot.TargetPart)
+                              or model:FindFirstChild("HumanoidRootPart")
+                    if not nhum or nhum.Health <= 0 or not part then continue end
+                    if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
+                    local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if not onScreen then continue end
+                    local dist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+                    if dist < bestDist then bestDist = dist; best = part end
                 end
             end
         end
     end
 
-    -- Wall check for the non-ClosestPart path (ClosestPart already did it per-part)
-    if best and not ab.ClosestPart and ab.WallCheck then
+    if best and getgenv().Aimbot.WallCheck then
         if not isVisible(camPos, best) then
             best = nil
         end
@@ -1025,170 +965,237 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
--- _inBullet must be declared HERE so both the BulletModule hook and the
--- namecall hook share the exact same upvalue (not two separate variables).
-local _inBullet = false
-
-
-local function predictPosition(targetPart, origin, speed)
-    -- Only predict target movement (lead). Gravity/drop is handled separately below.
+-- Improved Prediction Function
+local function predictPosition(targetPart, origin, speed, gravity)
     local pos = targetPart.Position
     local vel = targetPart.Velocity or Vector3.new()
-
-    for _ = 1, 12 do
-        local delta = pos - origin
-        local t = delta.Magnitude / math.max(speed, 10)
-        pos = targetPart.Position + vel * t
+    local grav = gravity or -9.8
+    
+    -- Use more accurate physics prediction
+    local function calculateTrajectory(targetPos, targetVel, originPos, projectileSpeed, projectileGravity)
+        local relativePos = targetPos - originPos
+        local horizontalDist = Vector3.new(relativePos.X, 0, relativePos.Z).Magnitude
+        
+        -- Calculate time to target
+        local timeToTarget = horizontalDist / projectileSpeed
+        
+        -- Predict where target will be
+        local predictedPos = targetPos + targetVel * timeToTarget
+        
+        -- Calculate drop compensation
+        local drop = 0.5 * math.abs(projectileGravity) * timeToTarget * timeToTarget
+        
+        -- Apply lift scale
+        local liftScale = getgenv().Aimbot.LiftScale or 1
+        local adjustedDrop = drop * liftScale
+        
+        -- Return adjusted position
+        return Vector3.new(predictedPos.X, predictedPos.Y + adjustedDrop, predictedPos.Z)
     end
-    return pos
+    
+    return calculateTrajectory(pos, vel, origin, speed, grav)
 end
 
--- Replace the entire silent aim bullet hook with this improved version:
+-- ═══════════════════════════════════════════════════════
+-- SILENT AIM (Fixed for Bullet Module)
+-- ═══════════════════════════════════════════════════════
+local function solveQuadratic(A, B, C)
+    local disc = B^2 - 4*A*C
+    if disc < 0 then return nil, nil end
+    local sq = math.sqrt(disc)
+    return (-B - sq) / (2*A), (-B + sq) / (2*A)
+end
+
+-- Game uses -70 gravity for bullets (from source)
+local BULLET_GRAVITY = Vector3.new(0, -70, 0)
+
+local function predictBulletTrajectory(targetPart, origin, muzzleVelocity)
+    if not targetPart or not targetPart.Parent then return nil end
+    
+    local targetPos = targetPart.Position
+    local targetVel = targetPart.Velocity or Vector3.zero
+    
+    -- Iterative prediction (15 passes for accuracy)
+    local predictedPos = targetPos
+    for i = 1, 15 do
+        local delta = predictedPos - origin
+        local distance = delta.Magnitude
+        local timeToTarget = distance / math.max(muzzleVelocity, 1)
+        
+        -- Predict where target will be
+        predictedPos = targetPos + targetVel * timeToTarget
+        
+        -- Add bullet drop compensation (0.5 * g * t^2)
+        local drop = 0.5 * math.abs(BULLET_GRAVITY.Y) * timeToTarget * timeToTarget
+        predictedPos = Vector3.new(predictedPos.X, predictedPos.Y + drop * getgenv().Aimbot.LiftScale, predictedPos.Z)
+    end
+    
+    return predictedPos
+end
+
 if BulletModule then
     local oldBullet
-    local hookOk = pcall(function()
+    pcall(function()
         oldBullet = hookfunction(BulletModule.CreateBullet,
-            function(idk, model, model2, model3, aimPart, idk2, ammoType, tick, recoilPattern)
+            function(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
 
-            if getgenv().Aimbot.Enabled and getgenv().Aimbot.SilentAim then
-                local target = getTarget()
-                if target and target.Parent then
-                    local ammoData        = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
-                    local acceleration    = ammoData and ammoData:GetAttribute("ProjectileDrop") or -9.8
-                    local projectileSpeed = ammoData and ammoData:GetAttribute("MuzzleVelocity") or 500
+                -- Silent Aim: redirect the LookVector by swapping aimPart's CFrame
+                -- p49 (aimPart) is ONLY read for .CFrame.LookVector in Bullet.lua line 272
+                -- The actual barrel Part lives on viewModel.Item — do NOT replace aimPart with a CFrame
+                if getgenv().Aimbot.Enabled and getgenv().Aimbot.SilentAim
+                    and typeof(aimPart) == "Instance" and aimPart:IsA("BasePart") then
 
-                    if ammoData then ammoData:SetAttribute("Drag", 0) end
+                    local target = getTarget()
+                    if target and target.Parent then
+                        local ammoData   = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
+                        local muzzleVel  = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
 
-                    local targetPos = target.Position
-
-                    if getgenv().Aimbot.Prediction then
-                        targetPos = predictPosition(target, aimPart.Position, projectileSpeed)
-                    end
-
-                    -- ── STRONGER LONG-RANGE DROP COMPENSATION ──
-                    local g = math.abs(acceleration) * 2
-                    local delta = targetPos - aimPart.Position
-                    local flatDistance = delta.Magnitude
-                    local t = flatDistance / math.max(projectileSpeed, 1)
-
-                    local liftScale = getgenv().Aimbot.LiftScale or 1
-                    local lift = 0.5 * g * (t * t) * liftScale
-
-                    -- Extra upward boost for longer ranges (exactly what you asked for)
-                    if t > 0.8 then
-                        lift = lift * 1.18                     -- base extra lift
-                        local extraT = (0.5 * g * t^2) / (projectileSpeed * 2) -- path curvature correction
-                        lift = lift + 0.5 * g * (extraT * extraT) * liftScale
-                    end
-
-                    local liftedTarget = Vector3.new(targetPos.X, targetPos.Y + lift, targetPos.Z)
-                    local fakeAimPart  = { CFrame = CFrame.new(aimPart.Position, liftedTarget) }
-
-                    if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
-                        getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
-                        getgenv().aimtargetpart = target
-
-                        task.spawn(function()
-                            if getgenv().BulletTracers.Enabled then
-                                CreateBulletTracer(aimPart.Position, targetPos)
+                        -- Barrel world position (from viewModel, same as bullet.lua line 136)
+                        local barrelPart
+                        if viewModel and viewModel:FindFirstChild("Item") then
+                            local item = viewModel.Item
+                            if item:FindFirstChild("Attachments") and item.Attachments:FindFirstChild("Front") then
+                                barrelPart = item.Attachments.Front:FindFirstChild("Barrel")
                             end
-                            spawnHitEffect(targetPos)
-                        end)
-
-                        _inBullet = true
-                        local r = oldBullet(idk, model, model2, model3, fakeAimPart, idk2, ammoType, tick, recoilPattern)
-                        _inBullet = false
-                        return r
-                    end
-                end
-            end
-
-            -- Normal shot tracer (unchanged)
-            if getgenv().BulletTracers.Enabled then
-                task.spawn(function()
-                    local barrelPos = aimPart.Position
-                    local lookDir   = aimPart.CFrame.LookVector
-                    local rp = RaycastParams.new()
-                    rp.FilterType = Enum.RaycastFilterType.Exclude
-                    rp.FilterDescendantsInstances = { LocalPlayer.Character, workspace.CurrentCamera }
-                    local result = workspace:Raycast(barrelPos, lookDir * 2000, rp)
-                    local endPos = result and result.Position or (barrelPos + lookDir * 2000)
-                    CreateBulletTracer(barrelPos, endPos)
-                end)
-            end
-
-            _inBullet = true
-            local r = oldBullet(idk, model, model2, model3, aimPart, idk2, ammoType, tick, recoilPattern)
-            _inBullet = false
-            return r
-        end)
-    end)
-
-    if hookOk then print("[SA] bullet.CreateBullet hook OK (improved prediction)")
-    else warn("[SA] bullet.CreateBullet hook FAILED") end
+                            if not barrelPart then barrelPart = item:FindFirstChild("Barrel") end
+                        end
+                        local barrelPos
+if barrelPart then
+    barrelPos = barrelPart:IsA("Attachment") and barrelPart.WorldPosition or barrelPart.Position
 else
-    warn("[SA] Could not require Bullet module — silent aim disabled")
+    barrelPos = aimPart.Position
 end
 
--- ── Combined namecall hook ─────────────────────────────
--- _inBullet is declared above (before the BulletModule hook) so both hooks
--- share the same upvalue.
+                        local targetPos = target.Position
+                        if getgenv().Aimbot.Prediction then
+                            targetPos = predictBulletTrajectory(target, barrelPos, muzzleVel) or targetPos
+                        end
 
+                        -- Bullet drop compensation
+                        local dist         = (targetPos - barrelPos).Magnitude
+                        local tof          = dist / math.max(muzzleVel, 1)
+                        local drop         = 0.5 * math.abs(BULLET_GRAVITY.Y) * tof * tof
+                        local lift         = drop * (getgenv().Aimbot.LiftScale or 1)
+                        if dist > 200 then lift = lift * (1 + (dist - 200) / 1000) end
+                        if dist > 500 then lift = lift * 1.2 end
+
+                        local finalPos = Vector3.new(targetPos.X, targetPos.Y + lift, targetPos.Z)
+
+                        if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
+                            getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
+                            getgenv().aimtargetpart = target
+
+                            -- Warp aimPart CFrame so LookVector points at target
+                            -- This is ALL Bullet.lua reads from aimPart (line 272)
+                            local origCF   = aimPart.CFrame
+                            aimPart.CFrame = CFrame.new(aimPart.Position, finalPos)
+
+                            task.spawn(function()
+                                if getgenv().BulletTracers.Enabled then
+                                    CreateBulletTracer(barrelPos, finalPos)
+                                end
+                                spawnHitEffect(finalPos)
+                            end)
+
+                            _inBullet = true
+                            local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
+                            _inBullet = false
+                            aimPart.CFrame = origCF  -- restore immediately
+                            return r1,r2,r3,r4
+                        end
+                    end
+                end
+
+                -- Normal shot — tracer only
+                if getgenv().BulletTracers.Enabled and not _inBullet then
+                    task.spawn(function()
+                        local bpos = aimPart and typeof(aimPart) == "Instance" and aimPart.Position or Camera.CFrame.Position
+                        local look = aimPart and typeof(aimPart) == "Instance" and aimPart.CFrame.LookVector or Camera.CFrame.LookVector
+                        local rp = RaycastParams.new()
+                        rp.FilterType = Enum.RaycastFilterType.Exclude
+                        rp.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
+                        local res = workspace:Raycast(bpos, look * 2000, rp)
+                        CreateBulletTracer(bpos, res and res.Position or (bpos + look * 2000))
+                    end)
+                end
+
+                _inBullet = true
+                local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
+                _inBullet = false
+                return r1,r2,r3,r4
+            end)
+    end)
+end
+-- ── Combined namecall hook ─────────────────────────────
+-- _inBullet: true while CreateBullet is executing so the Raycast
+-- intercept knows it came from FPS.Bullet without debug.getinfo
+local _inBullet = false
+local cachedTarget = nil
+
+-- ═══════════════════════════════════════════════════════
+-- INSTANT HIT / RAPID BULLET (Fixed)
+-- ═══════════════════════════════════════════════════════
 if ProjectileInflict then
     local OldNamecall
     pcall(function()
         OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             if checkcaller() then return OldNamecall(self, ...) end
-
+            
             local method = getnamecallmethod()
-            local outerArgs = { ... }  -- capture varargs before xpcall
-
-            local result = table.pack(xpcall(function()
-                local args = outerArgs
-
-                if method == "FireServer" and self.Name == "UpdateTilt" then
-                    if getgenv().allvars.upanglebool then
-                        args[1] = getgenv().allvars.upanglenum
+            local args = {...}
+            
+            -- Instant Hit: Modify raycast when bullet is being processed
+            if getgenv().Aimbot.InstantHit and method == "Raycast" and self == workspace then
+                if _inBullet and cachedTarget and cachedTarget.Parent then
+                    local origin = args[1]
+                    local direction = args[2]
+                    
+                    if origin and direction then
+                        -- Calculate new direction straight to target
+                        local targetPos = cachedTarget.Position
+                        if getgenv().Aimbot.Prediction and cachedTarget.Velocity then
+                            -- Simple prediction for instant hit
+                            local dist = (targetPos - origin).Magnitude
+                            local timeToHit = dist / 1000 -- approximate bullet speed
+                            targetPos = targetPos + cachedTarget.Velocity * timeToHit * 0.5
+                        end
+                        
+                        local newDirection = (targetPos - origin).Unit * direction.Magnitude
+                        args[2] = newDirection
+                        
                         return OldNamecall(self, table.unpack(args))
                     end
                 end
-
-                if method == "FireServer" and self == ProjectileInflict then
-                    -- Real server-confirmed hit: play sound + hit effect.
-                    -- This is the ONLY place hit sound fires, so it never double-plays.
-                    task.spawn(function()
-                        if getgenv().HitSound.Enabled then playHitSound() end
-                        -- Show hit effect at the aimed target if we have one,
-                        -- otherwise fall back to a screen-centre world estimate.
-                        local tp = getgenv().aimtargetpart
-                        if tp and tp.Parent then
-                            spawnHitEffect(tp.Position)
-                        end
-                    end)
-                end
-
-                if getgenv().Aimbot.InstantHit
-                    and method == "Raycast"
-                    and _inBullet
-                    and cachedTarget
-                    and cachedTarget.Parent then
-                    local args2 = outerArgs
-                    args2[2] = (cachedTarget.Position - args2[1]).Unit * math.huge
-                    return OldNamecall(self, table.unpack(args2))
-                end
-
-                return OldNamecall(self, table.unpack(args))
-            end, function() end))
-
-            if result[1] then
-                return table.unpack(result, 2, result.n)
             end
-            return OldNamecall(self, table.unpack(outerArgs))
+            
+            -- Hit confirmation tracking
+            if method == "FireServer" and self == ProjectileInflict then
+                -- Cache target from ProjectileInflict args (args[2] is hit position/CF)
+                if args[2] and typeof(args[2]) == "CFrame" then
+                    -- Store for potential instant hit use
+                    cachedTargetCF = args[2]
+                end
+                
+                -- Play hit sound
+                if getgenv().HitSound.Enabled then
+                    task.spawn(playHitSound)
+                end
+                
+                -- Spawn hit effect at target
+                task.spawn(function()
+                    local tp = getgenv().aimtargetpart
+                    if tp and tp.Parent then
+                        spawnHitEffect(tp.Position)
+                    elseif cachedTarget and cachedTarget.Parent then
+                        spawnHitEffect(cachedTarget.Position)
+                    end
+                end)
+            end
+            
+            return OldNamecall(self, ...)
         end))
     end)
-    print("[ZestHub] Namecall hook OK")
-else
-    warn("[ZestHub] ProjectileInflict not found — namecall hook skipped")
+    print("[ZestHub] Instant Hit hook initialized")
 end
 
 -- ── Auto Shoot ────────────────────────────────────────
@@ -2581,14 +2588,8 @@ AimLeft:AddToggle("SilentAimToggle", {
     Callback = function(v) getgenv().Aimbot.SilentAim = v end,
 })
 AimRight:AddSlider("LiftScaleSlider", {
-    Text = "Bullet Drop Compensation", Min = 0, Max = 7, Default = 1, Rounding = 2,
-    Tooltip = "1.0 = physics-accurate. Raise if bullets land low, lower if they fly over.",
+    Text = "Bullet Drop Compensation", Min = 0, Max = 10, Default = 1, Rounding = 2,
     Callback = function(v) getgenv().Aimbot.LiftScale = v end,
-})
-AimLeft:AddToggle("ClosestPartToggle", {
-    Text = "Closest Visible Part", Default = false,
-    Tooltip = "Targets whichever body part is closest to your crosshair and not behind a wall (ignores Target Part setting)",
-    Callback = function(v) getgenv().Aimbot.ClosestPart = v end,
 })
 AimLeft:AddToggle("ShowFOVToggle", {
     Text = "Show FOV Circle", Default = false,
@@ -2962,6 +2963,10 @@ PlayerMisc:AddToggle("NoJumpCooldownToggle", {
 PlayerMisc:AddToggle("Nofall", {
     Text = "Nofall", Default = false,
     Callback = function(v) nofall = v end,
+})
+PlayerMisc:AddToggle("AlwaysCrouch", {
+    Text = "Always Crouch", Default = false,
+    Callback = function(v) AlwaysCrouch = v end,
 })
 PlayerMisc:AddToggle("NoSlowdownToggle", {
     Text = "No Slowdown", Default = false,
