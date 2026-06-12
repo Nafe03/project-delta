@@ -99,12 +99,10 @@ getgenv().NPC = getgenv().NPC or {
 }
 
 
--- ── Third Person state ───────────────────────────────
 local ThirdPerson       = false
 local ThirdPersonDist   = 5
 local ThirdPersonHeight = 2
 
--- ── FreeCam state ─────────────────────────────────────
 local FreeCam       = false
 local FreeCamSpeed  = 20
 local FreeCamPos    = Vector3.new()
@@ -238,7 +236,7 @@ getgenv().Aimbot = {
     Prediction = false,
     TargetAI   = false,
     TargetLine = false,
-    LiftScale  = 0.35,
+    LiftScale  = 1.0,  -- unused by physics sim, kept for compat
     TargetLineColor = Color3.fromRGB(255, 80, 0),
     AutoShoot  = false,
     AutoShootRate = 0.12,
@@ -761,17 +759,13 @@ local function getBallisticFlightTime(direction, gravity, speed)
 end
 
 local function projectileDrop(origin, targetPos, speed, acceleration)
-    -- Force gravity to always point down regardless of whether the game stores
-    -- ProjectileDrop as positive or negative. math.abs guarantees this.
     local gravY    = -math.abs(acceleration) * 2
     local gravity  = Vector3.new(0, gravY, 0)
     local t        = getBallisticFlightTime(targetPos - origin, gravity, speed)
-    return 0.5 * gravity * t^2   -- always negative Y (downward drop)
+    return 0.5 * gravity * t^2
 end
 
 local function predictPosition(targetPart, origin, speed, acceleration)
-    -- Perfect iterative prediction: 15 passes, accounts for drag=0, gravity, and velocity.
-    -- gravity is forced downward (negative Y) regardless of how the game stores acceleration.
     local gravity = Vector3.new(0, -math.abs(acceleration) * 2, 0)
     local pos     = targetPart.Position
     local vel     = targetPart.Velocity
@@ -779,7 +773,6 @@ local function predictPosition(targetPart, origin, speed, acceleration)
     for _ = 1, 15 do
         local delta = pos - origin
         local t     = delta.Magnitude / math.max(speed, 1)
-        -- Full kinematic position at time t
         pos = targetPart.Position + vel * t + 0.5 * gravity * (t * t)
     end
     return pos
@@ -965,73 +958,99 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
--- Improved Prediction Function
-local function predictPosition(targetPart, origin, speed, gravity)
-    local pos = targetPart.Position
-    local vel = targetPart.Velocity or Vector3.new()
-    local grav = gravity or -9.8
-    
-    -- Use more accurate physics prediction
-    local function calculateTrajectory(targetPos, targetVel, originPos, projectileSpeed, projectileGravity)
-        local relativePos = targetPos - originPos
-        local horizontalDist = Vector3.new(relativePos.X, 0, relativePos.Z).Magnitude
-        
-        -- Calculate time to target
-        local timeToTarget = horizontalDist / projectileSpeed
-        
-        -- Predict where target will be
-        local predictedPos = targetPos + targetVel * timeToTarget
-        
-        -- Calculate drop compensation
-        local drop = 0.5 * math.abs(projectileGravity) * timeToTarget * timeToTarget
-        
-        -- Apply lift scale
-        local liftScale = getgenv().Aimbot.LiftScale or 0.35
-        local adjustedDrop = drop * liftScale
-        
-        -- Return adjusted position
-        return Vector3.new(predictedPos.X, predictedPos.Y + adjustedDrop, predictedPos.Z)
-    end
-    
-    return calculateTrajectory(pos, vel, origin, speed, grav)
-end
-
 -- ═══════════════════════════════════════════════════════
--- SILENT AIM (Fixed for Bullet Module)
+-- BULLET PHYSICS — exact mirror of bullet.lua simulation
 -- ═══════════════════════════════════════════════════════
-local function solveQuadratic(A, B, C)
-    local disc = B^2 - 4*A*C
-    if disc < 0 then return nil, nil end
-    local sq = math.sqrt(disc)
-    return (-B - sq) / (2*A), (-B + sq) / (2*A)
-end
-
--- Game uses -70 gravity for bullets (from source)
+-- bullet.lua state vars (names preserved from decompile):
+--   u99  = direction unit vector
+--   u101 = MuzzleVelocity (studs/sec)
+--   u115 = velocity vector = u101 * u99  (changes each step via gravity)
+--   u100 = current bullet position
+--   u117 = accumulated delta time per sub-step (threshold: 1/240)
+--   gravity applied ONLY when no hit: u115 += Vector3(0,-70,0) * u117
+--   position advances: u100 = hitPos (or u100 + u99 * stepDist if no hit)
+--   direction updates: u99 = u115.Unit  after gravity applied
+--
+-- simulateBullet(origin, direction, muzzleVelocity)
+--   Runs the exact same Euler integration bullet.lua uses.
+--   Returns the world position where the bullet would hit a player,
+--   plus the time-of-flight so we can account for target movement.
+--
 local BULLET_GRAVITY = Vector3.new(0, -70, 0)
+local BULLET_STEP    = 1 / 240  -- bullet.lua: 0.004166666666666667
+
+-- bulletTOF: runs bullet.lua's exact Euler integration and returns
+-- the time-of-flight to travel 'targetDist' studs along the bullet path.
+-- Stops as soon as the cumulative distance reaches targetDist so tof
+-- is the real travel time to that point, not the time to fly 4000 studs.
+local function bulletTOF(origin, direction, muzzleVelocity, targetDist)
+    local u99  = direction.Unit
+    local u115 = muzzleVelocity * u99
+    local u104 = 0
+    local tof  = 0
+
+    while u104 < targetDist do
+        local u117    = BULLET_STEP
+        local stepDist = (u115 * u117).Magnitude
+
+        -- Apply gravity (bullet.lua else-branch line 518)
+        u115 = u115 + BULLET_GRAVITY * u117
+
+        u99  = u115.Unit
+        u104 = u104 + stepDist
+        tof  = tof  + u117
+
+        if u115 == Vector3.zero then break end
+    end
+
+    return tof
+end
+
+local function bulletDropAt(origin, direction, muzzleVelocity, targetDist)
+    local u99  = direction.Unit
+    local u115 = muzzleVelocity * u99
+    local pos  = origin
+    local u104 = 0
+
+    while u104 < targetDist do
+        local u117    = BULLET_STEP
+        local stepDist = (u115 * u117).Magnitude
+        u115 = u115 + BULLET_GRAVITY * u117
+        pos  = pos  + u99 * stepDist
+        u99  = u115.Unit
+        u104 = u104 + stepDist
+        if u115 == Vector3.zero then break end
+    end
+
+    local straightEnd = origin + direction.Unit * targetDist
+    return pos.Y - straightEnd.Y   -- negative = bullet fell below aim line
+end
 
 local function predictBulletTrajectory(targetPart, origin, muzzleVelocity)
-    if not targetPart or not targetPart.Parent then return nil end
-    
+    if not targetPart or not targetPart.Parent then return nil, nil end
+
     local targetPos = targetPart.Position
-    local targetVel = targetPart.Velocity or Vector3.zero
-    
-    -- Iterative prediction (15 passes for accuracy)
-    local predictedPos = targetPos
-    for i = 1, 15 do
-        local delta = predictedPos - origin
-        local distance = delta.Magnitude
-        local timeToTarget = distance / math.max(muzzleVelocity, 1)
-        
-        -- Predict where target will be
-        predictedPos = targetPos + targetVel * timeToTarget
-        
-        -- Add bullet drop compensation (0.5 * g * t^2)
-        local drop = 0.5 * math.abs(BULLET_GRAVITY.Y) * timeToTarget * timeToTarget
-        predictedPos = Vector3.new(predictedPos.X, predictedPos.Y + drop * getgenv().Aimbot.LiftScale, predictedPos.Z)
-    end
-    
-    return predictedPos
+    local targetVel = targetPart.AssemblyLinearVelocity or Vector3.zero
+
+    -- Straight-line distance to target right now
+    local dist = (targetPos - origin).Magnitude
+
+    local straightDir = (targetPos - origin).Unit
+    local tof = bulletTOF(origin, straightDir, muzzleVelocity, dist)
+
+    local predictedPos = targetPos + targetVel * tof
+
+    local aimDir  = (predictedPos - origin).Unit
+    local newDist = (predictedPos - origin).Magnitude
+    local drop    = bulletDropAt(origin, aimDir, muzzleVelocity, newDist)
+
+    local finalAimPos = Vector3.new(predictedPos.X, predictedPos.Y - drop, predictedPos.Z)
+    local finalDir    = (finalAimPos - origin).Unit
+
+    return predictedPos, finalDir
 end
+
+local _inBullet = false
 
 if BulletModule then
     local oldBullet
@@ -1039,75 +1058,127 @@ if BulletModule then
         oldBullet = hookfunction(BulletModule.CreateBullet,
             function(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
 
-                -- Silent Aim: redirect the LookVector by swapping aimPart's CFrame
-                -- p49 (aimPart) is ONLY read for .CFrame.LookVector in Bullet.lua line 272
-                -- The actual barrel Part lives on viewModel.Item — do NOT replace aimPart with a CFrame
-                if getgenv().Aimbot.Enabled and getgenv().Aimbot.SilentAim
-                    and typeof(aimPart) == "Instance" and aimPart:IsA("BasePart") then
+                local target = getTarget()
 
-                    local target = getTarget()
-                    if target and target.Parent then
-                        local ammoData   = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
-                        local muzzleVel  = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
+                -- ── INSTANT HIT ───────────────────────────────────────────
+                -- Captured remote sequence (from RemoteSpy):
+                --   1) FireProjectile:InvokeServer(direction, seed, timestamp)
+                --   2) ProjectileInflict:FireServer(hitPart, localCF, seed, timestamp)
+                -- Seed must match across both calls.
+                -- Direction for FireProjectile is the EXACT unit vector the bullet
+                -- travels — computed via the same Euler sim bullet.lua uses.
+                if getgenv().Aimbot.InstantHit and target and target.Parent then
+                    if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
 
-                        -- Barrel world position (from viewModel, same as bullet.lua line 136)
-                        local barrelPart
-                        if viewModel and viewModel:FindFirstChild("Item") then
-                            local item = viewModel.Item
-                            if item:FindFirstChild("Attachments") and item.Attachments:FindFirstChild("Front") then
-                                barrelPart = item.Attachments.Front:FindFirstChild("Barrel")
-                            end
-                            if not barrelPart then barrelPart = item:FindFirstChild("Barrel") end
-                        end
-                        local barrelPos
-if barrelPart then
-    barrelPos = barrelPart:IsA("Attachment") and barrelPart.WorldPosition or barrelPart.Position
-else
-    barrelPos = aimPart.Position
-end
+                        local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
+                        local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
 
-                        local targetPos = target.Position
+                        -- Barrel origin
+                        local barrelPos = aimPart and typeof(aimPart) == "Instance"
+                            and aimPart.Position or Camera.CFrame.Position
+
+                        -- Get converged predicted target position + exact aim direction
+                        -- predictBulletTrajectory uses the same Euler sim as bullet.lua
+                        local predictedPos, aimDir
                         if getgenv().Aimbot.Prediction then
-                            targetPos = predictBulletTrajectory(target, barrelPos, muzzleVel) or targetPos
+                            predictedPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
                         end
+                        -- Fallback: straight line to current position
+                        predictedPos = predictedPos or target.Position
+                        aimDir       = aimDir or (target.Position - barrelPos).Unit
 
-                        -- Bullet drop compensation
-                        local dist         = (targetPos - barrelPos).Magnitude
-                        local tof          = dist / math.max(muzzleVel, 1)
-                        local drop         = 0.5 * math.abs(BULLET_GRAVITY.Y) * tof * tof
-                        local lift         = drop * (getgenv().Aimbot.LiftScale or 1)
-                        if dist > 200 then lift = lift * (1 + (dist - 200) / 1000) end
-                        if dist > 500 then lift = lift * 1.2 end
+                        -- Shared seed — must be identical for both remotes
+                        local fireSeed = math.random(-100000, 100000)
+                        local fireTime = tick()
 
-                        local finalPos = Vector3.new(targetPos.X, targetPos.Y + lift, targetPos.Z)
+                        -- 1) Register bullet with server using the physics-accurate direction
+                        pcall(function()
+                            FireProjectile:InvokeServer(aimDir, fireSeed, fireTime)
+                        end)
 
-                        if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
-                            getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
-                            getgenv().aimtargetpart = target
+                        -- 2) Register hit immediately using same seed
+                        --    localCF = target part's local-space CFrame of impact point
+                        --    (mirrors bullet.lua: v120.CFrame:ToObjectSpace(CFrame.new(v123)))
+                        local localHitCF = target.CFrame:ToObjectSpace(CFrame.new(predictedPos))
+                        pcall(function()
+                            ProjectileInflict:FireServer(target, localHitCF, fireSeed, tick())
+                        end)
 
-                            -- Warp aimPart CFrame so LookVector points at target
-                            -- This is ALL Bullet.lua reads from aimPart (line 272)
-                            local origCF   = aimPart.CFrame
-                            aimPart.CFrame = CFrame.new(aimPart.Position, finalPos)
+                        -- Visual + state
+                        getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
+                        getgenv().aimtargetpart = target
+                        task.spawn(function()
+                            playHitSound()
+                            spawnHitEffect(predictedPos)
+                            if getgenv().BulletTracers.Enabled then
+                                CreateBulletTracer(barrelPos, predictedPos)
+                            end
+                        end)
 
-                            task.spawn(function()
-                                if getgenv().BulletTracers.Enabled then
-                                    CreateBulletTracer(barrelPos, finalPos)
-                                end
-                                spawnHitEffect(finalPos)
-                            end)
-
-                            _inBullet = true
-                            local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
-                            _inBullet = false
-                            aimPart.CFrame = origCF  -- restore immediately
-                            return r1,r2,r3,r4
-                        end
+                        -- Call original so animations/sounds/recoil fire normally
+                        _inBullet = true
+                        local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
+                        _inBullet = false
+                        return r1,r2,r3,r4
                     end
                 end
 
-                -- Normal shot — tracer only
-                if getgenv().BulletTracers.Enabled and not _inBullet then
+                -- ── SILENT AIM ────────────────────────────────────────────
+                if getgenv().Aimbot.Enabled and getgenv().Aimbot.SilentAim
+                    and target and target.Parent
+                    and typeof(aimPart) == "Instance" and aimPart:IsA("BasePart") then
+
+                    local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
+                    local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
+
+                    -- Barrel world position
+                    local barrelPos = aimPart.Position
+                    if viewModel and viewModel:FindFirstChild("Item") then
+                        local item = viewModel.Item
+                        local barrelPart
+                        if item:FindFirstChild("Attachments") and item.Attachments:FindFirstChild("Front") then
+                            barrelPart = item.Attachments.Front:FindFirstChild("Barrel")
+                        end
+                        if not barrelPart then barrelPart = item:FindFirstChild("Barrel") end
+                        if barrelPart then
+                            barrelPos = barrelPart:IsA("Attachment")
+                                and barrelPart.WorldPosition or barrelPart.Position
+                        end
+                    end
+
+                    -- Use exact bullet physics to get predicted position + aim direction
+                    local finalPos, aimDir
+                    if getgenv().Aimbot.Prediction then
+                        finalPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
+                    end
+                    finalPos = finalPos or target.Position
+                    aimDir   = aimDir   or (target.Position - barrelPos).Unit
+
+                    if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
+                        getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
+                        getgenv().aimtargetpart = target
+
+                        -- Warp aimPart so LookVector points along the physics-correct direction
+                        local origCF   = aimPart.CFrame
+                        aimPart.CFrame = CFrame.new(aimPart.Position, aimPart.Position + aimDir)
+
+                        task.spawn(function()
+                            if getgenv().BulletTracers.Enabled then
+                                CreateBulletTracer(barrelPos, finalPos)
+                            end
+                            spawnHitEffect(finalPos)
+                        end)
+
+                        _inBullet = true
+                        local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
+                        _inBullet = false
+                        aimPart.CFrame = origCF
+                        return r1,r2,r3,r4
+                    end
+                end
+
+                -- ── Normal shot — tracer only ─────────────────────────────
+                if getgenv().BulletTracers.Enabled then
                     task.spawn(function()
                         local bpos = aimPart and typeof(aimPart) == "Instance" and aimPart.Position or Camera.CFrame.Position
                         local look = aimPart and typeof(aimPart) == "Instance" and aimPart.CFrame.LookVector or Camera.CFrame.LookVector
@@ -1126,62 +1197,19 @@ end
             end)
     end)
 end
--- ── Combined namecall hook ─────────────────────────────
--- _inBullet: true while CreateBullet is executing so the Raycast
--- intercept knows it came from FPS.Bullet without debug.getinfo
-local _inBullet = false
-local cachedTarget = nil
 
--- ═══════════════════════════════════════════════════════
--- INSTANT HIT / RAPID BULLET (Fixed)
--- ═══════════════════════════════════════════════════════
+-- ── ProjectileInflict namecall — hit sound + hit effect only ─────
 if ProjectileInflict then
     local OldNamecall
     pcall(function()
         OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             if checkcaller() then return OldNamecall(self, ...) end
-            
             local method = getnamecallmethod()
-            local args = {...}
-            
-            -- Instant Hit: Modify raycast when bullet is being processed
-            if getgenv().Aimbot.InstantHit and method == "Raycast" and self == workspace then
-                if _inBullet and cachedTarget and cachedTarget.Parent then
-                    local origin = args[1]
-                    local direction = args[2]
-                    
-                    if origin and direction then
-                        -- Calculate new direction straight to target
-                        local targetPos = cachedTarget.Position
-                        if getgenv().Aimbot.Prediction and cachedTarget.Velocity then
-                            -- Simple prediction for instant hit
-                            local dist = (targetPos - origin).Magnitude
-                            local timeToHit = dist / 1000 -- approximate bullet speed
-                            targetPos = targetPos + cachedTarget.Velocity * timeToHit * 0.5
-                        end
-                        
-                        local newDirection = (targetPos - origin).Unit * direction.Magnitude
-                        args[2] = newDirection
-                        
-                        return OldNamecall(self, table.unpack(args))
-                    end
-                end
-            end
-            
-            -- Hit confirmation tracking
+
             if method == "FireServer" and self == ProjectileInflict then
-                -- Cache target from ProjectileInflict args (args[2] is hit position/CF)
-                if args[2] and typeof(args[2]) == "CFrame" then
-                    -- Store for potential instant hit use
-                    cachedTargetCF = args[2]
-                end
-                
-                -- Play hit sound
                 if getgenv().HitSound.Enabled then
                     task.spawn(playHitSound)
                 end
-                
-                -- Spawn hit effect at target
                 task.spawn(function()
                     local tp = getgenv().aimtargetpart
                     if tp and tp.Parent then
@@ -1191,11 +1219,11 @@ if ProjectileInflict then
                     end
                 end)
             end
-            
+
             return OldNamecall(self, ...)
         end))
     end)
-    print("[ZestHub] Instant Hit hook initialized")
+    print("[ZestHub] Combat hooks initialized")
 end
 
 -- ── Auto Shoot ────────────────────────────────────────
@@ -2587,10 +2615,7 @@ AimLeft:AddToggle("SilentAimToggle", {
     Text = "Silent Aim", Default = false,
     Callback = function(v) getgenv().Aimbot.SilentAim = v end,
 })
-AimRight:AddSlider("LiftScaleSlider", {
-    Text = "Bullet Drop Compensation", Min = 0, Max = 0.35, Default = 0.35, Rounding = 2,
-    Callback = function(v) getgenv().Aimbot.LiftScale = v end,
-})
+
 AimLeft:AddToggle("ShowFOVToggle", {
     Text = "Show FOV Circle", Default = false,
     HasColorPicker = true,
