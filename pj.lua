@@ -4,14 +4,34 @@ until game:IsLoaded()
 
 
 if not LPH_OBFUSCATED then
-    LPH_JIT            = function(f) return f end
-    LPH_JIT_MAX        = function(f) return f end
-    LPH_NO_VIRTUALIZE  = function(f) return f end
-    LPH_NO_UPVALUES    = function(f) return function(...) return f(...) end end
-    LPH_ENCSTR         = function(s) return s end
-    LPH_ENCNUM         = function(n) return n end
-    LPH_CRASH          = function() return print("DEBUG: CRASH CALLED") end
-end
+	LPH_JIT = function(...)
+		return ...;
+	end;
+	LPH_JIT_MAX = function(...)
+		return ...;
+	end;
+	LPH_NO_VIRTUALIZE = function(...)
+		return ...;
+	end;
+	LPH_NO_UPVALUES = function(f)
+		return (function(...)
+			return f(...);
+		end);
+	end;
+	LPH_ENCSTR = function(...)
+		return ...;
+	end;
+	LPH_ENCNUM = function(...)
+		return ...;
+	end;
+	LPH_ENCFUNC = function(func, key1, key2)
+		if key1 ~= key2 then return print("LPH_ENCFUNC mismatch") end
+		return func
+	end
+	LPH_CRASH = function()
+		return print(debug.traceback());
+	end;
+end;
 
 if not getgenv       then getgenv       = function() return _G end end
 if not cloneref      then cloneref      = function(r) return r  end end
@@ -23,9 +43,12 @@ if not getrenv       then getrenv       = function() return {} end end
 if not getsenv       then getsenv       = function(s) return {} end end
 if not getnilinstances then getnilinstances = function() return {} end end
 
+if not mouse1press then mouse1press = function() end end
+if not mouse1release then mouse1release = function() end end
+if not getgc then getgc = function() return {} end end
 -- ── Services ──────────────────────────────────────────
 local UILibrary       = loadstring(game:HttpGetAsync(
-    "https://raw.githubusercontent.com/Nafe03/Zest-Hub/refs/heads/main/ui4.lua"))()
+    "https://raw.githubusercontent.com/Nafe03/Zest-Hub/refs/heads/main/ui5.lua"))()
 
 Players           = game:GetService("Players")
 RunService        = game:GetService("RunService")
@@ -55,9 +78,9 @@ Extrakt = workspace.NoCollision.ExitLocations
 local DropedItems = workspace.DroppedItems
 local WeaponFodler = game:GetService("ReplicatedStorage").RangedWeapons
 local AmmoFolder = game:GetService("ReplicatedStorage").AmmoTypes
-local gunModDirty = true  -- force first apply
+local gunModDirty = true
+local FunctionLibrary = nil
 
--- ── Item ESP name lookup tables (built once at load) ──
 local WeaponNames = {}
 local AmmoNames   = {}
 pcall(function()
@@ -90,18 +113,17 @@ getgenv().PlayerWeaponESP = getgenv().PlayerWeaponESP or {
 getgenv().NPC = getgenv().NPC or {
     Enabled     = false,
     MaxDistance = 1000,
-    Box         = { Enabled = false, Color = Color3.fromRGB(165,127,159), Thickness = 2, Filled = false, FillTransparency = 0.5 },
+    Box         = { Enabled = false, Color = Color3.fromRGB(165,127,159), Thickness = 1, Filled = false, FillTransparency = 0.5 },
     HealthBar   = { Enabled = false, Width = 4 },
     HealthText  = { Enabled = false, Color = Color3.fromRGB(165,127,159), Size = 12 },
     Name        = { Enabled = false, Color = Color3.fromRGB(165,127,159), Size = 14, Outline = true },
     Highlight   = { Enabled = false, FillColor = Color3.fromRGB(165,127,159), OutlineColor = Color3.fromRGB(165,127,159), FillTransparency = 0.5, OutlineTransparency = 0 },
-    Font        = Enum.Font.Arcade,
+    Font        = Enum.Font.Code,
 }
-
 
 local ThirdPerson       = false
 local ThirdPersonDist   = 5
-local ThirdPersonHeight = 2
+getgenv().ThirdPersonHeight = getgenv().ThirdPersonHeight or 2
 
 local FreeCam       = false
 local FreeCamSpeed  = 20
@@ -111,9 +133,6 @@ local FreeCamYaw    = 0
 local FreeCamRender = nil
 local FreeCamInput  = nil
 local TargetFOV     = 70
--- FIX 1: BaseFov properly declared as a local variable.
--- Previously missing, which caused AimZoom's restore path to silently fail
--- (it referenced BaseFov as an undefined global that was always nil).
 local BaseFov       = 70
 
 local function enableFreeCam()
@@ -191,13 +210,14 @@ getgenv().allvars = getgenv().allvars or {
     viewmodZ = 0,
     NoBulletDrop = false,
     rapidfire = false, fastaim = false,
-    alwaysauto = false, instahit = false,
+    alwaysauto = false,
     nodof = false, noaiming = false,
     fastReload = false, fastequip = false,
     extendedrange = false, instantreduction = false,
     upanglebool = false,
     upanglenum  = 0.75,
     norecoil = false,
+    nospray = false,
     nobob    = false,
     adsfovbool = false,
 }
@@ -205,7 +225,8 @@ getgenv().allvars = getgenv().allvars or {
 getgenv().ESP = {
     Enabled = false, MaxDistance = 1000,
     Box       = { Enabled = false, Color = Color3.fromRGB(255,0,0),
-                  Thickness = 2, Filled = false, FillTransparency = 0.5 },
+                  Thickness = 1, Filled = false, FillTransparency = 0.5,
+                  OutlineEnabled = true, OutlineColor = Color3.fromRGB(0,0,0) },
     HealthBar = { Enabled = false, Width = 4 },
     HealthText= { Enabled = false, Color = Color3.fromRGB(255,255,255), Size = 12 },
     Name      = { Enabled = false, Color = Color3.fromRGB(255,255,255), Size = 14, Outline = true },
@@ -213,7 +234,7 @@ getgenv().ESP = {
                   FillColor = Color3.fromRGB(255,0,0),
                   OutlineColor = Color3.fromRGB(255,255,255),
                   FillTransparency = 0.5, OutlineTransparency = 0 },
-    Font = Enum.Font.Arcade,
+    Font = Enum.Font.Code,
 }
 
 getgenv().World = {
@@ -232,7 +253,7 @@ getgenv().World = {
 
 getgenv().Aimbot = {
     Enabled = false, SilentAim = false,
-    FOV = 100, TargetPart = "Head",
+    FOV = 100, TargetPart = "FaceHitBox",
     ShowFOV = false, FOVColor = Color3.fromRGB(255,255,255),
     HitChance = 100,
     WallCheck  = true,
@@ -243,7 +264,10 @@ getgenv().Aimbot = {
     TargetLineColor = Color3.fromRGB(255, 80, 0),
     AutoShoot  = false,
     AutoShootRate = 0.12,
-    InstantHit = false,
+    SilentForceHit = false,
+    SilentAutoWall = false,
+    HoldBullets = false,
+    AutoShootHitscan = {"FaceHitBox", "HeadTopHitBox", "Head"},
 }
 
 getgenv().BulletTracers = {
@@ -323,35 +347,37 @@ pcall(function() FireProjectile    = ReplicatedStorage.Remotes.FireProjectile en
 pcall(function() ProjectileInflict = ReplicatedStorage.Remotes.ProjectileInflict end)
 pcall(function() CamMod            = require(ReplicatedStorage.Modules.CameraSystem) end)
 
--- ── AimZoom — direct FOV override on RMB (like ADS FOV) ──
-local AimZoomEnabled = false
-local AimZoomFOV     = 40
+-- ── AimZoom — RMB zoom via CamMod (matches how fps.lua does ADS) ──────────
+-- CamMod:SetZoomTarget(divisor, scope, tweenTime)
+--   final FOV = BaseFov / divisor  (divisor=1 → base FOV, divisor=2 → half FOV)
+-- We never tween Camera.FieldOfView ourselves — CamMod owns that.
+getgenv().AimZoomEnabled = getgenv().AimZoomEnabled or false
+getgenv().AimZoomFOV     = getgenv().AimZoomFOV or 40    -- desired FOV in degrees when aiming
 local _aimZoomActive = false
-local _aimZoomConn   = nil
 
-local function applyAimZoom(isAiming)
-    if not AimZoomEnabled then return end
-    if isAiming == _aimZoomActive then return end
-    _aimZoomActive = isAiming
-    local cam = workspace.CurrentCamera
-    if not cam then return end
-    -- FIX 2: BaseFov is now a proper local, so this restore works correctly
-    local targetFov = isAiming and AimZoomFOV or (TargetFOV or BaseFov or 70)
-    TweenService:Create(cam,
-        TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        { FieldOfView = targetFov }
-    ):Play()
-    if CamMod then
-        pcall(function()
-            local base = BaseFov or 70
-            local divisor = isAiming and (base / AimZoomFOV) or 1
-            CamMod:SetZoomTarget(divisor, isAiming, 0.12,
-                Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end)
-    end
+local function getAimDivisor()
+    -- Convert raw FOV degrees → the divisor CamMod expects.
+    -- BaseFov is kept in sync with DefaultFOV attribute changes (see below).
+    local base = BaseFov > 0 and BaseFov or 70
+    local target = (getgenv().AimZoomFOV and getgenv().AimZoomFOV > 0) and getgenv().AimZoomFOV or 40
+    return base / target
 end
 
--- Detect RMB (ADS) press / release
+local function applyAimZoom(isAiming)
+    if not getgenv().AimZoomEnabled then return end
+    if isAiming == _aimZoomActive then return end
+    _aimZoomActive = isAiming
+    if not CamMod then return end
+    pcall(function()
+        if isAiming then
+            CamMod:SetZoomTarget(getAimDivisor(), nil, 0.12)
+        else
+            -- Restore: divisor 1 = BaseFov (un-zoomed)
+            CamMod:SetZoomTarget(1, nil, 0.12)
+        end
+    end)
+end
+
 UserInputService.InputBegan:Connect(function(inp, gameProc)
     if gameProc then return end
     if inp.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -364,28 +390,26 @@ UserInputService.InputEnded:Connect(function(inp)
     end
 end)
 
--- ── ADS FOV ───────────────────────────────────────────
-local currentZoomValue = 90
+-- ── ADS FOV — override per-gun SettingsModule AimFOV/ZoomFOV ────────────────
+-- fps.lua reads sett.AimFOV and sett.ZoomFOV when building the aim state.
+-- These are the raw FOV values the gun uses when you ADS.
+getgenv().currentZoomValue = getgenv().currentZoomValue or 90
 local itemslist = game.ReplicatedStorage:WaitForChild("ItemsList")
 
 local function applyZoomToAllGuns()
     if not getgenv().allvars.adsfovbool then return end
-
     for _, v in pairs(itemslist:GetChildren()) do
         local mod = v:FindFirstChild("SettingsModule")
         if mod then
-            local sett = require(mod)
-            if sett and typeof(sett.FireModes) == "table" then
+            local ok, sett = pcall(require, mod)
+            if ok and sett and typeof(sett.FireModes) == "table" then
                 sett.AimFOV  = currentZoomValue
                 sett.ZoomFOV = currentZoomValue
-                print(sett.ZoomFOV)
-                print(sett.AimFOV)
             end
         end
     end
 end
 
--- ── Hit sound ─────────────────────────────────────────
 local function playHitSound()
     if not getgenv().HitSound.Enabled then return end
     local snd = Instance.new("Sound")
@@ -396,7 +420,6 @@ local function playHitSound()
     snd.Ended:Connect(function() snd:Destroy() end)
 end
 
--- ── Bullet tracer ─────────────────────────────────────
 local function CreateBulletTracer(startPos, endPos)
     if not getgenv().BulletTracers.Enabled then return end
     local bt = getgenv().BulletTracers
@@ -436,11 +459,28 @@ end
 
 -- ── FPS module hook ────────────────────────────────────
 local a1table = nil
+local hookSprings
 pcall(function()
     local fpsMod = require(ReplicatedStorage.Modules.FPS)
     local ogfunc = fpsMod.updateClient
 
     fpsMod.updateClient = function(a1, a2, a3)
+        -- Pre-zero bob springs BEFORE ogfunc so spring:update() returns 0 this frame.
+        -- Speed=0 freezes the spring (v9 = dt*Speed/8 = 0 → position doesn't change).
+        -- Zeroing Position/Velocity/Target ensures it returns exactly zero even if
+        -- shove() was called last frame after our post-zero.
+        if a1 and a1.springs and getgenv().allvars.nobob then
+            for _, k in ipairs({"walkCycle", "sprintCycle"}) do
+                local s = a1.springs[k]
+                if s then
+                    s.Speed    = 0
+                    s.Position = Vector3.zero
+                    s.Velocity = Vector3.zero
+                    s.Target   = Vector3.zero
+                end
+            end
+        end
+
         local r1, r2, r3 = ogfunc(a1, a2, a3)
         a1table = a1
 
@@ -467,23 +507,37 @@ pcall(function()
             end
         end
 
-        -- FIX 3: Viewmodel offset — only apply to visual/animation offsets.
-        -- weaponOffset is intentionally LEFT ALONE because the bullet system
-        -- (Bullet.lua CreateBullet) reads a1.weaponOffset to determine the
-        -- barrel world position, which is what prediction/silent-aim uses.
-        -- Changing it here would rotate the barrel away from the target,
-        -- breaking prediction and making bullets miss.
+        if getgenv().allvars.norecoil or getgenv().allvars.nospray then
+            if hookSprings then
+                hookSprings()
+            end
+        end
+
+        -- Post-zero bob springs AFTER ogfunc: clear any shove() calls that happened
+        -- inside ogfunc this frame, and re-freeze Speed so next pre-zero starts clean.
+        -- Only runs when noswaybool isn't already handling these springs.
+        if getgenv().allvars.nobob and not getgenv().allvars.noswaybool then
+            for _, k in ipairs({"walkCycle", "sprintCycle"}) do
+                local s = a1.springs[k]
+                if s then
+                    s.Speed    = 0
+                    s.Position = Vector3.zero
+                    s.Velocity = Vector3.zero
+                    s.Target   = Vector3.zero
+                end
+            end
+        end
+
         if getgenv().allvars.viewmodoffset then
             local cf = CFrame.new(
                 getgenv().allvars.viewmodX,
                 getgenv().allvars.viewmodY,
                 getgenv().allvars.viewmodZ
             )
-            -- Only visual offsets — do NOT touch weaponOffset (barrel position)
             if a1.sprintIdleOffset ~= nil then a1.sprintIdleOffset = cf end
             if a1.crouchOffset     ~= nil then a1.crouchOffset     = cf end
-            if a1.leanLeftOffset   ~= nil then a1.leanLeftOffset   = cf end
-            if a1.leanRightOffset  ~= nil then a1.leanRightOffset  = cf end
+           -- if a1.leanLeftOffset   ~= nil then a1.leanLeftOffset   = cf end
+           -- if a1.leanRightOffset  ~= nil then a1.leanRightOffset  = cf end
         end
 
         return r1, r2, r3
@@ -500,8 +554,10 @@ local function applyGunMods(gun)
     if v.rapidfire        then sett.FireRate = 0.01; sett.SemiAuto = false end
     if v.fastaim          then sett.AimInSpeed = 0.01; sett.AimOutSpeed = 0.01 end
     if v.noswaybool       then sett.swayMult = 0; sett.IdleSwayModifier = 0; sett.WalkSwayModifer = 0; sett.SprintSwayModifer = 0 end
+    if v.nospray          then sett.swayMult = 0; sett.IdleSwayModifier = 0; sett.WalkSwayModifer = 0; sett.SprintSwayModifer = 0 end
     if v.alwaysauto       then sett.FireMode = "Auto"; sett.FireModes = {"Auto"}; sett.SemiAuto = false; sett.AutomaticFire = true end
-    if v.instahit         then sett.BulletSpeed = 9999999; sett.BulletDrop = 0; sett.BulletGravity = 0 end
+    -- instant-hit removed; use Silent Force-Hit instead
+    if v.NoBulletDrop     then sett.BulletDrop = 0; sett.BulletGravity = 0 end
     if v.nodof            then sett.useDof = false end
     if v.noaiming         then sett.allowAiming = false end
     if v.fastReload       then sett.ReloadFadeIn = 0.01; sett.ReloadFadeOut = 0.01; sett.ReloadTime = 0.1 end
@@ -509,8 +565,44 @@ local function applyGunMods(gun)
     if v.extendedrange    then sett.ItemLength = 20; sett.Range = 9999 end
     if v.instantreduction then sett.ReductionStartTime = 0; sett.RecoilReduction = 100 end
     if v.adsfovbool       then
-        sett.AimFOV  = currentZoomValue
-        sett.ZoomFOV = currentZoomValue
+        sett.AimFOV  = getgenv().currentZoomValue
+        sett.ZoomFOV = getgenv().currentZoomValue
+    end
+end
+
+local hookedSprings = setmetatable({}, {__mode = "k"})
+local function hookSpring(spring, name)
+    if not spring then return end
+    if hookedSprings[spring] then return end
+    hookedSprings[spring] = true
+    local old_shove, old_update = spring.shove, spring.update
+
+    if type(old_shove) == "function" then
+        spring.shove = LPH_NO_VIRTUALIZE(function(...)
+            if getgenv().allvars.norecoil and (name == "recoilPos" or name == "recoilRot" or name == "cameraRecoil") then
+                return
+            end
+            if getgenv().allvars.nospray and name == "gunSway" then
+                return
+            end
+            return old_shove(...)
+        end)
+    end
+    if type(old_update) == "function" then
+        spring.update = LPH_NO_VIRTUALIZE(function(...)
+            if (getgenv().allvars.norecoil and (name == "recoilPos" or name == "recoilRot" or name == "cameraRecoil"))
+                or (getgenv().allvars.nospray and name == "gunSway") then
+                return Vector3.zero
+            end
+            return old_update(...)
+        end)
+    end
+end
+
+hookSprings = function()
+    if not a1table or not a1table.springs then return end
+    for name, spring in pairs(a1table.springs) do
+        hookSpring(spring, name)
     end
 end
 
@@ -527,59 +619,6 @@ RunService.Heartbeat:Connect(function()
             applyGunMods(item)
         end
     end
-end)
-
--- ═══════════════════════════════════════════════════════
--- NO RECOIL + NO WEAPON BOB — SpringV2 gc hook
--- ═══════════════════════════════════════════════════════
-local function patchSpringTable(t)
-    local oldShove  = t.shove
-    local oldUpdate = t.update
-
-    t.shove = function(...)
-        if getgenv().allvars.norecoil then return end
-        return oldShove(...)
-    end
-
-    t.update = function(...)
-        if getgenv().allvars.norecoil or getgenv().allvars.nobob then
-            return Vector3.zero
-        end
-        return oldUpdate(...)
-    end
-end
-
-local function patchSpringCreator(t)
-    local oldCreate = t.create
-    t.create = function(...)
-        local spring = oldCreate(...)
-        patchSpringTable(spring)
-        return spring
-    end
-end
-
-local function hookSprings()
-    if not getgc then return end
-    for _, gc in ipairs(getgc(true)) do
-        if type(gc) == "table" then
-            if rawget(gc, "shove") and rawget(gc, "update") then
-                pcall(patchSpringTable, gc)
-            end
-            if type(rawget(gc, "create")) == "function" then
-                local ok, info = pcall(debug.getinfo, gc.create)
-                if ok and info and info.short_src
-                    and info.short_src:find("SpringV2") then
-                    pcall(patchSpringCreator, gc)
-                end
-            end
-        end
-    end
-end
-
-task.spawn(function()
-    hookSprings()
-    task.wait(2)
-    hookSprings()
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -614,38 +653,24 @@ RunService.Heartbeat:Connect(function()
         lroot.CFrame = lroot.CFrame * CFrame.Angles(0, math.rad(SpinSpeed), 0)
     end
 
-    local itemsList = ReplicatedStorage:FindFirstChild("ItemsList")
-    if not itemsList then return end
-    for _, item in pairs(itemsList:GetChildren()) do applyGunMods(item) end
 end)
 
--- ── AmmoTypes instahit ────────────────────────────────
-RunService.Heartbeat:Connect(function()
-    if not getgenv().allvars.instahit then return end
-    local at = ReplicatedStorage:FindFirstChild("AmmoTypes")
-    if not at then return end
-    for _, ammo in pairs(at:GetChildren()) do
-        if ammo:IsA("Folder") or ammo:IsA("Configuration") then
-            if ammo:GetAttribute("MuzzleVelocity") then ammo:SetAttribute("MuzzleVelocity", 9999999) end
-            if ammo:GetAttribute("ArmorPen")       then ammo:SetAttribute("ArmorPen", 999) end
-        end
-    end
-end)
+-- Instant-hit global modifier removed (use Silent Force-Hit instead)
 
 local savedDropValues = {}
 
 RunService.Heartbeat:Connect(function()
-    local at = ReplicatedStorage:FindFirstChild("AmmoTypes")
+    local at = ReplicatedStorage:FindFirstChild("RangedWeapons")
     if not at then return end
 
     if getgenv().allvars.NoBulletDrop then
         for _, ammo in pairs(at:GetChildren()) do
             if ammo:IsA("Folder") or ammo:IsA("Configuration") then
-                if ammo:GetAttribute("ProjectileDrop") ~= nil then
+                if ammo:GetAttribute("ZeroDistance") ~= nil then
                     if savedDropValues[ammo.Name] == nil then
-                        savedDropValues[ammo.Name] = ammo:GetAttribute("ProjectileDrop")
+                        savedDropValues[ammo.Name] = ammo:GetAttribute("ZeroDistance")
                     end
-                    ammo:SetAttribute("ProjectileDrop", 0)
+                    ammo:SetAttribute("ZeroDistance", 1000000000)
                 end
             end
         end
@@ -653,7 +678,7 @@ RunService.Heartbeat:Connect(function()
         for _, ammo in pairs(at:GetChildren()) do
             if ammo:IsA("Folder") or ammo:IsA("Configuration") then
                 if savedDropValues[ammo.Name] ~= nil then
-                    ammo:SetAttribute("ProjectileDrop", savedDropValues[ammo.Name])
+                    ammo:SetAttribute("ZeroDistance", savedDropValues[ammo.Name])
                     savedDropValues[ammo.Name] = nil
                 end
             end
@@ -724,13 +749,20 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- ── FOV persistence loop ──────────────────────────────
+-- ── FOV persistence loop ──────────────────────────────────────────────────
+-- CamMod reads DefaultFOV attribute from GameplaySettings and listens to its
+-- changes (line ~1795 of fps.lua). So setting the attribute is the right way
+-- to drive CamMod's base FOV. We also set Camera.FieldOfView directly as
+-- backup for frames where CamMod hasn't tweened yet.
 RunService.RenderStepped:Connect(function()
     if getgenv().World.FOVEnabled and not FreeCam then
-        local cam = (CamMod and CamMod.u4) or Camera
+        local cam = workspace.CurrentCamera
+        if not cam then return end
         if cam.FieldOfView ~= TargetFOV then
             cam.FieldOfView = TargetFOV
         end
+        -- Keep BaseFov in sync so AimZoom divisor is always correct
+        BaseFov = TargetFOV
     end
 end)
 
@@ -790,11 +822,18 @@ local function getFoliage()
     return _cachedFoliage
 end
 
+-- Matches UniversalTables.GlobalIgnoreList:
+--   { workspace.NoCollision, workspace.Camera, workspace.DroppedItems }
+-- plus local character and foliage so we don't self-occlude.
 local function isVisible(origin, targetPart)
     local ignore = { Camera }
     if LocalPlayer.Character then table.insert(ignore, LocalPlayer.Character) end
     local fol = getFoliage()
     if fol then table.insert(ignore, fol) end
+    local nc = workspace:FindFirstChild("NoCollision")
+    if nc then table.insert(ignore, nc) end
+    local di = workspace:FindFirstChild("DroppedItems")
+    if di then table.insert(ignore, di) end
     rayParams.FilterDescendantsInstances = ignore
     local direction = targetPart.Position - origin
     local offset = Vector3.new()
@@ -816,10 +855,28 @@ local function isVisible(origin, targetPart)
     return false
 end
 
+-- Returns the best target part for a character.
+-- "FaceHitBox" falls back to Head since not every model has it.
+local function getTargetPart(character, aiMode)
+    local tp = getgenv().Aimbot.TargetPart
+    if tp == "FaceHitBox" then
+        return character:FindFirstChild("FaceHitBox")
+            or character:FindFirstChild("Head")
+    end
+    local part = character:FindFirstChild(tp)
+    if not part and aiMode then
+        part = character:FindFirstChild("HumanoidRootPart")
+    end
+    return part
+end
+
 -- ═══════════════════════════════════════════════════════
 -- TARGET SYSTEM — runs on Heartbeat, NOT RenderStepped
 -- ═══════════════════════════════════════════════════════
-local BaseCameraFOV = 70
+-- BaseCameraFOV: reference FOV for aim-FOV-circle screen-space scaling.
+-- We use BaseFov (kept in sync with TargetFOV/DefaultFOV) rather than
+-- a hardcoded constant so the circle stays accurate at any custom FOV.
+local BaseCameraFOV = BaseFov  -- updated in sync with TargetFOV
 local cachedTarget  = nil
 
 local function scanTarget()
@@ -836,7 +893,7 @@ local function scanTarget()
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character then continue end
         local phum = player.Character:FindFirstChild("Humanoid")
-        local part = player.Character:FindFirstChild(getgenv().Aimbot.TargetPart)
+        local part = getTargetPart(player.Character, false)
         if not phum or phum.Health <= 0 or not part then continue end
 
         if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
@@ -858,8 +915,7 @@ local function scanTarget()
                 for _, model in pairs(zone:GetChildren()) do
                     if model.ClassName ~= "Model" then continue end
                     local nhum = model:FindFirstChildOfClass("Humanoid")
-                    local part = model:FindFirstChild(getgenv().Aimbot.TargetPart)
-                              or model:FindFirstChild("HumanoidRootPart")
+                    local part = getTargetPart(model, true)
                     if not nhum or nhum.Health <= 0 or not part then continue end
                     if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
                     local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -882,7 +938,10 @@ end
 
 local _scanFrame = 0
 RunService.Heartbeat:Connect(function()
-    if not getgenv().Aimbot.Enabled and not getgenv().Aimbot.AutoShoot then
+    if not getgenv().Aimbot.Enabled
+        and not getgenv().Aimbot.AutoShoot
+        and not getgenv().Aimbot.SilentAim
+        and not getgenv().Aimbot.SilentForceHit then
         cachedTarget = nil
         return
     end
@@ -896,7 +955,6 @@ local function getTarget()
     return cachedTarget
 end
 
--- ── FOV circle ────────────────────────────────────────
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2; FOVCircle.NumSides = 64
 FOVCircle.Filled = false; FOVCircle.Visible = false
@@ -1018,160 +1076,138 @@ end
 
 local _inBullet = false
 
-if BulletModule then
-    local oldBullet
-    pcall(function()
-        oldBullet = hookfunction(BulletModule.CreateBullet,
-            function(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
+-- Shared bullet metadata map (used by silent-aim projectile handling)
+local bullet_infos = {}
 
-                local target = getTarget()
+do
+    local TweenService = game:GetService("TweenService")
+    local GuiService = game:GetService("GuiService")
 
-                if getgenv().Aimbot.InstantHit and target and target.Parent then
-                    if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
-
-                        local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
-                        local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
-
-                        local barrelPos = aimPart and typeof(aimPart) == "Instance"
-                            and aimPart.Position or Camera.CFrame.Position
-
-                        local predictedPos, aimDir
-                        if getgenv().Aimbot.Prediction then
-                            predictedPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
-                        end
-                        predictedPos = predictedPos or target.Position
-                        aimDir       = aimDir or (target.Position - barrelPos).Unit
-
-                        local fireSeed = math.random(-100000, 100000)
-                        local fireTime = tick()
-
-                        pcall(function()
-                            FireProjectile:InvokeServer(aimDir, fireSeed, fireTime)
-                        end)
-
-                        local localHitCF = target.CFrame:ToObjectSpace(CFrame.new(predictedPos))
-                        pcall(function()
-                            ProjectileInflict:FireServer(target, localHitCF, fireSeed, tick())
-                        end)
-
-                        getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
-                        getgenv().aimtargetpart = target
-                        task.spawn(function()
-                            playHitSound()
-                            spawnHitEffect(predictedPos)
-                            if getgenv().BulletTracers.Enabled then
-                                CreateBulletTracer(barrelPos, predictedPos)
-                            end
-                        end)
-
-                        _inBullet = true
-                        local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
-                        _inBullet = false
-                        return r1,r2,r3,r4
-                    end
+    -- Lightweight metamethod hooks: adjust camera CFrame writes and protect ReducedMotionEnabled
+    local __newindex; __newindex = hookmetamethod(game, "__newindex", newcclosure(function(self, idx, val)
+        if self == Camera and idx == "CFrame" then
+            -- optional thirdperson/aspect adjustments (guarded if flags exist)
+            if type(ThirdPerson) == "boolean" and ThirdPerson and type(ThirdPersonDist) == "number" then
+                if val and typeof(val) == "CFrame" then
+                    val = val + (val.LookVector * -ThirdPersonDist)
                 end
+            end
+            if aspect_ratio and aspect_ratio_x and aspect_ratio_y and val and typeof(val) == "CFrame" then
+                val = val * CFrame.new(
+                    0, 0, 0,
+                    aspect_ratio_x, 0, 0,
+                    0, aspect_ratio_y, 0,
+                    0, 0, 1
+                )
+            end
+        end
+        return __newindex(self, idx, val)
+    end))
 
-                -- ── SILENT AIM ────────────────────────────────────────────
-                if getgenv().Aimbot.Enabled and getgenv().Aimbot.SilentAim
-                    and target and target.Parent
-                    and typeof(aimPart) == "Instance" and aimPart:IsA("BasePart") then
-
-                    local ammoData  = ReplicatedStorage.AmmoTypes:FindFirstChild(ammoType)
-                    local muzzleVel = (ammoData and ammoData:GetAttribute("MuzzleVelocity")) or 1000
-
-                    local barrelPos = aimPart.Position
-                    if viewModel and viewModel:FindFirstChild("Item") then
-                        local item = viewModel.Item
-                        local barrelPart
-                        if item:FindFirstChild("Attachments") and item.Attachments:FindFirstChild("Front") then
-                            barrelPart = item.Attachments.Front:FindFirstChild("Barrel")
-                        end
-                        if not barrelPart then barrelPart = item:FindFirstChild("Barrel") end
-                        if barrelPart then
-                            barrelPos = barrelPart:IsA("Attachment")
-                                and barrelPart.WorldPosition or barrelPart.Position
-                        end
-                    end
-
-                    local finalPos, aimDir
-                    if getgenv().Aimbot.Prediction then
-                        finalPos, aimDir = predictBulletTrajectory(target, barrelPos, muzzleVel)
-                    end
-                    finalPos = finalPos or target.Position
-                    aimDir   = aimDir   or (target.Position - barrelPos).Unit
-
-                    if math.random(1, 100) <= (getgenv().Aimbot.HitChance or 100) then
-                        getgenv().aimtarget     = Players:GetPlayerFromCharacter(target.Parent)
-                        getgenv().aimtargetpart = target
-
-                        local origCF   = aimPart.CFrame
-                        aimPart.CFrame = CFrame.new(aimPart.Position, aimPart.Position + aimDir)
-
-                        task.spawn(function()
-                            if getgenv().BulletTracers.Enabled then
-                                CreateBulletTracer(barrelPos, finalPos)
-                            end
-                            spawnHitEffect(finalPos)
-                        end)
-
-                        _inBullet = true
-                        local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
-                        _inBullet = false
-                        aimPart.CFrame = origCF
-                        return r1,r2,r3,r4
-                    end
-                end
-
-                -- ── Normal shot — tracer only ─────────────────────────────
-                if getgenv().BulletTracers.Enabled then
-                    task.spawn(function()
-                        local bpos = aimPart and typeof(aimPart) == "Instance" and aimPart.Position or Camera.CFrame.Position
-                        local look = aimPart and typeof(aimPart) == "Instance" and aimPart.CFrame.LookVector or Camera.CFrame.LookVector
-                        local rp = RaycastParams.new()
-                        rp.FilterType = Enum.RaycastFilterType.Exclude
-                        rp.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
-                        local res = workspace:Raycast(bpos, look * 2000, rp)
-                        CreateBulletTracer(bpos, res and res.Position or (bpos + look * 2000))
-                    end)
-                end
-
-                _inBullet = true
-                local r1,r2,r3,r4 = oldBullet(self, weapon, worldModel, viewModel, aimPart, toolStance, ammoType, lastUseTime, recoilPattern)
-                _inBullet = false
-                return r1,r2,r3,r4
-            end)
-    end)
+    local __index; __index = hookmetamethod(game, '__index', newcclosure(function(self, key)
+        if checkcaller() then return __index(self, key) end
+        if key == "ReducedMotionEnabled" and getgenv().allvars and getgenv().allvars.norecoil and self == GuiService then
+            return true
+        end
+        return __index(self, key)
+    end))
 end
 
--- ── ProjectileInflict namecall — hit sound + hit effect only ─────
 if ProjectileInflict then
     local OldNamecall
     pcall(function()
         OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             if checkcaller() then return OldNamecall(self, ...) end
             local method = getnamecallmethod()
+            local args = {...}
 
-            if method == "FireServer" and self == ProjectileInflict then
-                if getgenv().HitSound.Enabled then
-                    task.spawn(playHitSound)
+            -- Return zero accuracy deviation when queried (no-spread behavior)
+            if method == "GetAttribute" then
+                local attribute = args[1]
+                if attribute == "AccuracyDeviation" then
+                    return 0
                 end
-                task.spawn(function()
-                    local tp = getgenv().aimtargetpart
-                    if tp and tp.Parent then
-                        spawnHitEffect(tp.Position)
-                    elseif cachedTarget and cachedTarget.Parent then
-                        spawnHitEffect(cachedTarget.Position)
-                    end
-                end)
             end
 
+            -- Prevent Camera tweening FieldOfView when AimZoom is active
+            if self == TweenService and method == "Create" and args[1] == Camera and getgenv().AimZoomEnabled then
+                if type(args[3]) == "table" then args[3]["FieldOfView"] = nil end
+                return OldNamecall(self, unpack(args))
+            end
+
+            -- Intercept raycasts generated by the bullet system and redirect them
+            if method == "Raycast" and (getgenv().Aimbot.SilentAim or getgenv().Aimbot.SilentForceHit) and debug.traceback():find("Bullet") then
+                local hitpart = getTarget()
+                if not hitpart then
+                    return OldNamecall(self, unpack(args))
+                end
+
+                local hitpos = hitpart.Position
+                if getgenv().Aimbot.SilentForceHit then
+                    return {
+                        Instance = hitpart,
+                        Position = hitpos,
+                        Distance = (hitpos - (select(1, ...))).Magnitude,
+                        Normal = Vector3.new(1, 0, 0),
+                        Material = hitpart.Material
+                    }
+                end
+
+                if getgenv().Aimbot.SilentAim then
+                    local origin = args[1]
+                    args[2] = (hitpos - origin)
+                    return OldNamecall(self, unpack(args))
+                end
+
+                return OldNamecall(self, unpack(args))
+            end
+
+            -- Capture FireProjectile invokes to map bullets to their metadata
+            if method == "InvokeServer" then
+                local remote_name = self.Name
+                if remote_name == "FireProjectile" and getgenv().Aimbot.SilentAim then
+                    local args = {...}
+                    local r = table.create(3)
+                    r[1] = args[2]
+                    r[2] = args[3]
+                    r[3] = args[1]
+                    bullet_infos[args[2]] = r
+                    return OldNamecall(self, unpack(args))
+                end
+            end
+
+            -- Adjust ProjectileInflict calls so the server registers hits when using silent aim
+            if method == "FireServer" then
+                local remote_name = self.Name
+                if remote_name == "ProjectileInflict" then
+                    if debug.traceback():find("CharacterController") then
+                        return coroutine.yield()
+                    end
+                    if getgenv().Aimbot.SilentAim then
+                        local args = {...}
+                        if bullet_infos[args[3]] then
+                            args[4] = bullet_infos[args[3]][2] + 5
+                        end
+                        if getgenv().HitSound.Enabled then
+                            task.defer(playHitSound)
+                        end
+                        return OldNamecall(self, unpack(args))
+                    end
+                end
+            end
+
+            -- existing hook: play hit sound on ProjectileInflict
+            if method == "FireServer" and self == ProjectileInflict then
+                if getgenv().HitSound.Enabled then
+                    task.defer(playHitSound)
+                end
+            end
             return OldNamecall(self, ...)
         end))
     end)
     print("[ZestHub] Combat hooks initialized")
 end
 
--- ── Auto Shoot ────────────────────────────────────────
 local _autoShootTimer  = 0
 local _autoShootHeld   = false
 
@@ -1189,7 +1225,7 @@ local function autoShootFindTarget()
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character then continue end
         local phum = player.Character:FindFirstChild("Humanoid")
-        local part = player.Character:FindFirstChild(getgenv().Aimbot.TargetPart)
+        local part = getTargetPart(player.Character, false)
         if not phum or phum.Health <= 0 or not part then continue end
         if (part.Position - camPos).Magnitude > getgenv().ESP.MaxDistance then continue end
         local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -1234,22 +1270,62 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- ── Instant Equip ─────────────────────────────────────
-workspace.Camera.ChildAdded:Connect(function(ch)
-    if not getgenv().GunMods.InstantEquip or not ch:IsA("Model") then return end
-    task.wait(0.015)
-    local ih = ch:FindFirstChild("Humanoid")
-    if ih and ih.Animator then
-        for _, track in pairs(ih.Animator:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.Name == "Equip" then
-                track:AdjustSpeed(15)
-                track.TimePosition = track.Length - 0.01
+local _viewmodelCameraConnections = {}
+
+-- forward declarations so camera event handlers can call these when defined later
+local updateViewmodelOffsets, getViewModel
+
+local function cleanupViewmodelCameraBindings()
+    for _, conn in ipairs(_viewmodelCameraConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    _viewmodelCameraConnections = {}
+end
+
+local function bindViewmodelCamera(camera)
+    if not camera then return end
+    cleanupViewmodelCameraBindings()
+
+    _viewmodelCameraConnections[#_viewmodelCameraConnections + 1] = camera.ChildAdded:Connect(function(ch)
+        if not ch:IsA("Model") then return end
+        task.wait(0.015)
+
+        if getgenv().GunMods.InstantEquip then
+            local ih = ch:FindFirstChild("Humanoid")
+            if ih and ih.Animator then
+                for _, track in pairs(ih.Animator:GetPlayingAnimationTracks()) do
+                    if track.Animation and track.Animation.Name == "Equip" then
+                        track:AdjustSpeed(15)
+                        track.TimePosition = track.Length - 0.01
+                    end
+                end
             end
         end
-    end
+
+        if getgenv().allvars.viewmodoffset then
+            local vm = getViewModel()
+            if vm then updateViewmodelOffsets(vm) end
+        end
+    end)
+
+    _viewmodelCameraConnections[#_viewmodelCameraConnections + 1] = camera.DescendantAdded:Connect(function(descendant)
+        if not getgenv().allvars.viewmodoffset then return end
+        local vm = getViewModel()
+        if vm then updateViewmodelOffsets(vm) end
+    end)
+
+    _viewmodelCameraConnections[#_viewmodelCameraConnections + 1] = camera.ChildRemoved:Connect(function(ch)
+        if ch:IsA("Model") and ch.Name == "ViewModel" then
+            resetViewmodelOffsets()
+        end
+    end)
+end
+
+bindViewmodelCamera(workspace.CurrentCamera)
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    bindViewmodelCamera(workspace.CurrentCamera)
 end)
 
--- ── Weapon icon lookup (for Equipped Gun Image mode) ─────
 local function getWeaponIcon(weaponName)
     local il = ReplicatedStorage:FindFirstChild("ItemsList")
     if not il then return nil end
@@ -1297,21 +1373,50 @@ function ESPClass:CreateUI()
 end
 
 function ESPClass:CreateBox()
+    local col = getgenv().ESP.Box.Color
+    local T   = getgenv().ESP.Box.Thickness
+
+    -- Outline frame (black, slightly larger, behind)
+    local outline = Instance.new("Frame")
+    outline.BackgroundTransparency = 1
+    outline.BorderSizePixel        = 0
+    outline.Size                   = UDim2.new(1, 0, 1, 0)
+    outline.ZIndex                 = 1
+    outline.Parent                 = self.container
+    local outlineStroke = Instance.new("UIStroke")
+    outlineStroke.Color             = Color3.fromRGB(0, 0, 0)
+    outlineStroke.Thickness         = T + 2
+    outlineStroke.ApplyStrokeMode   = Enum.ApplyStrokeMode.Border
+    outlineStroke.Enabled           = false
+    outlineStroke.Parent            = outline
+
+    -- Main color frame
     local box = Instance.new("Frame")
-    box.BackgroundColor3 = getgenv().ESP.Box.Color
     box.BackgroundTransparency = 1
-    box.BorderSizePixel = 0
-    box.Size = UDim2.new(1,0,1,0)
-    box.Parent = self.container
-
+    box.BorderSizePixel        = 0
+    box.Size                   = UDim2.new(1, 0, 1, 0)
+    box.ZIndex                 = 2
+    box.Parent                 = self.container
     local stroke = Instance.new("UIStroke")
-    stroke.Color = getgenv().ESP.Box.Color
-    stroke.Thickness = getgenv().ESP.Box.Thickness
+    stroke.Color           = col
+    stroke.Thickness       = T
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    stroke.Parent = box
+    stroke.Parent          = box
 
-    self.box.frame  = box
-    self.box.stroke = stroke
+    -- Fill frame
+    local fill = Instance.new("Frame")
+    fill.BackgroundColor3       = col
+    fill.BackgroundTransparency = 1
+    fill.BorderSizePixel        = 0
+    fill.Size                   = UDim2.new(1, 0, 1, 0)
+    fill.ZIndex                 = 0
+    fill.Parent                 = self.container
+
+    self.box.frame         = box
+    self.box.stroke        = stroke
+    self.box.outline       = outline
+    self.box.outlineStroke = outlineStroke
+    self.box.fill          = fill
 end
 
 function ESPClass:CreateHealthBar()
@@ -1505,17 +1610,33 @@ function ESPClass:Update()
     self.container.Position = UDim2.new(0, midX - width * 0.5, 0, midY - height * 0.5)
     self.container.Visible  = true
 
+    -- ── Corner box ────────────────────────────────────────────────────────
     if getgenv().ESP.Box.Enabled then
-        self.box.frame.Visible = true
-        self.box.frame.BackgroundColor3 = getgenv().ESP.Box.Color
+        local col            = getgenv().ESP.Box.Color
+        local T              = getgenv().ESP.Box.Thickness
+        local outlineEnabled = getgenv().ESP.Box.OutlineEnabled
+        local outlineCol     = getgenv().ESP.Box.OutlineColor or Color3.fromRGB(0, 0, 0)
+
+        self.box.frame.Visible             = true
+        self.box.frame.BackgroundColor3    = col
         self.box.frame.BackgroundTransparency =
             getgenv().ESP.Box.Filled and getgenv().ESP.Box.FillTransparency or 1
-        self.box.stroke.Color     = getgenv().ESP.Box.Color
-        self.box.stroke.Thickness = getgenv().ESP.Box.Thickness
-        self.box.stroke.Enabled   = true
+        self.box.stroke.Color              = col
+        self.box.stroke.Thickness          = T
+        self.box.stroke.Enabled            = true
+
+        self.box.fill.Visible              = getgenv().ESP.Box.Filled
+        self.box.fill.BackgroundColor3     = col
+        self.box.fill.BackgroundTransparency = getgenv().ESP.Box.FillTransparency
+
+        self.box.outlineStroke.Color     = outlineCol
+        self.box.outlineStroke.Thickness = T + 2
+        self.box.outlineStroke.Enabled   = outlineEnabled
     else
-        self.box.frame.Visible  = false
-        self.box.stroke.Enabled = false
+        self.box.frame.Visible         = false
+        self.box.stroke.Enabled        = false
+        self.box.fill.Visible          = false
+        self.box.outlineStroke.Enabled = false
     end
 
     local hp = math.clamp(ehum.Health / ehum.MaxHealth, 0, 1)
@@ -1534,6 +1655,7 @@ function ESPClass:Update()
         self.labels.health.Text       = tostring(math.floor(ehum.Health))
         self.labels.health.TextColor3 = getgenv().ESP.HealthText.Color
         self.labels.health.TextSize   = getgenv().ESP.HealthText.Size
+        self.labels.health.Size       = UDim2.new(0, 50, 0, getgenv().ESP.HealthText.Size + 4)
     else
         self.labels.health.Visible = false
     end
@@ -1542,15 +1664,21 @@ function ESPClass:Update()
         self.labels.name.Visible    = true
         self.labels.name.TextColor3 = getgenv().ESP.Name.Color
         self.labels.name.TextSize   = getgenv().ESP.Name.Size
+        self.labels.name.Size       = UDim2.new(1, 40, 0, getgenv().ESP.Name.Size + 4)
+        self.labels.name.Position   = UDim2.new(0.5, 0, 0, -(getgenv().ESP.Name.Size + 2))
         self.labels.name.TextStrokeTransparency = getgenv().ESP.Name.Outline and 0 or 1
     else
         self.labels.name.Visible = false
     end
 
-    self.labels.distance.Visible = true
-    self.labels.distance.Text    = math.floor(dist) .. "m"
+    self.labels.distance.Visible   = true
+    self.labels.distance.Text      = math.floor(dist) .. "m"
+    self.labels.distance.TextSize  = 12
+    self.labels.distance.Size      = UDim2.new(1, 40, 0, 16)
+    self.labels.distance.Position  = UDim2.new(0.5, 0, 1, 4)
 
     -- ── Player Weapon ESP ────────────────────────────────
+    -- Labels stack above the name (fixed pixel offsets)
     local pwESP   = getgenv().PlayerWeaponESP
     local invRoot = ReplicatedStorage:FindFirstChild("Players")
     local plrNode = invRoot and invRoot:FindFirstChild(self.player.Name)
@@ -1564,9 +1692,12 @@ function ESPClass:Update()
             end
         end
         if found then
-            self.labels.weaponHip.Text      = "[Hip] " .. found
+            self.labels.weaponHip.Text       = "[Hip] " .. found
             self.labels.weaponHip.TextColor3 = pwESP.HipColor or Color3.fromRGB(165,127,159)
-            self.labels.weaponHip.Visible   = true
+            self.labels.weaponHip.TextSize   = 12
+            self.labels.weaponHip.Size       = UDim2.new(1, 40, 0, 16)
+            self.labels.weaponHip.Position   = UDim2.new(0.5, 0, 0, -36)
+            self.labels.weaponHip.Visible    = true
         else
             self.labels.weaponHip.Visible = false
         end
@@ -1586,6 +1717,9 @@ function ESPClass:Update()
         if found1 then
             self.labels.weaponPrime.Text       = "[Prime] " .. found1
             self.labels.weaponPrime.TextColor3 = pwESP.PrimeColor or Color3.fromRGB(165,127,159)
+            self.labels.weaponPrime.TextSize   = 12
+            self.labels.weaponPrime.Size       = UDim2.new(1, 40, 0, 16)
+            self.labels.weaponPrime.Position   = UDim2.new(0.5, 0, 0, -52)
             self.labels.weaponPrime.Visible    = true
         else
             self.labels.weaponPrime.Visible = false
@@ -1593,6 +1727,9 @@ function ESPClass:Update()
         if found2 then
             self.labels.weaponPrime2.Text       = "[Prime2] " .. found2
             self.labels.weaponPrime2.TextColor3 = pwESP.PrimeColor or Color3.fromRGB(165,127,159)
+            self.labels.weaponPrime2.TextSize   = 12
+            self.labels.weaponPrime2.Size       = UDim2.new(1, 40, 0, 16)
+            self.labels.weaponPrime2.Position   = UDim2.new(0.5, 0, 0, -68)
             self.labels.weaponPrime2.Visible    = true
         else
             self.labels.weaponPrime2.Visible = false
@@ -1608,22 +1745,31 @@ function ESPClass:Update()
         local heldObj = holding and holding.Value
         local heldName = heldObj and heldObj.Name or nil
 
+        local equippedBotGap = 6
+
         if heldName then
             if pwESP.EquippedMode == "Image" then
                 local icon = getWeaponIcon(heldName)
                 if icon and icon ~= "" then
-                    self.labels.weaponEquippedImage.Image   = icon
-                    self.labels.weaponEquippedImage.Visible = true
-                    self.labels.weaponEquipped.Visible      = false
+                    self.labels.weaponEquippedImage.Image    = icon
+                    self.labels.weaponEquippedImage.Position = UDim2.new(0.5, 0, 1, equippedBotGap)
+                    self.labels.weaponEquippedImage.Visible  = true
+                    self.labels.weaponEquipped.Visible       = false
                 else
                     self.labels.weaponEquipped.Text       = "[Gun] " .. heldName
                     self.labels.weaponEquipped.TextColor3 = pwESP.EquippedColor or Color3.fromRGB(255,220,80)
+                    self.labels.weaponEquipped.TextSize   = 12
+                    self.labels.weaponEquipped.Size       = UDim2.new(1, 40, 0, 16)
+                    self.labels.weaponEquipped.Position   = UDim2.new(0.5, 0, 1, equippedBotGap)
                     self.labels.weaponEquipped.Visible    = true
                     self.labels.weaponEquippedImage.Visible = false
                 end
             else
                 self.labels.weaponEquipped.Text       = "[Gun] " .. heldName
                 self.labels.weaponEquipped.TextColor3 = pwESP.EquippedColor or Color3.fromRGB(255,220,80)
+                self.labels.weaponEquipped.TextSize   = 12
+                self.labels.weaponEquipped.Size       = UDim2.new(1, 40, 0, 16)
+                self.labels.weaponEquipped.Position   = UDim2.new(0.5, 0, 1, equippedBotGap)
                 self.labels.weaponEquipped.Visible    = true
                 self.labels.weaponEquippedImage.Visible = false
             end
@@ -1991,9 +2137,9 @@ RunService.RenderStepped:Connect(function()
 
     for item, lbl in pairs(ItemESPLabels) do
         if not item or not item.Parent then
-            removeItemLabel(item)
-            continue
-        end
+    lbl.Visible = false
+    continue
+end
 
         local cat = getItemCategory(item)
         local show = (cat == "weapon" and iesp.WeaponESP)
@@ -2019,6 +2165,109 @@ RunService.RenderStepped:Connect(function()
                 else
                     lbl.Visible = false
                 end
+            end
+        else
+            lbl.Visible = false
+        end
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════
+-- EXIT ESP
+-- ═══════════════════════════════════════════════════════
+getgenv().ExitESP = getgenv().ExitESP or {
+    Enabled = false,
+    Color   = Color3.fromRGB(0, 255, 0),
+    Text    = "Exit",
+}
+
+local ExitESPLabels = {}
+
+local function createExitLabel(part)
+    if ExitESPLabels[part] then return end
+    local lbl = Drawing.new("Text")
+    lbl.Size         = 16
+    lbl.Font         = Drawing.Fonts.UI
+    lbl.Outline      = true
+    lbl.OutlineColor = Color3.fromRGB(0, 0, 0)
+    lbl.Center       = true
+    lbl.Visible      = false
+    ExitESPLabels[part] = lbl
+end
+
+local function removeExitLabel(part)
+    local lbl = ExitESPLabels[part]
+    if lbl then
+        pcall(function() lbl:Remove() end)
+        ExitESPLabels[part] = nil
+    end
+end
+
+-- Collects every BasePart under ExitLocations (including the folder/model
+-- itself if it happens to be a BasePart, and any nested children).
+local function collectExitParts()
+    local parts = {}
+    local root = workspace:FindFirstChild("NoCollision")
+        and workspace.NoCollision:FindFirstChild("ExitLocations")
+    if not root then return parts end
+
+    if root:IsA("BasePart") then
+        table.insert(parts, root)
+    end
+
+    for _, desc in pairs(root:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            table.insert(parts, desc)
+        end
+    end
+
+    return parts
+end
+
+-- Initial population
+for _, part in ipairs(collectExitParts()) do
+    createExitLabel(part)
+end
+
+-- Keep labels in sync if ExitLocations contents change at runtime
+do
+    local root = workspace:FindFirstChild("NoCollision")
+        and workspace.NoCollision:FindFirstChild("ExitLocations")
+    if root then
+        root.DescendantAdded:Connect(function(desc)
+            if desc:IsA("BasePart") then
+                createExitLabel(desc)
+            end
+        end)
+        root.DescendantRemoving:Connect(function(desc)
+            if ExitESPLabels[desc] then
+                removeExitLabel(desc)
+            end
+        end)
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+
+    local exitEsp = getgenv().ExitESP
+
+    for part, lbl in pairs(ExitESPLabels) do
+        if not part or not part.Parent then
+            removeExitLabel(part)
+            continue
+        end
+
+        if exitEsp.Enabled then
+            local sp, onScreen = cam:WorldToViewportPoint(part.Position)
+            if onScreen and sp.Z > 0 then
+                lbl.Text     = exitEsp.Text or "Exit"
+                lbl.Position = Vector2.new(sp.X, sp.Y)
+                lbl.Color    = exitEsp.Color or Color3.fromRGB(0, 255, 0)
+                lbl.Visible  = true
+            else
+                lbl.Visible = false
             end
         else
             lbl.Visible = false
@@ -2130,7 +2379,46 @@ local function getArmChamEnum()
     return Enum.Material.Neon
 end
 
-local function getViewModel()
+local _viewmodelC0Cache = {}
+
+local function resetViewmodelOffsets()
+    for weld, originalC0 in pairs(_viewmodelC0Cache) do
+        pcall(function()
+            if weld and weld.Parent then
+                weld.C0 = originalC0
+            end
+        end)
+    end
+    _viewmodelC0Cache = {}
+end
+
+updateViewmodelOffsets = function(vm)
+    if not vm or not getgenv().allvars.viewmodoffset then return end
+    local hrp = vm:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local offset = Vector3.new(
+        getgenv().allvars.viewmodX,
+        getgenv().allvars.viewmodY,
+        getgenv().allvars.viewmodZ
+    )
+
+    local function applyOffset(name)
+        local weld = hrp:FindFirstChild(name)
+        if not weld or not weld:IsA("Motor6D") then return end
+        if not _viewmodelC0Cache[weld] then
+            _viewmodelC0Cache[weld] = weld.C0
+        end
+        weld.C0 = _viewmodelC0Cache[weld] + offset
+    end
+
+    applyOffset("LeftUpperArm")
+    applyOffset("RightUpperArm")
+    applyOffset("ItemRoot")
+    applyOffset("Motor6D")
+end
+
+getViewModel = function()
     local cam = workspace.CurrentCamera
     if not cam then return nil end
     return cam:FindFirstChild("ViewModel")
@@ -2240,7 +2528,7 @@ end
 -- ═══════════════════════════════════════════════════════
 -- SMOOTH CROSSHAIR
 -- ═══════════════════════════════════════════════════════
-local crosshairEnabled = false
+getgenv().crosshairEnabled = getgenv().crosshairEnabled or false
 local crosshairColor   = Color3.fromRGB(255, 255, 255)
 local crosshairSize    = 8
 local crosshairThick   = 1.5
@@ -2260,7 +2548,7 @@ for i = 1, 4 do
 end
 
 RunService.RenderStepped:Connect(function()
-    if not crosshairEnabled then
+    if not getgenv().crosshairEnabled then
         for _, l in ipairs(crossLines) do l.Visible = false end
         return
     end
@@ -2288,14 +2576,14 @@ end)
 -- ═══════════════════════════════════════════════════════
 -- HIT EFFECT
 -- ═══════════════════════════════════════════════════════
-local hitEffectEnabled = true
+getgenv().hitEffectEnabled = getgenv().hitEffectEnabled or true
 local hitEffectColor   = Color3.fromRGB(255, 60, 60)
 local hitEffectSize    = 14
 local hitEffectDur     = 0.45
 local hitEffectThick   = 1.8
 
 local function spawnHitEffect(worldPos)
-    if not hitEffectEnabled then return end
+    if not getgenv().hitEffectEnabled then return end
     local sp, onScreen = Camera:WorldToViewportPoint(worldPos)
     if not onScreen or sp.Z <= 0 then return end
 
@@ -2465,7 +2753,7 @@ end
 LocalPlayer.CharacterAdded:Connect(function()
     if getgenv().Flying then
         task.wait(0.1)
-        getgenv().Flying = false
+        StopFly()
     end
 end)
 
@@ -2501,6 +2789,28 @@ AimLeft:AddToggle("SilentAimToggle", {
     Callback = function(v) getgenv().Aimbot.SilentAim = v end,
 })
 
+AimLeft:AddToggle("SilentForceHitToggle", {
+    Text = "Silent Force-Hit", Default = false,
+    Callback = function(v) getgenv().Aimbot.SilentForceHit = v end,
+})
+
+AimLeft:AddToggle("SilentAutoWallToggle", {
+    Text = "Silent Auto-Wall", Default = false,
+    Callback = function(v) getgenv().Aimbot.SilentAutoWall = v end,
+})
+
+AimLeft:AddToggle("HoldBulletsToggle", {
+    Text = "Hold Bullets", Default = false,
+    Callback = function(v) getgenv().Aimbot.HoldBullets = v end,
+})
+
+AimLeft:AddDropdown("AutoShootHitscan", {
+    Text = "Auto-shoot Hitscan", Default = "FaceHitBox",
+    Multi = true,
+    Values = {"FaceHitBox","HeadTopHitBox","Head","UpperTorso","LowerTorso","LeftUpperArm","LeftLowerArm","LeftHand","RightUpperArm","RightLowerArm","RightHand","RightUpperLeg","RightLowerLeg","RightFoot","LeftUpperLeg","LeftLowerLeg","LeftFoot"},
+    Callback = function(tbl) getgenv().Aimbot.AutoShootHitscan = tbl end,
+})
+
 AimLeft:AddToggle("ShowFOVToggle", {
     Text = "Show FOV Circle", Default = false,
     HasColorPicker = true,
@@ -2533,11 +2843,7 @@ AimLeft:AddToggle("AutoShootToggle", {
     Text = "Auto Shoot", Default = false,
     Callback = function(v) getgenv().Aimbot.AutoShoot = v end,
 })
-AimLeft:AddToggle("InstantHitToggle", {
-    Text = "Instant Hit", Default = false,
-    Tooltip = "Redirects bullet raycasts straight at target — needs a target in FOV",
-    Callback = function(v) getgenv().Aimbot.InstantHit = v end,
-})
+-- Instant Hit removed; use Silent Force-Hit instead
 AimLeft:AddSlider("AutoShootRateSlider", {
     Text = "Auto Shoot Rate (s)", Min = 0.05, Max = 1, Default = 0.12, Rounding = 2,
     Callback = function(v) getgenv().Aimbot.AutoShootRate = v end,
@@ -2553,13 +2859,9 @@ AimLeft:AddSlider("HitChanceSlider", {
 
 AimRight:AddDropdown("TargetPartDropdown", {
     Text = "Target Part",
-    Values = {"Head","HumanoidRootPart","Torso","UpperTorso"},
+    Values = {"FaceHitBox", "Head", "HumanoidRootPart", "UpperTorso"},
     Default = 1,
     Callback = function(v) getgenv().Aimbot.TargetPart = v end,
-})
-AimRight:AddToggle("InstantEquipToggle", {
-    Text = "Instant Equip", Default = false,
-    Callback = function(v) getgenv().GunMods.InstantEquip = v end,
 })
 AimRight:AddToggle("BulletTracersToggle", {
     Text = "Bullet Tracers", Default = false,
@@ -2575,6 +2877,24 @@ AimRight:AddSlider("TracerTimeSlider", {
     Text = "Tracer Duration", Min = 0.5, Max = 5, Default = 2, Rounding = 1,
     Callback = function(v) getgenv().BulletTracers.TimeAlive = v end,
 })
+
+local function spoofVerifiedPos(targetPosition)
+    local playerData = ReplicatedStorage.Players:FindFirstChild(LocalPlayer.Name)
+    if playerData then
+        local uac = playerData:FindFirstChild("Status") 
+            and playerData.Status:FindFirstChild("UAC")
+        if uac then
+            uac:SetAttribute("LastVerifiedPos", targetPosition)
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if getgenv().Aimbot.Enabled and cachedTarget then
+        spoofVerifiedPos(cachedTarget.Position - Vector3.new(nil, nil, nil))
+    end
+end)
+
 
 -- ── Visuals Tab ───────────────────────────────────────
 local VisualsTab     = Window:AddTab("Visuals")
@@ -2601,6 +2921,12 @@ ESPGroup:AddToggle("ESPBoxToggle", {
     HasColorPicker = true,
     Callback      = function(v) getgenv().ESP.Box.Enabled = v end,
     ColorCallback = function(c) getgenv().ESP.Box.Color   = c end,
+})
+ESPGroup:AddToggle("ESPBoxOutlineToggle", {
+    Text = "Box Outline", Default = true,
+    HasColorPicker = true,
+    Callback      = function(v) getgenv().ESP.Box.OutlineEnabled = v end,
+    ColorCallback = function(c) getgenv().ESP.Box.OutlineColor   = c end,
 })
 ESPGroup:AddToggle("ESPHealthBarToggle", {
     Text = "Health Bar", Default = false,
@@ -2728,6 +3054,14 @@ ItemESPGroup:AddToggle("ItemJunkESPToggle", {
     Tooltip       = "Show name on all other dropped items",
     Callback      = function(v) getgenv().ItemESP.JunkESP = v end,
     ColorCallback = function(c) getgenv().ItemESP.JunkColor = c end,
+})
+ItemESPGroup:AddToggle("ExitESPToggle", {
+    Text          = "Exit ESP",
+    Default       = false,
+    HasColorPicker = true,
+    Tooltip       = "Label every part under workspace.NoCollision.ExitLocations",
+    Callback      = function(v) getgenv().ExitESP.Enabled = v end,
+    ColorCallback = function(c) getgenv().ExitESP.Color = c end,
 })
 
 PlayerWepGroup:AddToggle("PlayerWepHipToggle", {
@@ -2878,6 +3212,72 @@ PlayerMisc:AddToggle("NoSlowdownToggle", {
     SlowDown = v 
     end,
 })
+
+PlayerMisc:AddToggle("FlyStressBar", {
+    Text = "Fly Stress Indicator",
+    Default = false,
+    Callback = function(v)
+        local existing = LocalPlayer.PlayerGui:FindFirstChild("FlyStressGui")
+        if existing then existing:Destroy() end
+        if getgenv().FlyStressConn then
+            getgenv().FlyStressConn:Disconnect()
+            getgenv().FlyStressConn = nil
+        end
+        if not v then return end
+
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "FlyStressGui"
+        gui.ResetOnSpawn = false
+        gui.Parent = LocalPlayer.PlayerGui
+
+        local bg = Instance.new("Frame")
+        bg.Size = UDim2.fromOffset(120, 8)
+        bg.Position = UDim2.new(0.5, -60, 0, 68)
+        bg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        bg.BorderSizePixel = 0
+        Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+        bg.Parent = gui
+
+        local bar = Instance.new("Frame")
+        bar.Size = UDim2.fromScale(0, 1)
+        bar.BackgroundColor3 = Color3.fromRGB(100, 220, 100)
+        bar.BorderSizePixel = 0
+        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+        bar.Parent = bg
+
+        local RS_Player = ReplicatedStorage.Players:WaitForChild(LocalPlayer.Name)
+        local MAX_DRIFT = 6
+
+        getgenv().FlyStressConn = RunService.Heartbeat:Connect(function()
+            local character = LocalPlayer.Character
+            if not character then return end
+            local root = character:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            local lastVerified = RS_Player.Status.UAC:GetAttribute("LastVerifiedPos")
+            if not lastVerified then return end
+
+            local drift = (root.Position - lastVerified).Magnitude
+            local fill = math.clamp(drift / MAX_DRIFT, 0, 1)
+
+            bar.Size = UDim2.fromScale(fill, 1)
+
+            if fill < 0.5 then
+                bar.BackgroundColor3 = Color3.fromRGB(
+                    math.floor(fill * 2 * 220),
+                    220,
+                    100
+                )
+            else
+                bar.BackgroundColor3 = Color3.fromRGB(
+                    220,
+                    math.floor((1 - fill) * 2 * 220),
+                    100
+                )
+            end
+        end)
+    end,
+})
 PlayerMisc:AddToggle("AntiAimSpinToggle", {
     Text = "AntiAim Spin", Default = false,
     Callback = function(v)
@@ -2888,8 +3288,103 @@ PlayerMisc:AddToggle("AntiAimSpinToggle", {
 })
 GunModsGroup:AddToggle("FastAim", {
     Text = "Fast Aim", Default = false,
-    Callback = function(v) getgenv().allvars.fastaim = v end,
+    Callback = function(v)
+        getgenv().allvars.fastaim = v
+        updateAllGunMods()
+    end,
 })
+GunModsGroup:AddToggle("NoSwayToggle", {
+    Text = "No Sway", Default = false,
+    Callback = function(v)
+        getgenv().allvars.noswaybool = v
+        updateAllGunMods()
+    end,
+})
+GunModsGroup:AddToggle("NoJumpTilt", {
+    Text = "No Jump Tilt", Default = false,
+    Callback = function(v)
+        getgenv().allvars.nojumptilt = v
+        updateAllGunMods()
+    end,
+})
+GunModsGroup:AddToggle("NoRecoilToggle", {
+    Text = "No Recoil", Default = false,
+    Callback = function(v)
+        getgenv().allvars.norecoil = v
+        if v then task.spawn(hookSprings) end
+    end,
+})
+GunModsGroup:AddToggle("NoSprayToggle", {
+    Text = "No Spray", Default = false,
+    Callback = function(v)
+        getgenv().allvars.nospray = v
+        if v then task.spawn(hookSprings) end
+        updateAllGunMods()
+    end,
+})
+-- ── No Spread ─────────────────────────────────────────────────────────────
+-- bullet.lua reads AccuracyDeviation fresh from ReplicatedStorage.AmmoTypes
+-- on every single shot (line 162: v63 = v58:GetAttribute("AccuracyDeviation"))
+-- The toggle just sets the flag. The actual zeroing happens inside the
+-- BulletModule hook immediately before oldBullet fires so there is zero
+-- window for the game to reset it between our SetAttribute and the read.
+GunModsGroup:AddToggle("NoSpreadToggle", {
+    Text    = "No Spread",
+    Default = false,
+    Callback = function(v)
+        getgenv().NoSpread = v
+    end,
+})
+
+GunModsGroup:AddToggle("NoDropToggle", {
+    Text = "No Bullet Drop", Default = false,
+    Callback = function(v)
+        getgenv().allvars.NoBulletDrop = v
+        updateAllGunMods()
+    end,
+})
+
+GunModsGroup:AddToggle("NoWeaponBobToggle", {
+    Text = "No Weapon Bob", Default = false,
+    Callback = function(v)
+        getgenv().allvars.nobob = v
+        updateAllGunMods()
+    end,
+})
+
+GunModsGroup:AddToggle("FastReloadToggle", {
+    Text = "Instant Reload", Default = false,
+    Callback = function(v)
+        getgenv().allvars.fastReload = v
+        updateAllGunMods()
+    end,
+})
+GunModsGroup:AddToggle("FastEquipToggle", {
+    Text = "Fast Equip", Default = false,
+    Callback = function(v)
+        getgenv().allvars.fastequip = v
+        updateAllGunMods()
+    end,
+})
+GunModsGroup:AddToggle("InstantEquipToggle", {
+    Text = "Instant Equip", Default = false,
+    Callback = function(v) getgenv().GunMods.InstantEquip = v end,
+})
+GunModsGroup:AddToggle("ExtendedRangeToggle", {
+    Text = "Extended Range", Default = false,
+    Callback = function(v)
+        getgenv().allvars.extendedrange = v
+        updateAllGunMods()
+    end,
+})
+GunModsGroup:AddToggle("InstantReductionToggle", {
+    Text = "Instant Recoil Reduction", Default = false,
+    Callback = function(v)
+        getgenv().allvars.instantreduction = v
+        updateAllGunMods()
+    end,
+})
+
 PlayerMisc:AddSlider("SpinSpeedSlider", {
     Text = "Spin Speed", Min = 1, Max = 25, Default = 5, Rounding = 1,
     Callback = function(v) SpinSpeed = v end,
@@ -2905,70 +3400,6 @@ PlayerMisc:AddSlider("UpAngleSlider", {
 PlayerMisc:AddToggle("RandomUp", {
     Text = "Random Up Angle", Default = false,
     Callback = function(v) random = v end,
-})
-
-GunModsGroup:AddToggle("NoSwayToggle", {
-    Text = "No Sway", Default = false,
-    Callback = function(v) getgenv().allvars.noswaybool = v end,
-})
-GunModsGroup:AddToggle("NoJumpTilt", {
-    Text = "No Jump Tilt", Default = false,
-    Callback = function(v) getgenv().allvars.nojumptilt = v end,
-})
-
-
-GunModsGroup:AddToggle("NoRecoilToggle", {
-    Text = "No Recoil", Default = false,
-    Callback = function(v)
-        getgenv().allvars.norecoil = v
-        if v then task.spawn(hookSprings) end
-    end,
-})
-local originalAccuracy = {}
-local ammoFolder = ReplicatedStorage:WaitForChild("AmmoTypes")
-
-pcall(function()
-    for _, ammo in ipairs(ammoFolder:GetChildren()) do
-        if ammo:GetAttribute("AccuracyDeviation") then
-            originalAccuracy[ammo.Name] = ammo:GetAttribute("AccuracyDeviation")
-        end
-    end
-end)
-
-
-GunModsGroup:AddToggle('No Spread', {
-    Text = 'No Spread', 
-    Default = false, 
-    Callback = function(value)
-        if value then
-            for _, v in ipairs(ammoFolder:GetChildren()) do
-                if v:GetAttribute("AccuracyDeviation") then
-                    v:SetAttribute("AccuracyDeviation", 0)
-                end
-            end
-        else
-            for _, v in ipairs(ammoFolder:GetChildren()) do
-                if originalAccuracy[v.Name] then
-                    v:SetAttribute("AccuracyDeviation", originalAccuracy[v.Name])
-                end
-            end
-        end
-    end
-})
-
-GunModsGroup:AddToggle("NoDropToggle", {
-    Text = "No Bullet Drop", Default = false,
-    Callback = function(v)
-        getgenv().allvars.NoBulletDrop = v
-    end,
-})
-
-GunModsGroup:AddToggle("NoWeaponBobToggle", {
-    Text = "No Weapon Bob", Default = false,
-    Callback = function(v)
-        getgenv().allvars.nobob = v
-        if v then task.spawn(hookSprings) end
-    end,
 })
 
 HitFXGroup:AddToggle("HitSoundToggle", {
@@ -3000,26 +3431,44 @@ HitFXGroup:AddSlider("HitSoundVol", {
 -- where weaponOffset is intentionally excluded.
 HitFXGroup:AddToggle("ViewmodelOffsetToggle", {
     Text = "Viewmodel Offset", Default = false,
-    Callback = function(v) getgenv().allvars.viewmodoffset = v end,
+    Callback = function(v)
+        getgenv().allvars.viewmodoffset = v
+        if v then
+            local vm = getViewModel()
+            if vm then updateViewmodelOffsets(vm) end
+        else
+            resetViewmodelOffsets()
+        end
+    end,
 })
 HitFXGroup:AddSlider('viewmodel_x', { Text = 'X', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
-    Callback = function(v) getgenv().allvars.viewmodX = v end,
+    Callback = function(v)
+        getgenv().allvars.viewmodX = v
+        if getgenv().allvars.viewmodoffset then
+            local vm = getViewModel()
+            if vm then updateViewmodelOffsets(vm) end
+        end
+    end,
 })
 HitFXGroup:AddSlider('viewmodel_y', { Text = 'Y', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
-    Callback = function(v) getgenv().allvars.viewmodY = v end,
+    Callback = function(v)
+        getgenv().allvars.viewmodY = v
+        if getgenv().allvars.viewmodoffset then
+            local vm = getViewModel()
+            if vm then updateViewmodelOffsets(vm) end
+        end
+    end,
 })
 HitFXGroup:AddSlider('viewmodel_z', { Text = 'Z', Default = 0, Min = -5, Max = 5, Rounding = 2, Compact = true,
-    Callback = function(v) getgenv().allvars.viewmodZ = v end,
+    Callback = function(v)
+        getgenv().allvars.viewmodZ = v
+        if getgenv().allvars.viewmodoffset then
+            local vm = getViewModel()
+            if vm then updateViewmodelOffsets(vm) end
+        end
+    end,
 })
 
--- NOTE: The old vmpos() / storedC0 / cacheOriginalC0s block and its
--- task.spawn loop have been REMOVED entirely. That system was fighting
--- the updateClient hook every 0.03s and was modifying ViewModel Motor6D
--- C0 values, which are a completely different layer to what the FPS module
--- uses for weapon rendering. It had zero visual effect and only caused
--- conflicts. The updateClient hook above is the correct place.
-
--- ── World Tab ─────────────────────────────────────────
 local WorldTab   = Window:AddTab("World")
 local EnvGroup   = WorldTab:AddLeftGroupbox("Environment")
 local LightGroup = WorldTab:AddRightGroupbox("Lighting")
@@ -3158,7 +3607,7 @@ RunService:BindToRenderStep("ZH_ThirdPerson", Enum.RenderPriority.Camera.Value +
         end
     end
 
-    local pivot = hrp.Position + Vector3.new(0, ThirdPersonHeight, 0)
+    local pivot = hrp.Position + Vector3.new(0, getgenv().ThirdPersonHeight, 0)
 
     local orbitCF  = CFrame.new(pivot)
                    * CFrame.Angles(0, _3pYaw, 0)
@@ -3204,62 +3653,111 @@ CamGroup:AddToggle("FreeCamToggle", {
             disableFreeCam() end
     end,
 })
+
 CamGroup:AddSlider("FreeCamSpeedSlider", {
     Text = "Cam Speed", Min = 5, Max = 200, Default = 20, Rounding = 0,
     Callback = function(v) FreeCamSpeed = v end,
 })
 CamGroup:AddToggle("FOVToggle", {
-    Text = "Custom FOV", Default = false,
-    Callback = function(v) getgenv().World.FOVEnabled = v end,
-})
--- FIX 2: FovSlider now also updates BaseFov so AimZoom restores to the
--- correct value after un-ADS instead of always snapping back to 70.
-CamGroup:AddSlider("FovSlider", {
-    Text = "FOV", Min = 30, Max = 120, Default = 70, Rounding = 1,
+    Text    = "Custom FOV",
+    Default = false,
+    Tooltip = "Force a specific FOV regardless of game settings",
     Callback = function(v)
-        TargetFOV = v
-        BaseFov   = v   -- keep AimZoom un-aim restore target in sync
-        if getgenv().World.FOVEnabled then
-            local cam = (CamMod and CamMod.u4) or Camera
-            cam.FieldOfView = v
+        getgenv().World.FOVEnabled = v
+        if v then
+            -- Push TargetFOV to CamMod via the DefaultFOV attribute so CamMod
+            -- picks it up through its GetAttributeChangedSignal listener
+            local gs = game.ReplicatedStorage.Players
+                :WaitForChild(LocalPlayer.Name)
+                :WaitForChild("Settings")
+                :WaitForChild("GameplaySettings")
+            pcall(function() gs:SetAttribute("DefaultFOV", TargetFOV) end)
+            workspace.CurrentCamera.FieldOfView = TargetFOV
+        else
+            -- Restore: let game set FOV naturally via DefaultFOV attribute
+            local gs = game.ReplicatedStorage.Players
+                :WaitForChild(LocalPlayer.Name)
+                :WaitForChild("Settings")
+                :WaitForChild("GameplaySettings")
+            pcall(function()
+                local orig = gs:GetAttribute("DefaultFOV") or 70
+                workspace.CurrentCamera.FieldOfView = orig
+                BaseFov = orig
+            end)
         end
     end,
 })
 
+CamGroup:AddSlider("FovSlider", {
+    Text = "FOV", Min = 30, Max = 120, Default = 70, Rounding = 1,
+    Callback = function(v)
+        TargetFOV = v
+        BaseFov   = v   -- keep AimZoom divisor accurate
+        BaseCameraFOV = v  -- keep aim-FOV-circle scaling accurate
+        if getgenv().World.FOVEnabled then
+            workspace.CurrentCamera.FieldOfView = v
+            -- Push to CamMod via attribute so it doesn't fight us
+            local gs = game.ReplicatedStorage.Players
+                :WaitForChild(LocalPlayer.Name)
+                :WaitForChild("Settings")
+                :WaitForChild("GameplaySettings")
+            pcall(function() gs:SetAttribute("DefaultFOV", v) end)
+        end
+    end,
+})
 
 CamGroup:AddToggle("AimZoomToggle", {
-    Text    = "insta Aim",
+    Text    = "Aim Zoom",
     Default = false,
-    Tooltip = "Instant Aim",
+    Tooltip = "Zoom in via CamMod when holding RMB (same system as ADS)",
     Callback = function(v)
-        AimZoomEnabled = v
-        if not v and _aimZoomActive  then
+        getgenv().AimZoomEnabled = v
+        if not v and _aimZoomActive then
             _aimZoomActive = false
-            local cam = workspace.CurrentCamera
-            if cam then
-                TweenService:Create(cam,
-                    TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                    { FieldOfView = TargetFOV or BaseFov or 70 }
-                ):Play()
-            end
-            if CamMod then
-                pcall(function()
-                    CamMod:SetZoomTarget(1, false, 0.12,
-                        Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                end)
-            end
+            pcall(function() CamMod:SetZoomTarget(1, nil, 0.12) end)
         end
     end,
 })
 
 CamGroup:AddSlider("AimZoomFOVSlider", {
-    Text     = "Aim Zoom",
+    Text     = "Aim Zoom FOV",
     Min      = 5,
     Max      = 120,
     Default  = 40,
     Rounding = 0,
-    Tooltip  = "FOV when holding RMB",
-    Callback = function(v) AimZoomFOV = v end,
+    Tooltip  = "FOV when holding RMB. Uses CamMod:SetZoomTarget — same as the game's ADS zoom.",
+    Callback = function(v)
+        getgenv().AimZoomFOV = v
+        -- If currently aiming, update live
+        if _aimZoomActive and getgenv().AimZoomEnabled then
+            pcall(function() CamMod:SetZoomTarget(getAimDivisor(), nil, 0.08) end)
+        end
+    end,
+})
+
+CamGroup:AddToggle("AdsFovToggle", {
+    Text    = "ADS FOV Override",
+    Default = false,
+    Tooltip = "Override per-gun AimFOV/ZoomFOV in SettingsModule",
+    Callback = function(v)
+        getgenv().allvars.adsfovbool = v
+        if v then applyZoomToAllGuns() end
+    end,
+})
+
+CamGroup:AddSlider("AdsFovSlider", {
+    Text     = "ADS FOV",
+    Min      = 30,
+    Max      = 120,
+    Default  = 90,
+    Rounding = 1,
+    Tooltip  = "FOV value written into gun SettingsModule.AimFOV and .ZoomFOV",
+    Callback = function(v)
+        getgenv().currentZoomValue = v
+        if getgenv().allvars.adsfovbool then
+            applyZoomToAllGuns()
+        end
+    end,
 })
 
 -- ── Third Person ──────────────────────────────────────
@@ -3292,7 +3790,7 @@ CamGroup:AddSlider("ThirdPersonDistSlider", {
 })
 CamGroup:AddSlider("ThirdPersonHeightSlider", {
     Text = "3P Height", Min = -5, Max = 5, Default = 2, Rounding = 1,
-    Callback = function(v) ThirdPersonHeight = v end,
+    Callback = function(v) getgenv().ThirdPersonHeight = v end,
 })
 
 -- ── Skybox Tab ────────────────────────────────────────
@@ -3314,7 +3812,7 @@ local HitFXGroupFX = FXTab:AddRightGroupbox("Hit Effect")
 CrossGroup:AddToggle("CrosshairEnable", {
     Text = "Enable Crosshair", Default = false,
     HasColorPicker = true,
-    Callback      = function(v) crosshairEnabled = v end,
+    Callback      = function(v) getgenv().crosshairEnabled = v end,
     ColorCallback = function(c)
         crosshairColor = c
         for _, l in ipairs(crossLines) do l.Color = c end
@@ -3343,7 +3841,7 @@ CrossGroup:AddSlider("CrosshairSmooth", {
 HitFXGroupFX:AddToggle("HitEffectToggle", {
     Text = "Spinning Hit Effect", Default = true,
     HasColorPicker = true,
-    Callback      = function(v) hitEffectEnabled = v end,
+    Callback      = function(v) getgenv().hitEffectEnabled = v end,
     ColorCallback = function(c) hitEffectColor   = c end,
 })
 HitFXGroupFX:AddSlider("HitEffectSize", {
@@ -3355,10 +3853,6 @@ HitFXGroupFX:AddSlider("HitEffectDur", {
     Callback = function(v) hitEffectDur = v end,
 })
 
-
--- ═══════════════════════════════════════════════════════
--- CONFIG SYSTEM
--- ═══════════════════════════════════════════════════════
 local HttpService = game:GetService("HttpService")
 local CFG_FOLDER  = "ZestHub"
 local CFG_SUB     = "ZestHub/configs"
